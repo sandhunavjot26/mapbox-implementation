@@ -35,11 +35,15 @@ export function EntityHoverPopup() {
     return null;
   }
 
-  const { entityType, data, screenPosition } = popupState;
+  const { entityType, data, screenPosition, isPinned } = popupState;
 
   // Offset from cursor
   const offsetX = 12;
   const offsetY = 12;
+
+  const popupClassName = isPinned
+    ? "bg-slate-900 border-2 border-cyan-500/80 backdrop-blur-sm px-3 py-2 min-w-[180px] shadow-lg shadow-cyan-500/10"
+    : "bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]";
 
   return (
     <div
@@ -49,7 +53,7 @@ export function EntityHoverPopup() {
         top: screenPosition.y + offsetY,
       }}
     >
-      <div className="bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]">
+      <div className={popupClassName}>
         {entityType === "asset" ? (
           <AssetPopupContent data={data as Asset} />
         ) : (

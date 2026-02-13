@@ -26,86 +26,80 @@ function targetsToGeoJSON(targets: Target[]): GeoJSON.FeatureCollection {
 
 // Add target layers to map
 export function addTargetLayers(map: mapboxgl.Map) {
-  // Check if source already exists
   if (map.getSource("targets")) return;
 
-  // Add GeoJSON source with promoteId for feature-state support
   map.addSource("targets", {
     type: "geojson",
     data: targetsToGeoJSON(MOCK_TARGETS),
-    promoteId: "id", // Required for setFeatureState
+    promoteId: "id",
   });
 
-  // Layer 1: Target outer glow/pulse effect
+  // Layer 1: Glow
   map.addLayer({
     id: "targets-glow",
     type: "circle",
     source: "targets",
     paint: {
-      // Larger glow radius when selected
       "circle-radius": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        20, // selected
-        12, // default
+        20,
+        12,
       ],
       "circle-color": [
         "case",
         ["==", ["get", "classification"], "ENEMY"],
-        "#ef4444", // red-500
+        "#ef4444",
         ["==", ["get", "classification"], "FRIENDLY"],
-        "#22c55e", // green-500
-        "#f59e0b", // amber-500 (UNKNOWN)
+        "#22c55e",
+        "#f59e0b",
       ],
-      // Increased opacity when selected
       "circle-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        0.6, // selected
-        0.3, // default
+        0.6,
+        0.3,
       ],
       "circle-blur": 0.5,
     },
   });
 
-  // Layer 2: Target point markers
+  // Layer 2: Target points
   map.addLayer({
     id: "targets-points",
     type: "circle",
     source: "targets",
     paint: {
-      // Larger radius when selected
       "circle-radius": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        9, // selected
-        7, // default
+        9,
+        7,
       ],
       "circle-color": [
         "case",
         ["==", ["get", "classification"], "ENEMY"],
-        "#ef4444", // red-500
+        "#ef4444",
         ["==", ["get", "classification"], "FRIENDLY"],
-        "#22c55e", // green-500
-        "#f59e0b", // amber-500 (UNKNOWN)
+        "#22c55e",
+        "#f59e0b",
       ],
-      // Thicker stroke when selected
       "circle-stroke-width": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        3, // selected
-        2, // default
+        3,
+        2,
       ],
       "circle-stroke-color": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        "#ffffff", // selected - white border
-        "#0a0a0a", // default - dark border
+        "#ffffff",
+        "#0a0a0a",
       ],
     },
   });
 
-  // Layer 3: Inner dot for target center
+  // Layer 3: Center dot
   map.addLayer({
     id: "targets-center",
     type: "circle",
@@ -115,6 +109,4 @@ export function addTargetLayers(map: mapboxgl.Map) {
       "circle-color": "#ffffff",
     },
   });
-
-  console.log("Target layers added to map");
 }

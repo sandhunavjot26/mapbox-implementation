@@ -9,6 +9,7 @@ import { TrackingPanel } from "@/components/panels/TrackingPanel";
 
 import { MOCK_ASSETS } from "@/mock/assets";
 import { MOCK_TARGETS } from "@/mock/targets";
+import { CommandConsole } from "@/components/commands/CommandConsole";
 
 // Dynamic import to prevent SSR issues with Mapbox
 const MapContainer = dynamic(
@@ -37,11 +38,13 @@ const EntityHoverPopup = dynamic(
   { ssr: false }
 );
 
+
 export default function DashboardPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [assetsCollapsed, setAssetsCollapsed] = useState(false);
   const [trackingCollapsed, setTrackingCollapsed] = useState(false);
+  const [mapMode, setMapMode] = useState<"2D" | "3D">("2D");
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("isAuthenticated");
@@ -79,9 +82,36 @@ export default function DashboardPage() {
           <h1 className="text-lg font-mono font-bold tracking-wide text-slate-100">
             Integrated Sensor Fusion & Situational Awareness
           </h1>
-          <div className="flex items-center gap-2">
-            <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-slate-400 text-xs font-mono">ONLINE</span>
+          <div className="flex items-center gap-4">
+            {/* 2D / 3D map toggle */}
+            <div className="flex rounded border border-slate-700 bg-slate-900/80 overflow-hidden">
+              <button
+                type="button"
+                onClick={() => setMapMode("2D")}
+                className={`px-2.5 py-1 text-xs font-mono transition-colors ${
+                  mapMode === "2D"
+                    ? "bg-cyan-600 text-slate-100 border-cyan-500"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                2D
+              </button>
+              <button
+                type="button"
+                onClick={() => setMapMode("3D")}
+                className={`px-2.5 py-1 text-xs font-mono transition-colors border-l border-slate-700 ${
+                  mapMode === "3D"
+                    ? "bg-cyan-600 text-slate-100 border-cyan-500"
+                    : "text-slate-400 hover:text-slate-200 hover:bg-slate-800"
+                }`}
+              >
+                3D
+              </button>
+            </div>
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-slate-400 text-xs font-mono">ONLINE</span>
+            </div>
           </div>
         </div>
       </header>
@@ -99,8 +129,11 @@ export default function DashboardPage() {
         <main className="flex-1 flex flex-col overflow-hidden">
           {/* Map */}
           <div className="flex-1 relative">
-            <MapContainer />
+            <MapContainer mapMode={mapMode} />
           </div>
+
+          {/* Command console (when an entity is selected) */}
+          <CommandConsole />
 
           {/* Bottom status bar */}
           <div className="shrink-0 border-t border-slate-800 bg-slate-950/50 px-4 py-2">

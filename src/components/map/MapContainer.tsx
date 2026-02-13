@@ -3,9 +3,16 @@
 import { useEffect, useRef, useState } from "react";
 import mapboxgl from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
+import {
+  setMap,
+  showHoverPopup,
+  hideHoverPopup,
+  selectEntity,
+  clearSelection,
+  updatePinnedPopupPosition,
+} from "./mapController";
 import { addAssetLayers } from "./layers/assets";
 import { addTargetLayers } from "./layers/targets";
-import { setMap, showHoverPopup, hideHoverPopup } from "./mapController";
 import { MOCK_ASSETS } from "@/mock/assets";
 import { MOCK_TARGETS } from "@/mock/targets";
 
@@ -13,11 +20,18 @@ import { MOCK_TARGETS } from "@/mock/targets";
 const INITIAL_CENTER: [number, number] = [75.1072, 32.5574];
 const INITIAL_ZOOM = 10;
 
-export function MapContainer() {
+const DEM_SOURCE_ID = "mapbox-dem";
+
+export interface MapContainerProps {
+  mapMode: "2D" | "3D";
+}
+
+export function MapContainer({ mapMode }: MapContainerProps) {
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const initAttemptRef = useRef(0);
   const [error, setError] = useState<string | null>(null);
+  const [mapReady, setMapReady] = useState(false);
 
   useEffect(() => {
     const tryInitialize = () => {
@@ -63,7 +77,8 @@ export function MapContainer() {
       map.on("load", () => {
         console.log("Mapbox map loaded successfully");
         map.resize();
-        
+        setMapReady(true);
+
         // Add map layers
         addAssetLayers(map);
         addTargetLayers(map);
@@ -75,12 +90,12 @@ export function MapContainer() {
         // Assets hover
         map.on("mousemove", "assets-points", (e) => {
           if (!e.features || e.features.length === 0) return;
-          
+
           map.getCanvas().style.cursor = "pointer";
-          
+
           const feature = e.features[0];
           const assetId = feature.properties?.id;
-          
+
           // Find the full asset data
           const asset = MOCK_ASSETS.find((a) => a.id === assetId);
           if (asset) {
@@ -96,12 +111,12 @@ export function MapContainer() {
         // Targets hover
         map.on("mousemove", "targets-points", (e) => {
           if (!e.features || e.features.length === 0) return;
-          
+
           map.getCanvas().style.cursor = "pointer";
-          
+
           const feature = e.features[0];
           const targetId = feature.properties?.id;
-          
+
           // Find the full target data
           const target = MOCK_TARGETS.find((t) => t.id === targetId);
           if (target) {
@@ -113,6 +128,52 @@ export function MapContainer() {
           map.getCanvas().style.cursor = "";
           hideHoverPopup();
         });
+
+        // Helper: pin asset popup (used for both point and coverage layers)
+        const handleAssetClick = (e: mapboxgl.MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const asset = MOCK_ASSETS.find((a) => a.id === feature.properties?.id);
+          if (asset) selectEntity("asset", asset, e.lngLat);
+        };
+
+        // Helper: pin target popup (used for glow, point, and center layers)
+        const handleTargetClick = (e: mapboxgl.MapMouseEvent & { features?: GeoJSON.Feature[] }) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const target = MOCK_TARGETS.find((t) => t.id === feature.properties?.id);
+          if (target) selectEntity("target", target, e.lngLat);
+        };
+
+        // Click on asset (point or coverage circle) → pin popup
+        map.on("click", "assets-points", handleAssetClick);
+        map.on("click", "assets-coverage", handleAssetClick);
+
+        // Click on target (glow, point, or center) → pin popup
+        map.on("click", "targets-points", handleTargetClick);
+        map.on("click", "targets-glow", handleTargetClick);
+        map.on("click", "targets-center", handleTargetClick);
+
+        // Click on empty map → clear pinned popup and selection
+        // Use queryRenderedFeatures so we only clear when click is not on asset/target
+        // (layer click and map click both fire; map click often has no e.features)
+        map.on("click", (e) => {
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: [
+              "assets-points",
+              "assets-coverage",
+              "targets-points",
+              "targets-glow",
+              "targets-center",
+            ],
+          });
+          if (features.length > 0) return;
+          clearSelection();
+        });
+
+        // Update pinned popup position when map moves or zooms
+        map.on("move", updatePinnedPopupPosition);
+        map.on("zoom", updatePinnedPopupPosition);
       });
 
       map.once("render", () => {
@@ -137,7 +198,7 @@ export function MapContainer() {
       );
 
       mapRef.current = map;
-      
+
       // Register map with controller
       setMap(map);
     };
@@ -149,12 +210,34 @@ export function MapContainer() {
     return () => {
       clearTimeout(timer);
       setMap(null);
+      setMapReady(false);
       if (mapRef.current) {
         mapRef.current.remove();
         mapRef.current = null;
       }
     };
   }, []);
+
+  // 2D / 3D terrain and camera (no map reinit)
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady) return;
+
+    if (mapMode === "3D") {
+      // Add DEM source once if not already present
+      if (!map.getSource(DEM_SOURCE_ID)) {
+        map.addSource(DEM_SOURCE_ID, {
+          type: "raster-dem",
+          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+        });
+      }
+      map.setTerrain({ source: DEM_SOURCE_ID, exaggeration: 1.3 });
+      map.easeTo({ pitch: 60, bearing: -20, duration: 800 });
+    } else {
+      map.setTerrain(null);
+      map.easeTo({ pitch: 0, bearing: 0, duration: 800 });
+    }
+  }, [mapMode, mapReady]);
 
   // Resize handler
   useEffect(() => {

@@ -25,17 +25,15 @@ function assetsToGeoJSON(assets: Asset[]): GeoJSON.FeatureCollection {
 
 // Add asset layers to map
 export function addAssetLayers(map: mapboxgl.Map) {
-  // Check if source already exists
   if (map.getSource("assets")) return;
 
-  // Add GeoJSON source with promoteId for feature-state support
   map.addSource("assets", {
     type: "geojson",
     data: assetsToGeoJSON(MOCK_ASSETS),
-    promoteId: "id", // Required for setFeatureState
+    promoteId: "id",
   });
 
-  // Layer 1: Coverage area (radar-style circles)
+  // Layer 1: Coverage area (radar-style circles) — green if ACTIVE, grey if INACTIVE
   map.addLayer({
     id: "assets-coverage",
     type: "circle",
@@ -53,22 +51,20 @@ export function addAssetLayers(map: mapboxgl.Map) {
       "circle-color": [
         "case",
         ["==", ["get", "status"], "ACTIVE"],
-        "#22c55e", // green-500
-        "#64748b", // slate-500
+        "#22c55e",
+        "#64748b",
       ],
-      // Increased opacity when selected
       "circle-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        0.35, // selected
-        0.15, // default
+        0.35,
+        0.15,
       ],
-      // Increased stroke width when selected
       "circle-stroke-width": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        2, // selected
-        1, // default
+        2,
+        1,
       ],
       "circle-stroke-color": [
         "case",
@@ -76,12 +72,11 @@ export function addAssetLayers(map: mapboxgl.Map) {
         "#22c55e",
         "#64748b",
       ],
-      // Increased stroke opacity when selected
       "circle-stroke-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        0.8, // selected
-        0.4, // default
+        0.8,
+        0.4,
       ],
     },
   });
@@ -92,34 +87,30 @@ export function addAssetLayers(map: mapboxgl.Map) {
     type: "circle",
     source: "assets",
     paint: {
-      // Larger radius when selected
       "circle-radius": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        8, // selected
-        6, // default
+        8,
+        6,
       ],
       "circle-color": [
         "case",
         ["==", ["get", "status"], "ACTIVE"],
-        "#22c55e", // green-500
-        "#64748b", // slate-500
+        "#22c55e",
+        "#64748b",
       ],
-      // Thicker stroke when selected
       "circle-stroke-width": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        3, // selected
-        2, // default
+        3,
+        2,
       ],
       "circle-stroke-color": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        "#ffffff", // selected - white border
-        "#0a0a0a", // default - dark border
+        "#ffffff",
+        "#0a0a0a",
       ],
     },
   });
-
-  console.log("Asset layers added to map");
 }

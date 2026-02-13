@@ -17,6 +17,7 @@ export type EntityType = "asset" | "target";
 
 export interface PopupState {
   visible: boolean;
+  isPinned: boolean;
   entityType: EntityType;
   data: Asset | Target;
   screenPosition: { x: number; y: number };
@@ -25,6 +26,13 @@ export interface PopupState {
 // Internal popup state
 let currentPopupState: PopupState | null = null;
 
+// Pinned entity (click-to-pin); when set, hover is ignored
+let selectedEntity: {
+  entityType: EntityType;
+  data: Asset | Target;
+  lngLat: mapboxgl.LngLat;
+} | null = null;
+
 // Subscriber callbacks for popup state changes
 type PopupSubscriber = (state: PopupState | null) => void;
 const popupSubscribers: Set<PopupSubscriber> = new Set();
@@ -32,6 +40,14 @@ const popupSubscribers: Set<PopupSubscriber> = new Set();
 // Notify all subscribers of popup state change
 function notifyPopupSubscribers() {
   popupSubscribers.forEach((callback) => callback(currentPopupState));
+}
+
+// Convert lngLat to viewport coordinates (for fixed-position popup)
+function lngLatToViewport(lngLat: mapboxgl.LngLat): { x: number; y: number } {
+  if (!mapInstance) return { x: 0, y: 0 };
+  const point = mapInstance.project(lngLat);
+  const rect = mapInstance.getContainer().getBoundingClientRect();
+  return { x: rect.left + point.x, y: rect.top + point.y };
 }
 
 // Subscribe to popup state changes
@@ -45,29 +61,36 @@ export function subscribeToPopup(callback: PopupSubscriber): () => void {
   };
 }
 
-// Show hover popup
+// Read current popup state (for consumers that need to sync with selection)
+export function getPopupState(): PopupState | null {
+  return currentPopupState;
+}
+
+// Show hover popup (ignored when an entity is pinned)
 export function showHoverPopup(
   entityType: EntityType,
   data: Asset | Target,
   lngLat: mapboxgl.LngLat
 ) {
   if (!mapInstance) return;
+  if (selectedEntity) return; // Hover disabled while pinned
 
-  // Convert lngLat to screen coordinates
-  const point = mapInstance.project(lngLat);
+  const screenPosition = lngLatToViewport(lngLat);
 
   currentPopupState = {
     visible: true,
+    isPinned: false,
     entityType,
     data,
-    screenPosition: { x: point.x, y: point.y },
+    screenPosition,
   };
 
   notifyPopupSubscribers();
 }
 
-// Hide hover popup
+// Hide hover popup (only if no pinned entity)
 export function hideHoverPopup() {
+  if (selectedEntity) return; // Keep showing pinned popup
   if (currentPopupState) {
     currentPopupState = null;
     notifyPopupSubscribers();
@@ -78,13 +101,64 @@ export function hideHoverPopup() {
 export function updatePopupPosition(lngLat: mapboxgl.LngLat) {
   if (!mapInstance || !currentPopupState) return;
 
-  const point = mapInstance.project(lngLat);
   currentPopupState = {
     ...currentPopupState,
-    screenPosition: { x: point.x, y: point.y },
+    screenPosition: lngLatToViewport(lngLat),
   };
 
   notifyPopupSubscribers();
+}
+
+// Pin popup to selected entity (click on asset/target)
+export function selectEntity(
+  entityType: EntityType,
+  data: Asset | Target,
+  lngLat: mapboxgl.LngLat
+) {
+  if (!mapInstance) return;
+
+  // Clear previous map feature-state and pinned popup
+  clearSelection();
+
+  selectedEntity = { entityType, data, lngLat };
+
+  // Highlight on map
+  const id = "id" in data ? data.id : "";
+  if (entityType === "asset" && mapInstance.getSource("assets")) {
+    mapInstance.setFeatureState({ source: "assets", id }, { selected: true });
+    selectedAssetId = id;
+  } else if (entityType === "target" && mapInstance.getSource("targets")) {
+    mapInstance.setFeatureState({ source: "targets", id }, { selected: true });
+    selectedTargetId = id;
+  }
+
+  currentPopupState = {
+    visible: true,
+    isPinned: true,
+    entityType,
+    data,
+    screenPosition: lngLatToViewport(lngLat),
+  };
+
+  notifyPopupSubscribers();
+}
+
+// Whether an entity is currently pinned (popup selected)
+export function isEntitySelected(): boolean {
+  return selectedEntity !== null;
+}
+
+// Update pinned popup screen position (call on map move/zoom)
+export function updatePinnedPopupPosition() {
+  if (!mapInstance || !selectedEntity) return;
+
+  if (currentPopupState && currentPopupState.isPinned) {
+    currentPopupState = {
+      ...currentPopupState,
+      screenPosition: lngLatToViewport(selectedEntity.lngLat),
+    };
+    notifyPopupSubscribers();
+  }
 }
 
 // ============================================================
@@ -94,10 +168,9 @@ export function updatePopupPosition(lngLat: mapboxgl.LngLat) {
 // Set map reference
 export function setMap(map: mapboxgl.Map | null) {
   mapInstance = map;
-  // Clear selection state when map changes
   selectedAssetId = null;
   selectedTargetId = null;
-  // Clear popup state
+  selectedEntity = null;
   currentPopupState = null;
   notifyPopupSubscribers();
 }
@@ -107,19 +180,17 @@ export function getMap(): mapboxgl.Map | null {
   return mapInstance;
 }
 
-// Clear all selections
+// Clear all selections (map highlight + pinned popup)
 export function clearSelection() {
   if (!mapInstance) return;
 
-  // Clear previous asset selection
+  // Clear map feature-state
   if (selectedAssetId && mapInstance.getSource("assets")) {
     mapInstance.setFeatureState(
       { source: "assets", id: selectedAssetId },
       { selected: false }
     );
   }
-
-  // Clear previous target selection
   if (selectedTargetId && mapInstance.getSource("targets")) {
     mapInstance.setFeatureState(
       { source: "targets", id: selectedTargetId },
@@ -129,6 +200,9 @@ export function clearSelection() {
 
   selectedAssetId = null;
   selectedTargetId = null;
+  selectedEntity = null;
+  currentPopupState = null;
+  notifyPopupSubscribers();
 }
 
 // Select an asset (clears any target selection)
