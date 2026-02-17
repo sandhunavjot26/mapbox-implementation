@@ -3,7 +3,8 @@
 import { useEffect, useState } from "react";
 import { subscribeToPopup, getPopupState, PopupState } from "@/components/map/mapController";
 import { Asset } from "@/mock/assets";
-import { Target } from "@/mock/targets";
+import { Target, TargetClassification } from "@/mock/targets";
+import { reclassifyTarget, confirmThreat } from "@/stores/mapActionsStore";
 
 // Mock commands per entity type
 const ASSET_COMMANDS = [
@@ -20,18 +21,21 @@ const TARGET_COMMANDS = [
   { id: "ENGAGE", label: "Engage" },
 ];
 
-function handleCommand(commandType: string, entityId: string) {
-  console.log("Command issued:", commandType, entityId);
-}
+const CLASSIFY_OPTIONS: { id: TargetClassification; label: string }[] = [
+  { id: "ENEMY", label: "Enemy" },
+  { id: "FRIENDLY", label: "Friendly" },
+  { id: "UNKNOWN", label: "Unknown" },
+];
 
 export function CommandConsole() {
   const [selectedState, setSelectedState] = useState<PopupState | null>(null);
+  const [classifyOpen, setClassifyOpen] = useState(false);
 
   useEffect(() => {
     const unsubscribe = subscribeToPopup(() => {
-      // Read latest state from controller when notified
       const state = getPopupState();
       setSelectedState(state?.visible && state?.isPinned ? state : null);
+      setClassifyOpen(false);
     });
     return unsubscribe;
   }, []);
@@ -41,6 +45,7 @@ export function CommandConsole() {
   const { entityType, data } = selectedState;
   const entityId = (data as Asset | Target).id;
   const commands = entityType === "asset" ? ASSET_COMMANDS : TARGET_COMMANDS;
+  const targetData = entityType === "target" ? (data as Target) : null;
 
   return (
     <div className="shrink-0 border-t border-cyan-500/30 bg-slate-900 px-4 py-3">
@@ -59,16 +64,61 @@ export function CommandConsole() {
 
         {/* Command buttons */}
         <div className="flex items-center gap-2 flex-wrap">
-          {commands.map((cmd) => (
-            <button
-              key={cmd.id}
-              type="button"
-              onClick={() => handleCommand(cmd.id, entityId)}
-              className="px-3 py-1.5 text-xs font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors"
-            >
-              {cmd.label}
-            </button>
-          ))}
+          {commands.map((cmd) => {
+            if (cmd.id === "CLASSIFY" && entityType === "target") {
+              return (
+                <div key={cmd.id} className="relative">
+                  <button
+                    type="button"
+                    onClick={() => setClassifyOpen((o) => !o)}
+                    className="px-3 py-1.5 text-xs font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors"
+                  >
+                    {cmd.label} ▾
+                  </button>
+                  {classifyOpen && (
+                    <div className="absolute bottom-full z-50 left-0 mb-1 flex flex-col border border-slate-600 bg-slate-900 shadow-lg">
+                      {CLASSIFY_OPTIONS.map((opt) => (
+                        <button
+                          key={opt.id}
+                          type="button"
+                          onClick={() => {
+                            reclassifyTarget(entityId, opt.id);
+                            setClassifyOpen(false);
+                          }}
+                          className="px-3 py-1.5 text-xs font-mono text-left text-slate-300 hover:bg-slate-800 hover:text-cyan-400 whitespace-nowrap"
+                        >
+                          {opt.label}
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              );
+            }
+            if (cmd.id === "ENGAGE" && entityType === "target") {
+              return (
+                <button
+                  key={cmd.id}
+                  type="button"
+                  onClick={() => confirmThreat(entityId)}
+                  disabled={targetData?.classification !== "ENEMY"}
+                  className="px-3 py-1.5 text-xs font-mono border border-red-500/60 text-red-400 hover:border-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {cmd.label}
+                </button>
+              );
+            }
+            return (
+              <button
+                key={cmd.id}
+                type="button"
+                onClick={() => { }}
+                className="px-3 py-1.5 text-xs font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors"
+              >
+                {cmd.label}
+              </button>
+            );
+          })}
         </div>
       </div>
     </div>

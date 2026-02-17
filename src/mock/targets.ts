@@ -9,6 +9,7 @@ export interface Target {
   rssi: number; // dBm
   heading: number; // degrees
   coordinates: [number, number]; // [lng, lat]
+  speedKmH?: number; // km/h for simulated drift (default ~35)
 }
 
 export const MOCK_TARGETS: Target[] = [
@@ -21,6 +22,7 @@ export const MOCK_TARGETS: Target[] = [
     rssi: -56.6,
     heading: 245,
     coordinates: [75.0312, 32.6142],
+    speedKmH: 38,
   },
   {
     id: "drone-002",
@@ -31,6 +33,7 @@ export const MOCK_TARGETS: Target[] = [
     rssi: -48.2,
     heading: 178,
     coordinates: [75.1847, 32.5023],
+    speedKmH: 42,
   },
   {
     id: "drone-003",
@@ -41,6 +44,7 @@ export const MOCK_TARGETS: Target[] = [
     rssi: -62.1,
     heading: 312,
     coordinates: [74.9256, 32.7891],
+    speedKmH: 28,
   },
   {
     id: "drone-004",
@@ -51,6 +55,7 @@ export const MOCK_TARGETS: Target[] = [
     rssi: -41.5,
     heading: 90,
     coordinates: [75.3421, 32.4156],
+    speedKmH: 35,
   },
   {
     id: "drone-005",
@@ -61,6 +66,7 @@ export const MOCK_TARGETS: Target[] = [
     rssi: -71.3,
     heading: 156,
     coordinates: [74.7834, 32.8234],
+    speedKmH: 45,
   },
   {
     id: "drone-006",
@@ -71,5 +77,6 @@ export const MOCK_TARGETS: Target[] = [
     rssi: -53.8,
     heading: 267,
     coordinates: [75.4512, 32.3089],
+    speedKmH: 32,
   },
 ];

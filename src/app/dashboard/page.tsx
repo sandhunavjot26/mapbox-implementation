@@ -6,10 +6,11 @@ import dynamic from "next/dynamic";
 import { StatusBadge } from "@/components/status/StatusBadge";
 import { AssetsPanel } from "@/components/panels/AssetsPanel";
 import { TrackingPanel } from "@/components/panels/TrackingPanel";
+import { EngagementLog } from "@/components/panels/EngagementLog";
 
 import { MOCK_ASSETS } from "@/mock/assets";
-import { MOCK_TARGETS } from "@/mock/targets";
 import { CommandConsole } from "@/components/commands/CommandConsole";
+import { subscribeToIntercepts, getInterceptStats } from "@/stores/mapActionsStore";
 
 // Dynamic import to prevent SSR issues with Mapbox
 const MapContainer = dynamic(
@@ -45,6 +46,13 @@ export default function DashboardPage() {
   const [assetsCollapsed, setAssetsCollapsed] = useState(false);
   const [trackingCollapsed, setTrackingCollapsed] = useState(false);
   const [mapMode, setMapMode] = useState<"2D" | "3D">("2D");
+  const [interceptStats, setInterceptStats] = useState({ neutralized: 0, confirmed: 0, successRate: 0 });
+
+  useEffect(() => {
+    return subscribeToIntercepts(() => {
+      setInterceptStats(getInterceptStats());
+    });
+  }, []);
 
   useEffect(() => {
     const isAuthenticated = localStorage.getItem("isAuthenticated");
@@ -82,7 +90,19 @@ export default function DashboardPage() {
           <h1 className="text-lg font-mono font-bold tracking-wide text-slate-100">
             Integrated Sensor Fusion & Situational Awareness
           </h1>
-          <div className="flex items-center gap-4">
+          <div className="flex items-center gap-6">
+            {/* Intercept stats */}
+            <div className="flex items-center gap-4 text-xs font-mono">
+              <span className="text-slate-500">
+                Neutralized: <span className="text-green-400">{interceptStats.neutralized}</span>
+              </span>
+              <span className="text-slate-500">
+                Engagements: <span className="text-amber-400">{interceptStats.confirmed}</span>
+              </span>
+              <span className="text-slate-500">
+                Success: <span className="text-cyan-400">{interceptStats.successRate}%</span>
+              </span>
+            </div>
             {/* 2D / 3D map toggle */}
             <div className="flex rounded border border-slate-700 bg-slate-900/80 overflow-hidden">
               <button
@@ -135,6 +155,9 @@ export default function DashboardPage() {
           {/* Command console (when an entity is selected) */}
           <CommandConsole />
 
+          {/* Engagement log */}
+          <EngagementLog />
+
           {/* Bottom status bar */}
           <div className="shrink-0 border-t border-slate-800 bg-slate-950/50 px-4 py-2">
             <div className="flex items-center justify-center gap-8">
@@ -148,7 +171,6 @@ export default function DashboardPage() {
 
         {/* Right Panel - Tracking */}
         <TrackingPanel
-          targets={MOCK_TARGETS}
           collapsed={trackingCollapsed}
           onToggle={() => setTrackingCollapsed(!trackingCollapsed)}
         />

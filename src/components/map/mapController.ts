@@ -5,6 +5,26 @@ import { Target } from "@/mock/targets";
 // Map reference singleton
 let mapInstance: mapboxgl.Map | null = null;
 
+// Alert targets (auto-confirmed from coverage detection)
+let alertTargets: string[] = [];
+type AlertTargetsSubscriber = (ids: string[]) => void;
+const alertTargetsSubscribers = new Set<AlertTargetsSubscriber>();
+
+export function setAlertTargets(ids: string[]) {
+  alertTargets = ids;
+  alertTargetsSubscribers.forEach((cb) => cb(alertTargets));
+}
+
+export function getAlertTargets(): string[] {
+  return alertTargets;
+}
+
+export function subscribeToAlertTargets(cb: AlertTargetsSubscriber): () => void {
+  alertTargetsSubscribers.add(cb);
+  cb(alertTargets);
+  return () => alertTargetsSubscribers.delete(cb);
+}
+
 // Selection state (only one asset OR target can be selected at a time)
 let selectedAssetId: string | null = null;
 let selectedTargetId: string | null = null;
@@ -243,6 +263,14 @@ export function selectTarget(targetId: string) {
     );
     selectedTargetId = targetId;
   }
+}
+
+// Select target and show pinned popup (e.g. when clicking from TrackingPanel)
+export function selectTargetAndShowPopup(target: Target) {
+  if (!mapInstance) return;
+  const lngLat = new mapboxgl.LngLat(target.coordinates[0], target.coordinates[1]);
+  selectEntity("target", target, lngLat);
+  flyToTarget(target);
 }
 
 // Fly to an asset location
