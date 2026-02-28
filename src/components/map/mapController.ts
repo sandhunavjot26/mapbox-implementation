@@ -1,6 +1,6 @@
 import mapboxgl from "mapbox-gl";
-import { Asset } from "@/mock/assets";
-import { Target } from "@/mock/targets";
+import type { Asset } from "@/types/assets";
+import type { Target } from "@/types/targets";
 
 // Map reference singleton
 let mapInstance: mapboxgl.Map | null = null;
@@ -19,7 +19,9 @@ export function getAlertTargets(): string[] {
   return alertTargets;
 }
 
-export function subscribeToAlertTargets(cb: AlertTargetsSubscriber): () => void {
+export function subscribeToAlertTargets(
+  cb: AlertTargetsSubscriber,
+): () => void {
   alertTargetsSubscribers.add(cb);
   cb(alertTargets);
   return () => alertTargetsSubscribers.delete(cb);
@@ -90,7 +92,7 @@ export function getPopupState(): PopupState | null {
 export function showHoverPopup(
   entityType: EntityType,
   data: Asset | Target,
-  lngLat: mapboxgl.LngLat
+  lngLat: mapboxgl.LngLat,
 ) {
   if (!mapInstance) return;
   if (selectedEntity) return; // Hover disabled while pinned
@@ -133,7 +135,7 @@ export function updatePopupPosition(lngLat: mapboxgl.LngLat) {
 export function selectEntity(
   entityType: EntityType,
   data: Asset | Target,
-  lngLat: mapboxgl.LngLat
+  lngLat: mapboxgl.LngLat,
 ) {
   if (!mapInstance) return;
 
@@ -208,13 +210,13 @@ export function clearSelection() {
   if (selectedAssetId && mapInstance.getSource("assets")) {
     mapInstance.setFeatureState(
       { source: "assets", id: selectedAssetId },
-      { selected: false }
+      { selected: false },
     );
   }
   if (selectedTargetId && mapInstance.getSource("targets")) {
     mapInstance.setFeatureState(
       { source: "targets", id: selectedTargetId },
-      { selected: false }
+      { selected: false },
     );
   }
 
@@ -239,7 +241,7 @@ export function selectAsset(assetId: string) {
   if (mapInstance.getSource("assets")) {
     mapInstance.setFeatureState(
       { source: "assets", id: assetId },
-      { selected: true }
+      { selected: true },
     );
     selectedAssetId = assetId;
   }
@@ -259,7 +261,7 @@ export function selectTarget(targetId: string) {
   if (mapInstance.getSource("targets")) {
     mapInstance.setFeatureState(
       { source: "targets", id: targetId },
-      { selected: true }
+      { selected: true },
     );
     selectedTargetId = targetId;
   }
@@ -268,13 +270,16 @@ export function selectTarget(targetId: string) {
 // Select target and show pinned popup (e.g. when clicking from TrackingPanel)
 export function selectTargetAndShowPopup(target: Target) {
   if (!mapInstance) return;
-  const lngLat = new mapboxgl.LngLat(target.coordinates[0], target.coordinates[1]);
+  const lngLat = new mapboxgl.LngLat(
+    target.coordinates[0],
+    target.coordinates[1],
+  );
   selectEntity("target", target, lngLat);
   flyToTarget(target);
 }
 
-// Fly to an asset location
-export function flyToAsset(asset: Asset) {
+// Fly to an asset location (accepts Asset or Device-like with coordinates)
+export function flyToAsset(asset: { coordinates: [number, number] }) {
   if (!mapInstance) {
     console.warn("Map not initialized");
     return;

@@ -1,5 +1,5 @@
 import Image from "next/image";
-import { Asset } from "@/mock/assets";
+import type { Asset } from "@/types/assets";
 import { flyToAsset, selectAsset } from "@/components/map/mapController";
 
 import AssetsIcon from "@/assets/assets.svg";
@@ -14,8 +14,9 @@ interface AssetsPanelProps {
 export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
   return (
     <aside
-      className={`shrink-0 border-r border-slate-800 bg-slate-950/50 flex flex-col transition-all duration-300 ease-in-out ${collapsed ? "w-12" : "w-72"
-        }`}
+      className={`shrink-0 border-r border-slate-800 bg-slate-950/50 flex flex-col transition-all duration-300 ease-in-out ${
+        collapsed ? "w-12" : "w-72"
+      }`}
     >
       {/* Panel header */}
       <div
@@ -23,11 +24,20 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
         onClick={collapsed ? onToggle : undefined}
       >
         <div className="flex items-center justify-between">
-          <div className={`flex items-center gap-2 overflow-hidden ${collapsed ? "justify-center w-full" : ""}`}>
-            <Image src={AssetsIcon} alt="Assets" width={20} height={20} className="shrink-0" />
+          <div
+            className={`flex items-center gap-2 overflow-hidden ${collapsed ? "justify-center w-full" : ""}`}
+          >
+            <Image
+              src={AssetsIcon}
+              alt="Assets"
+              width={20}
+              height={20}
+              className="shrink-0"
+            />
             <h2
-              className={`text-sm font-mono font-semibold text-slate-200 tracking-wide whitespace-nowrap transition-all duration-300 ${collapsed ? "opacity-0 w-0" : "opacity-100"
-                }`}
+              className={`text-sm font-mono font-semibold text-slate-200 tracking-wide whitespace-nowrap transition-all duration-300 ${
+                collapsed ? "opacity-0 w-0" : "opacity-100"
+              }`}
             >
               Assets
             </h2>
@@ -44,7 +54,12 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
                 stroke="currentColor"
                 viewBox="0 0 24 24"
               >
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M15 19l-7-7 7-7"
+                />
               </svg>
             </button>
           )}
@@ -53,8 +68,9 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
 
       {/* Asset list */}
       <div
-        className={`flex-1 overflow-y-auto p-3 space-y-3 transition-opacity duration-300 ${collapsed ? "opacity-0 pointer-events-none" : "opacity-100"
-          }`}
+        className={`flex-1 overflow-y-auto p-3 space-y-3 transition-opacity duration-300 ${
+          collapsed ? "opacity-0 pointer-events-none" : "opacity-100"
+        }`}
       >
         {assets.map((asset) => (
           <div
@@ -77,10 +93,11 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
                   ALT {asset.altitude} FT
                 </span>
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.5 ${asset.status === "ACTIVE"
-                    ? "text-green-400 bg-green-950"
-                    : "text-slate-500 bg-slate-800"
-                    }`}
+                  className={`text-[10px] font-mono px-1.5 py-0.5 ${
+                    asset.status === "ACTIVE"
+                      ? "text-green-400 bg-green-950"
+                      : "text-slate-500 bg-slate-800"
+                  }`}
                 >
                   {asset.status}
                 </span>
@@ -98,7 +115,8 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
               <div className="flex">
                 <span className="w-20">Coordinates:</span>
                 <span className="text-slate-400">
-                  {asset.coordinates[1].toFixed(5)}, {asset.coordinates[0].toFixed(5)}
+                  {asset.coordinates[1].toFixed(5)},{" "}
+                  {asset.coordinates[0].toFixed(5)}
                 </span>
               </div>
             </div>

@@ -1,8 +1,19 @@
 import mapboxgl from "mapbox-gl";
-import { MOCK_ASSETS, Asset } from "@/mock/assets";
-import { MOCK_TARGETS } from "@/mock/targets";
+import type { Asset } from "@/types/assets";
+import { useTargetsStore } from "@/stores/targetsStore";
+
+/** Current assets for animation — updated by setAssetLayersData when using API */
+let currentAssetsForAnimation: Array<{
+  id: string;
+  coordinates: [number, number];
+  coverageRadiusKm: number;
+  status: string;
+}> = [];
 
 const EARTH_RADIUS_KM = 6371;
+
+/** Animation frame ID for cancellation on map destroy */
+let requestAnimationId: number | null = null;
 
 // Sweep speed: ACTIVE = fast, INACTIVE = slow
 const SWEEP_SPEED = { ACTIVE: 2, INACTIVE: 0.5 } as const;
@@ -55,7 +66,7 @@ function generateRadarSweepSegment(
   radiusOuter: number,
   arcAngle = 40,
 ): GeoJSON.Position[] {
-  const steps = 16;
+  const steps = 8; // reduced from 16 for performance
   const start = bearing - arcAngle / 2;
   const end = bearing + arcAngle / 2;
 
@@ -102,7 +113,7 @@ function generateGradientRadarSweep(
 function generateRing(
   center: [number, number],
   radiusKm: number,
-  steps = 24,
+  steps = 16, // reduced from 24 for performance
 ): GeoJSON.Position[] {
   const points: GeoJSON.Position[] = [];
   for (let i = 0; i <= steps; i++) {
@@ -130,7 +141,7 @@ async function loadAssetIcon(map: mapboxgl.Map): Promise<void> {
 }
 
 // Convert assets to GeoJSON FeatureCollection
-function assetsToGeoJSON(assets: Asset[]): GeoJSON.FeatureCollection {
+export function assetsToGeoJSON(assets: Asset[]): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: assets.map((asset) => ({
@@ -151,15 +162,56 @@ function assetsToGeoJSON(assets: Asset[]): GeoJSON.FeatureCollection {
   };
 }
 
+/** Update assets source from API GeoJSON (devices with coverageRadiusKm) */
+export function setAssetLayersData(
+  map: mapboxgl.Map,
+  geoJSON: GeoJSON.FeatureCollection,
+): void {
+  const source = map.getSource("assets") as mapboxgl.GeoJSONSource | undefined;
+  if (source) {
+    source.setData(geoJSON);
+    currentAssetsForAnimation = geoJSON.features.map((f) => {
+      const coords = (f.geometry as GeoJSON.Point)?.coordinates ?? [0, 0];
+      const p = f.properties ?? {};
+      return {
+        id: String(p.id ?? ""),
+        coordinates: [coords[0], coords[1]],
+        coverageRadiusKm: Number(p.coverageRadiusKm) || 2,
+        status: String(p.status ?? "INACTIVE"),
+      };
+    });
+  }
+}
+
 // Add asset layers to map
-export async function addAssetLayers(map: mapboxgl.Map): Promise<void> {
+export async function addAssetLayers(
+  map: mapboxgl.Map,
+  initialData?: GeoJSON.FeatureCollection,
+): Promise<void> {
   if (map.getSource("assets")) return;
 
   await loadAssetIcon(map);
 
+  const data = initialData ?? {
+    type: "FeatureCollection" as const,
+    features: [],
+  };
+  if (initialData) {
+    currentAssetsForAnimation = initialData.features.map((f) => {
+      const coords = (f.geometry as GeoJSON.Point)?.coordinates ?? [0, 0];
+      const p = f.properties ?? {};
+      return {
+        id: String(p.id ?? ""),
+        coordinates: [coords[0], coords[1]],
+        coverageRadiusKm: Number(p.coverageRadiusKm) || 2,
+        status: String(p.status ?? "INACTIVE"),
+      };
+    });
+  }
+
   map.addSource("assets", {
     type: "geojson",
-    data: assetsToGeoJSON(MOCK_ASSETS),
+    data,
     promoteId: "id",
   });
 
@@ -283,24 +335,39 @@ export async function addAssetLayers(map: mapboxgl.Map): Promise<void> {
   });
 
   // Per-asset sweep angles (speed based on status)
-  const sweepAngles = new Map<string, number>(
-    MOCK_ASSETS.map((a) => [a.id, 0]),
-  );
+  const sweepAngles = new Map<string, number>();
 
   let pulsePhase = 0;
   let lockPhase = 0;
+  let frameCount = 0;
+  let lastAnimateTime = 0;
+  const FRAME_INTERVAL = 33; // ~30fps throttle (ms)
+  const LOCKON_INTERVAL = 30; // recompute lock-on every ~30 frames (~1s)
 
-  function animate() {
-    const t = performance.now() / 1000;
+  // Cached lock-on features to avoid recalculating every frame
+  let cachedLockonFeatures: GeoJSON.Feature<GeoJSON.Point>[] = [];
 
-    // Pulse phase 0–1 over ~1.5s
+  function animate(now: number) {
+    // Throttle to ~30fps
+    if (now - lastAnimateTime < FRAME_INTERVAL) {
+      requestAnimationId = requestAnimationFrame(animate);
+      return;
+    }
+    lastAnimateTime = now;
+    frameCount++;
+
+    const t = now / 1000;
+
     pulsePhase = 0.5 + 0.4 * Math.sin(t * 4);
     lockPhase = 0.5 + 0.5 * Math.sin(t * 3);
 
+    const assets = currentAssetsForAnimation;
     // Update per-asset sweep angles
-    MOCK_ASSETS.forEach((asset) => {
+    assets.forEach((asset) => {
       const current = sweepAngles.get(asset.id) ?? 0;
-      const speed = SWEEP_SPEED[asset.status];
+      const speed =
+        SWEEP_SPEED[asset.status as keyof typeof SWEEP_SPEED] ??
+        SWEEP_SPEED.INACTIVE;
       let next = current + speed;
       if (next > 360) next = 0;
       if (next < 0) next = 360;
@@ -309,7 +376,7 @@ export async function addAssetLayers(map: mapboxgl.Map): Promise<void> {
 
     // Gradient sweep features (multiple segments per asset)
     const sweepFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
-    MOCK_ASSETS.forEach((asset) => {
+    assets.forEach((asset) => {
       const bearing = sweepAngles.get(asset.id) ?? 0;
       const segments = generateGradientRadarSweep(
         asset.coordinates,
@@ -327,7 +394,7 @@ export async function addAssetLayers(map: mapboxgl.Map): Promise<void> {
 
     // Pulsing rings (3 per asset at 33%, 66%, 100%)
     const ringFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = [];
-    MOCK_ASSETS.forEach((asset) => {
+    assets.forEach((asset) => {
       [0.33, 0.66, 1].forEach((ratio) => {
         const ring = generateRing(
           asset.coordinates,
@@ -342,52 +409,75 @@ export async function addAssetLayers(map: mapboxgl.Map): Promise<void> {
       });
     });
 
-    // Lock-on: assets with targets in coverage
-    const lockedAssets = MOCK_ASSETS.filter((asset) =>
-      MOCK_TARGETS.some(
-        (target) =>
-          distanceKm(asset.coordinates, target.coordinates) <=
-          asset.coverageRadiusKm,
-      ),
-    );
-    const lockonFeatures: GeoJSON.Feature<GeoJSON.Point>[] = lockedAssets.map(
-      (asset) => ({
-        type: "Feature",
+    // Lock-on: only recompute every ~1 second instead of every frame
+    if (frameCount % LOCKON_INTERVAL === 0) {
+      const targets = useTargetsStore.getState().targets;
+      const lockedAssets = assets.filter((asset) =>
+        targets.some(
+          (target) =>
+            distanceKm(asset.coordinates, target.coordinates) <=
+            asset.coverageRadiusKm,
+        ),
+      );
+      cachedLockonFeatures = lockedAssets.map((asset) => ({
+        type: "Feature" as const,
         properties: { lockPhase },
         geometry: {
-          type: "Point",
+          type: "Point" as const,
           coordinates: asset.coordinates,
         },
-      }),
-    );
-
-    const sweepSource = map.getSource("radar-sweep") as mapboxgl.GeoJSONSource;
-    const ringsSource = map.getSource("radar-rings") as mapboxgl.GeoJSONSource;
-    const lockonSource = map.getSource(
-      "radar-lockon",
-    ) as mapboxgl.GeoJSONSource;
-
-    if (sweepSource) {
-      sweepSource.setData({
-        type: "FeatureCollection",
-        features: sweepFeatures,
-      });
-    }
-    if (ringsSource) {
-      ringsSource.setData({
-        type: "FeatureCollection",
-        features: ringFeatures,
-      });
-    }
-    if (lockonSource) {
-      lockonSource.setData({
-        type: "FeatureCollection",
-        features: lockonFeatures,
+      }));
+    } else {
+      // Update only the lockPhase property without recomputing geometry
+      cachedLockonFeatures.forEach((f) => {
+        if (f.properties) f.properties.lockPhase = lockPhase;
       });
     }
 
-    requestAnimationFrame(animate);
+    try {
+      const sweepSource = map.getSource("radar-sweep") as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      const ringsSource = map.getSource("radar-rings") as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      const lockonSource = map.getSource("radar-lockon") as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+
+      if (sweepSource) {
+        sweepSource.setData({
+          type: "FeatureCollection",
+          features: sweepFeatures,
+        });
+      }
+      if (ringsSource) {
+        ringsSource.setData({
+          type: "FeatureCollection",
+          features: ringFeatures,
+        });
+      }
+      if (lockonSource) {
+        lockonSource.setData({
+          type: "FeatureCollection",
+          features: cachedLockonFeatures,
+        });
+      }
+    } catch {
+      // Map destroyed or sources removed — stop animation
+      return;
+    }
+
+    requestAnimationId = requestAnimationFrame(animate);
   }
 
-  animate();
+  requestAnimationId = requestAnimationFrame(animate);
+}
+
+/** Cancel the asset animation loop to prevent memory leaks on map re-creation */
+export function stopAssetAnimation(): void {
+  if (requestAnimationId !== null) {
+    cancelAnimationFrame(requestAnimationId);
+    requestAnimationId = null;
+  }
 }

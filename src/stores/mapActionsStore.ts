@@ -1,4 +1,14 @@
-import type { Target } from "@/mock/targets";
+/**
+ * Map Actions Store — Zustand store for intercepts, target actions, and engagement log.
+ * Migrated from custom pub/sub to Zustand for consistency with other stores.
+ *
+ * Usage:
+ *   const intercepts = useMapActionsStore((s) => s.intercepts);
+ *   const { reclassifyTarget, confirmThreat, addIntercept } = useMapActionsStore.getState();
+ */
+
+import { create } from "zustand";
+import type { Target } from "@/types/targets";
 
 export type InterceptState = "vectoring" | "engaging" | "neutralized";
 
@@ -10,100 +20,6 @@ export interface Intercept {
   completedAt?: number;
 }
 
-type ReclassifyHandler = (id: string, classification: Target["classification"]) => void;
-type ConfirmThreatHandler = (id: string) => void;
-
-let reclassifyHandler: ReclassifyHandler | null = null;
-let confirmThreatHandler: ConfirmThreatHandler | null = null;
-
-let computedTargets: (Target & { confirmed?: boolean })[] = [];
-let pulseTargetIds: string[] = [];
-let intercepts: Intercept[] = [];
-
-type Subscriber<T> = (value: T) => void;
-const computedTargetsSubscribers = new Set<Subscriber<(Target & { confirmed?: boolean })[]>>();
-const pulseTargetIdsSubscribers = new Set<Subscriber<string[]>>();
-const interceptsSubscribers = new Set<Subscriber<Intercept[]>>();
-
-export function registerMapActions(handlers: {
-  reclassifyTarget: ReclassifyHandler;
-  confirmThreat: ConfirmThreatHandler;
-}) {
-  reclassifyHandler = handlers.reclassifyTarget;
-  confirmThreatHandler = handlers.confirmThreat;
-}
-
-export function reclassifyTarget(id: string, classification: Target["classification"]) {
-  reclassifyHandler?.(id, classification);
-}
-
-export function confirmThreat(id: string) {
-  confirmThreatHandler?.(id);
-}
-
-export function setComputedTargets(targets: (Target & { confirmed?: boolean })[]) {
-  computedTargets = targets;
-  computedTargetsSubscribers.forEach((cb) => cb(computedTargets));
-}
-
-export function getComputedTargets() {
-  return computedTargets;
-}
-
-export function subscribeToComputedTargets(cb: Subscriber<(Target & { confirmed?: boolean })[]>) {
-  computedTargetsSubscribers.add(cb);
-  cb(computedTargets);
-  return () => {
-    computedTargetsSubscribers.delete(cb);
-  };
-}
-
-export function setPulseTargetIds(ids: string[]) {
-  pulseTargetIds = ids;
-  pulseTargetIdsSubscribers.forEach((cb) => cb(pulseTargetIds));
-}
-
-export function addPulseTarget(id: string) {
-  if (pulseTargetIds.includes(id)) return;
-  pulseTargetIds = [...pulseTargetIds, id];
-  pulseTargetIdsSubscribers.forEach((cb) => cb(pulseTargetIds));
-  setTimeout(() => {
-    pulseTargetIds = pulseTargetIds.filter((x) => x !== id);
-    pulseTargetIdsSubscribers.forEach((cb) => cb(pulseTargetIds));
-  }, 2000);
-}
-
-export function getPulseTargetIds() {
-  return pulseTargetIds;
-}
-
-export function subscribeToPulseTargets(cb: Subscriber<string[]>) {
-  pulseTargetIdsSubscribers.add(cb);
-  cb(pulseTargetIds);
-  return () => {
-    pulseTargetIdsSubscribers.delete(cb);
-  };
-}
-
-export function addIntercept(targetId: string, assetId: string) {
-  const intercept: Intercept = {
-    targetId,
-    assetId,
-    state: "vectoring",
-    startedAt: Date.now(),
-  };
-  intercepts = [...intercepts, intercept];
-  interceptsSubscribers.forEach((cb) => cb(intercepts));
-
-  // Mock state progression: vectoring -> engaging (3s) -> neutralized (5s)
-  setTimeout(() => {
-    updateInterceptState(targetId, "engaging");
-  }, 3000);
-  setTimeout(() => {
-    updateInterceptState(targetId, "neutralized");
-  }, 8000);
-}
-
 export interface EngagementLogEntry {
   targetId: string;
   assetId: string;
@@ -111,66 +27,217 @@ export interface EngagementLogEntry {
   completedAt: number;
 }
 
-let engagementLog: EngagementLogEntry[] = [];
-const engagementLogSubscribers = new Set<Subscriber<EngagementLogEntry[]>>();
+type ReclassifyHandler = (
+  id: string,
+  classification: Target["classification"],
+) => void;
+type ConfirmThreatHandler = (id: string) => void;
 
-export function updateInterceptState(targetId: string, state: InterceptState) {
-  intercepts = intercepts.map((i) =>
-    i.targetId === targetId
-      ? {
-          ...i,
-          state,
-          completedAt: state === "neutralized" ? Date.now() : i.completedAt,
-        }
-      : i
-  );
-  interceptsSubscribers.forEach((cb) => cb(intercepts));
+interface MapActionsState {
+  // --- Intercepts ---
+  intercepts: Intercept[];
+  addIntercept: (targetId: string, assetId: string) => void;
 
-  if (state === "neutralized") {
-    const intercept = intercepts.find((i) => i.targetId === targetId);
-    if (intercept?.completedAt) {
-      engagementLog = [
-        { targetId, assetId: intercept.assetId, startedAt: intercept.startedAt, completedAt: intercept.completedAt },
-        ...engagementLog,
-      ].slice(0, 50);
-      engagementLogSubscribers.forEach((cb) => cb(engagementLog));
-    }
-  }
+  // --- Computed targets (from MapContainer) ---
+  computedTargets: (Target & { confirmed?: boolean })[];
+  setComputedTargets: (targets: (Target & { confirmed?: boolean })[]) => void;
+
+  // --- Pulse targets (briefly highlighted) ---
+  pulseTargetIds: string[];
+  addPulseTarget: (id: string) => void;
+
+  // --- Engagement log ---
+  engagementLog: EngagementLogEntry[];
+
+  // --- Map action handlers (registered by MapContainer) ---
+  _reclassifyHandler: ReclassifyHandler | null;
+  _confirmThreatHandler: ConfirmThreatHandler | null;
+  registerMapActions: (handlers: {
+    reclassifyTarget: ReclassifyHandler;
+    confirmThreat: ConfirmThreatHandler;
+  }) => void;
 }
 
-export function getEngagementLog() {
-  return engagementLog;
+export const useMapActionsStore = create<MapActionsState>((set, get) => ({
+  // --- State ---
+  intercepts: [],
+  computedTargets: [],
+  pulseTargetIds: [],
+  engagementLog: [],
+  _reclassifyHandler: null,
+  _confirmThreatHandler: null,
+
+  // --- Actions ---
+  registerMapActions: (handlers) =>
+    set({
+      _reclassifyHandler: handlers.reclassifyTarget,
+      _confirmThreatHandler: handlers.confirmThreat,
+    }),
+
+  setComputedTargets: (targets) => set({ computedTargets: targets }),
+
+  addPulseTarget: (id) => {
+    const current = get().pulseTargetIds;
+    if (current.includes(id)) return;
+    set({ pulseTargetIds: [...current, id] });
+    setTimeout(() => {
+      set((s) => ({
+        pulseTargetIds: s.pulseTargetIds.filter((x) => x !== id),
+      }));
+    }, 2000);
+  },
+
+  addIntercept: (targetId, assetId) => {
+    const intercept: Intercept = {
+      targetId,
+      assetId,
+      state: "vectoring",
+      startedAt: Date.now(),
+    };
+    set((s) => ({ intercepts: [...s.intercepts, intercept] }));
+
+    // State progression: vectoring -> engaging (3s) -> neutralized (8s)
+    setTimeout(() => {
+      set((s) => ({
+        intercepts: s.intercepts.map((i) =>
+          i.targetId === targetId ? { ...i, state: "engaging" as const } : i,
+        ),
+      }));
+    }, 3000);
+    setTimeout(() => {
+      set((s) => {
+        const updated = s.intercepts.map((i) =>
+          i.targetId === targetId
+            ? {
+                ...i,
+                state: "neutralized" as const,
+                completedAt: Date.now(),
+              }
+            : i,
+        );
+        const completed = updated.find(
+          (i) => i.targetId === targetId && i.state === "neutralized",
+        );
+        const newLog = completed?.completedAt
+          ? [
+              {
+                targetId,
+                assetId: completed.assetId,
+                startedAt: completed.startedAt,
+                completedAt: completed.completedAt,
+              },
+              ...s.engagementLog,
+            ].slice(0, 50)
+          : s.engagementLog;
+
+        return { intercepts: updated, engagementLog: newLog };
+      });
+    }, 8000);
+  },
+}));
+
+// --- Convenience selectors & actions (backward-compatible API) ---
+
+/** Register map action handlers from MapContainer */
+export function registerMapActions(handlers: {
+  reclassifyTarget: ReclassifyHandler;
+  confirmThreat: ConfirmThreatHandler;
+}) {
+  useMapActionsStore.getState().registerMapActions(handlers);
 }
 
-export function subscribeToEngagementLog(cb: Subscriber<EngagementLogEntry[]>) {
-  engagementLogSubscribers.add(cb);
-  cb(engagementLog);
-  return () => {
-    engagementLogSubscribers.delete(cb);
-  };
+/** Reclassify a target (delegates to MapContainer handler) */
+export function reclassifyTarget(
+  id: string,
+  classification: Target["classification"],
+) {
+  useMapActionsStore.getState()._reclassifyHandler?.(id, classification);
 }
 
+/** Confirm a threat (delegates to MapContainer handler) */
+export function confirmThreat(id: string) {
+  useMapActionsStore.getState()._confirmThreatHandler?.(id);
+}
+
+/** Set computed targets from MapContainer */
+export function setComputedTargets(
+  targets: (Target & { confirmed?: boolean })[],
+) {
+  useMapActionsStore.getState().setComputedTargets(targets);
+}
+
+/** Get computed targets */
+export function getComputedTargets() {
+  return useMapActionsStore.getState().computedTargets;
+}
+
+/** Add a pulse highlight to a target */
+export function addPulseTarget(id: string) {
+  useMapActionsStore.getState().addPulseTarget(id);
+}
+
+/** Get pulse target IDs */
+export function getPulseTargetIds() {
+  return useMapActionsStore.getState().pulseTargetIds;
+}
+
+/** Add an intercept entry */
+export function addIntercept(targetId: string, assetId: string) {
+  useMapActionsStore.getState().addIntercept(targetId, assetId);
+}
+
+/** Get all intercepts */
 export function getIntercepts() {
-  return intercepts;
+  return useMapActionsStore.getState().intercepts;
 }
 
-export function subscribeToIntercepts(cb: Subscriber<Intercept[]>) {
-  interceptsSubscribers.add(cb);
-  cb(intercepts);
-  return () => {
-    interceptsSubscribers.delete(cb);
-  };
-}
-
+/** Get intercept stats */
 export function getInterceptStats() {
-  const neutralized = intercepts.filter((i) => i.state === "neutralized").length;
-  const confirmed = intercepts.length; // simplified: each intercept = 1 confirmed
-  const successRate = confirmed > 0 ? Math.round((neutralized / confirmed) * 100) : 0;
+  const intercepts = useMapActionsStore.getState().intercepts;
+  const neutralized = intercepts.filter(
+    (i) => i.state === "neutralized",
+  ).length;
+  const confirmed = intercepts.length;
+  const successRate =
+    confirmed > 0 ? Math.round((neutralized / confirmed) * 100) : 0;
   return { neutralized, confirmed, successRate };
 }
 
+/** Get IDs of neutralized targets */
 export function getNeutralizedTargetIds(): string[] {
-  return intercepts
-    .filter((i) => i.state === "neutralized")
+  return useMapActionsStore
+    .getState()
+    .intercepts.filter((i) => i.state === "neutralized")
     .map((i) => i.targetId);
+}
+
+/** Get engagement log */
+export function getEngagementLog() {
+  return useMapActionsStore.getState().engagementLog;
+}
+
+// --- Subscribe helpers (for non-React consumers — backward compatible) ---
+
+export function subscribeToComputedTargets(
+  cb: (targets: (Target & { confirmed?: boolean })[]) => void,
+) {
+  cb(useMapActionsStore.getState().computedTargets);
+  return useMapActionsStore.subscribe((s) => cb(s.computedTargets));
+}
+
+export function subscribeToPulseTargets(cb: (ids: string[]) => void) {
+  cb(useMapActionsStore.getState().pulseTargetIds);
+  return useMapActionsStore.subscribe((s) => cb(s.pulseTargetIds));
+}
+
+export function subscribeToIntercepts(cb: (intercepts: Intercept[]) => void) {
+  cb(useMapActionsStore.getState().intercepts);
+  return useMapActionsStore.subscribe((s) => cb(s.intercepts));
+}
+
+export function subscribeToEngagementLog(
+  cb: (log: EngagementLogEntry[]) => void,
+) {
+  cb(useMapActionsStore.getState().engagementLog);
+  return useMapActionsStore.subscribe((s) => cb(s.engagementLog));
 }
