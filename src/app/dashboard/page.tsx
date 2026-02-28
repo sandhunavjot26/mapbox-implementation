@@ -7,10 +7,19 @@ import { StatusBadge } from "@/components/status/StatusBadge";
 import { AssetsPanel } from "@/components/panels/AssetsPanel";
 import { TrackingPanel } from "@/components/panels/TrackingPanel";
 import { EngagementLog } from "@/components/panels/EngagementLog";
+import { MissionSelector } from "@/components/missions/MissionSelector";
+import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { WsStatusIndicator } from "@/components/status/WsStatusIndicator";
 
-import { MOCK_ASSETS } from "@/mock/assets";
 import { CommandConsole } from "@/components/commands/CommandConsole";
-import { subscribeToIntercepts, getInterceptStats } from "@/stores/mapActionsStore";
+import {
+  subscribeToIntercepts,
+  getInterceptStats,
+} from "@/stores/mapActionsStore";
+import { useAuthStore } from "@/stores/authStore";
+import { logout } from "@/lib/api/auth";
+import { useMissionStore } from "@/stores/missionStore";
+import { useWsStatusStore } from "@/stores/wsStatusStore";
 
 // Dynamic import to prevent SSR issues with Mapbox
 const MapContainer = dynamic(
@@ -27,18 +36,17 @@ const MapContainer = dynamic(
         </div>
       </div>
     ),
-  }
+  },
 );
 
 // Dynamic import for hover popup (needs access to mapController)
 const EntityHoverPopup = dynamic(
   () =>
     import("@/components/map/overlays/EntityHoverPopup").then(
-      (mod) => mod.EntityHoverPopup
+      (mod) => mod.EntityHoverPopup,
     ),
-  { ssr: false }
+  { ssr: false },
 );
-
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -46,7 +54,11 @@ export default function DashboardPage() {
   const [assetsCollapsed, setAssetsCollapsed] = useState(false);
   const [trackingCollapsed, setTrackingCollapsed] = useState(false);
   const [mapMode, setMapMode] = useState<"2D" | "3D">("2D");
-  const [interceptStats, setInterceptStats] = useState({ neutralized: 0, confirmed: 0, successRate: 0 });
+  const [interceptStats, setInterceptStats] = useState({
+    neutralized: 0,
+    confirmed: 0,
+    successRate: 0,
+  });
 
   useEffect(() => {
     return subscribeToIntercepts(() => {
@@ -54,16 +66,23 @@ export default function DashboardPage() {
     });
   }, []);
 
+  const token = useAuthStore((s) => s.getToken());
+  const clearAuth = useAuthStore((s) => s.clearAuth);
+  const activeMissionId = useMissionStore((s) => s.activeMissionId);
+  const setActiveMission = useMissionStore((s) => s.setActiveMission);
+  // WS statuses from shared store — updated by MissionWorkspace's useMissionSockets hook
+  const wsEventsStatus = useWsStatusStore((s) => s.eventsStatus);
+  const wsDevicesStatus = useWsStatusStore((s) => s.devicesStatus);
+  const wsCommandsStatus = useWsStatusStore((s) => s.commandsStatus);
+
   useEffect(() => {
-    const isAuthenticated = localStorage.getItem("isAuthenticated");
-    if (isAuthenticated !== "true") {
+    if (!token) {
+      clearAuth(); // Clear stale cookie if sessionStorage empty
       router.push("/login");
     } else {
-      setTimeout(() => {
-        setIsAuthorized(true);
-      }, 100);
+      setIsAuthorized(true);
     }
-  }, [router]);
+  }, [router, token, clearAuth]);
 
   // Show nothing while checking auth
   if (!isAuthorized) {
@@ -91,16 +110,41 @@ export default function DashboardPage() {
             Integrated Sensor Fusion & Situational Awareness
           </h1>
           <div className="flex items-center gap-6">
+            {activeMissionId && (
+              <>
+                <button
+                  type="button"
+                  onClick={() => setActiveMission(null)}
+                  className="text-xs font-mono text-slate-500 hover:text-cyan-400 transition-colors"
+                >
+                  ← Missions
+                </button>
+                <WsStatusIndicator
+                  eventsStatus={wsEventsStatus}
+                  devicesStatus={wsDevicesStatus}
+                  commandsStatus={wsCommandsStatus}
+                />
+              </>
+            )}
             {/* Intercept stats */}
             <div className="flex items-center gap-4 text-xs font-mono">
               <span className="text-slate-500">
-                Neutralized: <span className="text-green-400">{interceptStats.neutralized}</span>
+                Neutralized:{" "}
+                <span className="text-green-400">
+                  {interceptStats.neutralized}
+                </span>
               </span>
               <span className="text-slate-500">
-                Engagements: <span className="text-amber-400">{interceptStats.confirmed}</span>
+                Engagements:{" "}
+                <span className="text-amber-400">
+                  {interceptStats.confirmed}
+                </span>
               </span>
               <span className="text-slate-500">
-                Success: <span className="text-cyan-400">{interceptStats.successRate}%</span>
+                Success:{" "}
+                <span className="text-cyan-400">
+                  {interceptStats.successRate}%
+                </span>
               </span>
             </div>
             {/* 2D / 3D map toggle */}
@@ -132,48 +176,37 @@ export default function DashboardPage() {
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-slate-400 text-xs font-mono">ONLINE</span>
             </div>
+            <button
+              type="button"
+              onClick={logout}
+              className="text-xs font-mono text-slate-500 hover:text-red-400 transition-colors px-2 py-1 border border-slate-700 hover:border-red-500/50 rounded"
+            >
+              Logout
+            </button>
           </div>
         </div>
       </header>
 
       {/* Main content area */}
-      <div className="flex-1 flex overflow-hidden">
-        {/* Left Panel - Assets */}
-        <AssetsPanel
-          assets={MOCK_ASSETS}
-          collapsed={assetsCollapsed}
-          onToggle={() => setAssetsCollapsed(!assetsCollapsed)}
-        />
-
-        {/* Center - Map Area */}
-        <main className="flex-1 flex flex-col overflow-hidden">
-          {/* Map */}
-          <div className="flex-1 relative">
-            <MapContainer mapMode={mapMode} />
-          </div>
-
-          {/* Command console (when an entity is selected) */}
-          <CommandConsole />
-
-          {/* Engagement log */}
-          <EngagementLog />
-
-          {/* Bottom status bar */}
-          <div className="shrink-0 border-t border-slate-800 bg-slate-950/50 px-4 py-2">
-            <div className="flex items-center justify-center gap-8">
-              <StatusBadge color="red" label="REAL-TIME DATA AGGREGATION" />
-              <StatusBadge color="amber" label="COMMON OPERATIONAL PICTURE (COP)" />
-              <StatusBadge color="green" label="THREAT PROFILING" />
-              <StatusBadge color="cyan" label="COUNTER-UAS EFFECTORS" />
+      <div className="flex-1 flex overflow-hidden min-w-0">
+        {activeMissionId ? (
+          <MissionWorkspace
+            missionId={activeMissionId}
+            assetsCollapsed={assetsCollapsed}
+            trackingCollapsed={trackingCollapsed}
+            mapMode={mapMode}
+            onAssetsToggle={() => setAssetsCollapsed(!assetsCollapsed)}
+            onTrackingToggle={() => setTrackingCollapsed(!trackingCollapsed)}
+            onBackToMissions={() => setActiveMission(null)}
+          />
+        ) : (
+          <>
+            <MissionSelector />
+            <div className="flex-1 flex items-center justify-center text-slate-500 text-sm font-mono">
+              Select or create a mission to start
             </div>
-          </div>
-        </main>
-
-        {/* Right Panel - Tracking */}
-        <TrackingPanel
-          collapsed={trackingCollapsed}
-          onToggle={() => setTrackingCollapsed(!trackingCollapsed)}
-        />
+          </>
+        )}
       </div>
     </div>
   );

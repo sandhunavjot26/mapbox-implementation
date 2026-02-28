@@ -1,5 +1,5 @@
 import mapboxgl from "mapbox-gl";
-import { Target } from "@/mock/targets";
+import type { Target } from "@/types/targets";
 import { destinationPoint } from "@/utils/geo";
 
 /**
@@ -114,9 +114,9 @@ function loadTargetIcons(map: mapboxgl.Map): Promise<void> {
       }
     };
 
-    load("enemy-arrow", "/icons/red-arrow.png");
-    load("friendly-arrow", "/icons/green-arrow.png");
-    load("unknown-arrow", "/icons/unknown-arrow.png");
+    load("enemy-drone", "/icons/red-drone.png");
+    load("friendly-drone", "/icons/green-drone.png");
+    load("unknown-drone", "/icons/unknown-drone.png");
   });
 }
 
@@ -194,12 +194,12 @@ export async function addTargetLayers(
       "icon-image": [
         "case",
         ["==", ["get", "classification"], "ENEMY"],
-        "enemy-arrow",
+        "enemy-drone",
         ["==", ["get", "classification"], "FRIENDLY"],
-        "friendly-arrow",
-        "unknown-arrow",
+        "friendly-drone",
+        "unknown-drone",
       ],
-      "icon-size": 0.6,
+      "icon-size": 0.3,
       "icon-rotate": ["get", "heading"],
       "icon-allow-overlap": true,
     },

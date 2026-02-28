@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { Asset } from "@/mock/assets";
-import { Target } from "@/mock/targets";
+import type { Asset } from "@/types/assets";
+import type { Target } from "@/types/targets";
 import { subscribeToPopup, PopupState } from "../mapController";
 
 // Classification color mapping
@@ -72,9 +72,7 @@ function AssetPopupContent({ data }: { data: Asset }) {
         <span className="text-slate-200 text-xs font-mono font-semibold">
           {data.name}
         </span>
-        <span
-          className={`text-[10px] font-mono ${statusColors[data.status]}`}
-        >
+        <span className={`text-[10px] font-mono ${statusColors[data.status]}`}>
           {data.status}
         </span>
       </div>
@@ -121,7 +119,9 @@ function TargetPopupContent({ data }: { data: Target }) {
       <div className="space-y-0.5 text-[10px] font-mono">
         <div className="flex justify-between gap-6">
           <span className="text-slate-500">Distance</span>
-          <span className="text-slate-400">{data.distanceKm.toFixed(1)} KM</span>
+          <span className="text-slate-400">
+            {data.distanceKm.toFixed(1)} KM
+          </span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Altitude</span>
@@ -135,9 +135,22 @@ function TargetPopupContent({ data }: { data: Target }) {
           <span className="text-slate-500">Frequency</span>
           <span className="text-slate-400">{data.frequencyMHz} MHz</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">RSSI</span>
-          <span className="text-slate-400">{data.rssi} dBm</span>
+        {data.speedKmH != null && (
+          <div className="flex justify-between">
+            <span className="text-slate-500">Speed</span>
+            <span className="text-slate-400">
+              {data.speedKmH.toFixed(1)} km/h
+            </span>
+          </div>
+        )}
+        <div className="flex justify-between gap-4 min-w-0">
+          <span className="text-slate-500 shrink-0">RSSI</span>
+          <span className="text-slate-400 whitespace-nowrap overflow-x-auto text-right flex-1 min-w-0">
+            {typeof data.rssi === "number"
+              ? data.rssi
+              : Number(data.rssi ?? 0)}{" "}
+            dBm
+          </span>
         </div>
       </div>
     </div>

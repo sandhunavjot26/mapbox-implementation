@@ -1,0 +1,53 @@
+/**
+ * Missions API — CRUD, map features.
+ * GET /api/v1/missions — list missions with optional search
+ * POST /api/v1/missions — create mission
+ * GET /api/v1/missions/{id} — full load (zones, features, devices)
+ * PATCH /api/v1/missions/{id} — update border/name/aop
+ * GET /api/v1/missions/{id}/map/features — GeoJSON FeatureCollection for map
+ */
+
+import { apiJson } from "./client";
+import type { Mission, MissionLoad, MapFeatureCollection } from "@/types/aeroshield";
+
+/** GET /api/v1/missions — list missions, optional ?q= search */
+export async function listMissions(q?: string): Promise<Mission[]> {
+  const params = q ? `?q=${encodeURIComponent(q)}` : "";
+  return apiJson<Mission[]>("device", `/api/v1/missions${params}`);
+}
+
+/** POST /api/v1/missions — create mission */
+export async function createMission(payload: {
+  name: string;
+  aop?: string | null;
+  border_geojson?: GeoJSON.Polygon | null;
+}): Promise<Mission> {
+  return apiJson<Mission>("device", "/api/v1/missions", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** GET /api/v1/missions/{id} — full load: zones, features, devices */
+export async function loadMission(missionId: string): Promise<MissionLoad> {
+  return apiJson<MissionLoad>("device", `/api/v1/missions/${missionId}`);
+}
+
+/** PATCH /api/v1/missions/{id} — update border/name/aop */
+export async function updateMission(
+  missionId: string,
+  payload: Partial<{ name: string; aop: string | null; border_geojson: GeoJSON.Polygon | null }>
+): Promise<Mission> {
+  return apiJson<Mission>("device", `/api/v1/missions/${missionId}`, {
+    method: "PATCH",
+    body: JSON.stringify(payload),
+  });
+}
+
+/** GET /api/v1/missions/{id}/map/features — GeoJSON for map (border, zones, devices) */
+export async function getMapFeatures(missionId: string): Promise<MapFeatureCollection> {
+  return apiJson<MapFeatureCollection>(
+    "device",
+    `/api/v1/missions/${missionId}/map/features`
+  );
+}
