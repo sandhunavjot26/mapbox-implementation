@@ -12,7 +12,7 @@ export interface DeviceStatusEntry {
   status: string;
   last_seen: string;
   name?: string;
-  op_status?: string;
+  op_status?: string | number;
   updatedAt: number;
 }
 

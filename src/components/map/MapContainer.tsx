@@ -261,7 +261,7 @@ export function MapContainer({
     }));
   }
 
-  // Register handlers for CommandConsole
+  // Register map actions for popup controls (reclassify, confirm threat)
   useEffect(() => {
     registerMapActions({ reclassifyTarget, confirmThreat });
   }, []);
@@ -678,7 +678,6 @@ export function MapContainer({
           map.on("click", "assets-symbols", handleAssetClick);
           map.on("click", "assets-coverage", handleAssetClick);
           map.on("click", "targets-symbols", handleTargetClick);
-          map.on("click", "targets-center", handleTargetClick);
 
           map.on("click", (e) => {
             const features = map.queryRenderedFeatures(e.point, {
@@ -686,7 +685,6 @@ export function MapContainer({
                 "assets-symbols",
                 "assets-coverage",
                 "targets-symbols",
-                "targets-center",
               ],
             });
             if (features.length > 0) return;

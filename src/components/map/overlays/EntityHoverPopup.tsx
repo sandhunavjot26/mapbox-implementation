@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import type { Asset } from "@/types/assets";
 import type { Target } from "@/types/targets";
-import { subscribeToPopup, PopupState } from "../mapController";
+import { subscribeToPopup, PopupState, clearSelection } from "../mapController";
+import { useTargetsStore } from "@/stores/targetsStore";
+import { TargetPopupControls } from "@/components/commands/PopupControls";
+import { AssetPopupControls } from "@/components/commands/PopupControls";
 
 // Classification color mapping
 const classificationColors: Record<string, string> = {
@@ -20,6 +23,7 @@ const statusColors: Record<string, string> = {
 
 export function EntityHoverPopup() {
   const [popupState, setPopupState] = useState<PopupState | null>(null);
+  const targets = useTargetsStore((s) => s.targets);
 
   useEffect(() => {
     // Subscribe to popup state changes
@@ -42,33 +46,53 @@ export function EntityHoverPopup() {
   const offsetY = 12;
 
   const popupClassName = isPinned
-    ? "bg-slate-900 border-2 border-cyan-500/80 backdrop-blur-sm px-3 py-2 min-w-[180px] shadow-lg shadow-cyan-500/10"
+    ? "bg-slate-900 border-2 border-cyan-500/80 backdrop-blur-sm px-3 py-2 min-w-[200px] shadow-lg shadow-cyan-500/10 relative"
     : "bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]";
 
   return (
     <div
-      className="fixed z-50 pointer-events-none"
+      className={`fixed z-50 ${isPinned ? "pointer-events-auto" : "pointer-events-none"}`}
       style={{
         left: screenPosition.x + offsetX,
         top: screenPosition.y + offsetY,
       }}
     >
       <div className={popupClassName}>
+        {isPinned && (
+          <button
+            type="button"
+            onClick={clearSelection}
+            className="absolute top-1 right-1 text-slate-400 hover:text-slate-200 text-sm leading-none p-0.5"
+            aria-label="Close"
+          >
+            ×
+          </button>
+        )}
         {entityType === "asset" ? (
-          <AssetPopupContent data={data as Asset} />
+          <AssetPopupContent data={data as Asset} isPinned={isPinned} />
         ) : (
-          <TargetPopupContent data={data as Target} />
+          <TargetPopupContent
+            data={data as Target}
+            isPinned={isPinned}
+            targets={targets}
+          />
         )}
       </div>
     </div>
   );
 }
 
-function AssetPopupContent({ data }: { data: Asset }) {
+function AssetPopupContent({
+  data,
+  isPinned,
+}: {
+  data: Asset;
+  isPinned: boolean;
+}) {
   return (
     <div className="space-y-1">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50">
+      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50 pr-5">
         <span className="text-slate-200 text-xs font-mono font-semibold">
           {data.name}
         </span>
@@ -81,7 +105,7 @@ function AssetPopupContent({ data }: { data: Asset }) {
       <div className="space-y-0.5 text-[10px] font-mono">
         <div className="flex justify-between">
           <span className="text-slate-500">ID</span>
-          <span className="text-slate-400">{data.id}</span>
+          <span className="text-slate-400 truncate max-w-[120px]">{data.id}</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Area</span>
@@ -96,22 +120,36 @@ function AssetPopupContent({ data }: { data: Asset }) {
           <span className="text-slate-400">{data.coverageRadiusKm} KM</span>
         </div>
       </div>
+
+      {isPinned && <AssetPopupControls asset={data} />}
     </div>
   );
 }
 
-function TargetPopupContent({ data }: { data: Target }) {
+function TargetPopupContent({
+  data,
+  isPinned,
+  targets,
+}: {
+  data: Target;
+  isPinned: boolean;
+  targets: Target[];
+}) {
+  // Use live target from store when available (e.g. after reclassification)
+  const liveTarget = targets.find((t) => t.id === data.id);
+  const target = liveTarget ?? data;
+
   return (
     <div className="space-y-1">
       {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50">
-        <span className="text-slate-200 text-xs font-mono font-semibold">
-          {data.id}
+      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50 pr-5">
+        <span className="text-slate-200 text-xs font-mono font-semibold truncate max-w-[140px]">
+          {target.id}
         </span>
         <span
-          className={`text-[10px] font-mono ${classificationColors[data.classification]}`}
+          className={`text-[10px] font-mono shrink-0 ${classificationColors[target.classification]}`}
         >
-          {data.classification}
+          {target.classification}
         </span>
       </div>
 
@@ -120,39 +158,41 @@ function TargetPopupContent({ data }: { data: Target }) {
         <div className="flex justify-between gap-6">
           <span className="text-slate-500">Distance</span>
           <span className="text-slate-400">
-            {data.distanceKm.toFixed(1)} KM
+            {target.distanceKm.toFixed(1)} KM
           </span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Altitude</span>
-          <span className="text-slate-400">{data.altitude} FT</span>
+          <span className="text-slate-400">{target.altitude} FT</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Heading</span>
-          <span className="text-slate-400">{data.heading}°</span>
+          <span className="text-slate-400">{target.heading}°</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Frequency</span>
-          <span className="text-slate-400">{data.frequencyMHz} MHz</span>
+          <span className="text-slate-400">{target.frequencyMHz} MHz</span>
         </div>
-        {data.speedKmH != null && (
+        {target.speedKmH != null && (
           <div className="flex justify-between">
             <span className="text-slate-500">Speed</span>
             <span className="text-slate-400">
-              {data.speedKmH.toFixed(1)} km/h
+              {target.speedKmH.toFixed(1)} km/h
             </span>
           </div>
         )}
         <div className="flex justify-between gap-4 min-w-0">
           <span className="text-slate-500 shrink-0">RSSI</span>
           <span className="text-slate-400 whitespace-nowrap overflow-x-auto text-right flex-1 min-w-0">
-            {typeof data.rssi === "number"
-              ? data.rssi
-              : Number(data.rssi ?? 0)}{" "}
+            {typeof target.rssi === "number"
+              ? target.rssi
+              : Number(target.rssi ?? 0)}{" "}
             dBm
           </span>
         </div>
       </div>
+
+      {isPinned && <TargetPopupControls target={target} />}
     </div>
   );
 }

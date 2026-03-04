@@ -13,7 +13,6 @@ import { TrackingPanel } from "@/components/panels/TrackingPanel";
 import { EngagementLog } from "@/components/panels/EngagementLog";
 import { MissionTimeline } from "@/components/panels/MissionTimeline";
 import { RecentCommands } from "@/components/panels/RecentCommands";
-import { CommandConsole } from "@/components/commands/CommandConsole";
 import { WsStatusIndicator } from "@/components/status/WsStatusIndicator";
 import {
   subscribeToIntercepts,
@@ -161,9 +160,6 @@ export function MissionWorkspace({
               />
             </ErrorBoundary>
           </div>
-          <ErrorBoundary label="Command Console">
-            <CommandConsole />
-          </ErrorBoundary>
           <ErrorBoundary label="Recent Commands">
             <RecentCommands />
           </ErrorBoundary>

@@ -10,8 +10,6 @@ import { EngagementLog } from "@/components/panels/EngagementLog";
 import { MissionSelector } from "@/components/missions/MissionSelector";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
 import { WsStatusIndicator } from "@/components/status/WsStatusIndicator";
-
-import { CommandConsole } from "@/components/commands/CommandConsole";
 import {
   subscribeToIntercepts,
   getInterceptStats,
