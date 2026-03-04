@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import dynamic from "next/dynamic";
 import { StatusBadge } from "@/components/status/StatusBadge";
 import { AssetsPanel } from "@/components/panels/AssetsPanel";
@@ -174,6 +175,16 @@ export default function DashboardPage() {
               <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
               <span className="text-slate-400 text-xs font-mono">ONLINE</span>
             </div>
+            <Link
+              href="/driif-ui"
+              className="text-xs font-mono text-slate-400 hover:text-cyan-400 transition-colors px-2 py-1 border border-slate-700 hover:border-cyan-500/50 rounded flex items-center gap-1.5"
+            >
+              <svg width="12" height="12" viewBox="0 0 12 12" fill="none" aria-hidden>
+                <circle cx="6" cy="6" r="5" stroke="currentColor" strokeWidth="1.2"/>
+                <path d="M1 6h10M6 1C4.5 3 4 4.5 4 6s.5 3 2 5M6 1c1.5 2 2 3.5 2 5s-.5 3-2 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"/>
+              </svg>
+              Driif UI
+            </Link>
             <button
               type="button"
               onClick={logout}

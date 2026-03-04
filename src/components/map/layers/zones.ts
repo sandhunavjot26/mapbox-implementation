@@ -1,9 +1,13 @@
 /**
- * Zones layer — TL-1/TL-2 polygons from mission map features.
+ * Zones layer — polygons from mission map features.
  * Renders zone_geojson as fill + outline, colored by priority:
  *   - priority 1 (TL-1): red (critical threat zone)
- *   - priority 2 (TL-2): amber/orange (elevated threat zone)
- *   - other priorities: blue (default)
+ *   - priority 2 (TL-2): amber (elevated threat zone)
+ *   - priority 3: green
+ *   - priority 4: purple
+ *   - priority 5: pink
+ *   - priority 6: yellow
+ *   - other: blue (default)
  */
 
 import mapboxgl from "mapbox-gl";
@@ -16,32 +20,48 @@ const ZONE_SOURCE_ID = "mission-zones";
  */
 const ZONE_FILL_COLOR: mapboxgl.Expression = [
   "match",
-  ["coerce", ["get", "priority"], 0],
+  ["to-number", ["get", "priority"], 0],
   1,
-  "rgba(239, 68, 68, 0.25)", // TL-1: red, higher opacity
+  "rgba(239, 68, 68, 0.25)", // TL-1: red
   2,
   "rgba(245, 158, 11, 0.20)", // TL-2: amber
+  3,
+  "rgba(34, 197, 94, 0.22)", // green
+  4,
+  "rgba(168, 85, 247, 0.22)", // purple
+  5,
+  "rgba(236, 72, 153, 0.22)", // pink
+  6,
+  "rgba(234, 179, 8, 0.22)", // yellow
   "rgba(59, 130, 246, 0.15)", // default: blue
 ];
 
 const ZONE_LINE_COLOR: mapboxgl.Expression = [
   "match",
-  ["coerce", ["get", "priority"], 0],
+  ["to-number", ["get", "priority"], 0],
   1,
   "#ef4444", // TL-1: red
   2,
   "#f59e0b", // TL-2: amber
+  3,
+  "#22c55e", // green
+  4,
+  "#a855f7", // purple
+  5,
+  "#ec4899", // pink
+  6,
+  "#eab308", // yellow
   "#3b82f6", // default: blue
 ];
 
 const ZONE_LINE_WIDTH: mapboxgl.Expression = [
   "match",
-  ["coerce", ["get", "priority"], 0],
+  ["to-number", ["get", "priority"], 0],
   1,
-  3, // TL-1: thicker border
+  3, // TL-1: thicker
   2,
-  2, // TL-2: normal
-  1.5, // default
+  2, // TL-2
+  1.5, // default for 3–6 and others
 ];
 
 /** Add zones layer from GeoJSON FeatureCollection */
