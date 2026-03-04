@@ -554,10 +554,9 @@ export function MapContainer({
           });
 
           addInterceptRef.current = (target: Target) => {
-            const asset = getNearestActiveAsset(
-              target,
-              assetsForInterceptRef.current,
-            );
+            const assets = assetsForInterceptRef.current;
+            const asset =
+              getNearestActiveAsset(target, assets) ?? assets[0] ?? null;
             if (!asset) return;
 
             addInterceptToStore(target.id, asset.id);

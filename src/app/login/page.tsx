@@ -30,7 +30,14 @@ export default function LoginPage() {
       router.push("/dashboard");
     } catch (err) {
       if (err instanceof ApiClientError) {
-        setError(err.detail ?? err.message ?? "Invalid credentials");
+        const d = (err as ApiClientError & { detail?: unknown }).detail;
+        let msg: string;
+        if (typeof d === "string") msg = d;
+        else if (Array.isArray(d))
+          msg = (d as Array<{ msg?: string }>).map((e) => e?.msg ?? "").filter(Boolean).join("; ") || err.message;
+        else if (d && typeof d === "object") msg = JSON.stringify(d);
+        else msg = err.message ?? "Invalid credentials";
+        setError(msg);
       } else {
         setError("Connection failed — check network");
       }

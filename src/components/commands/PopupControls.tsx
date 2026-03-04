@@ -27,6 +27,21 @@ const ASSET_COMMANDS = [
   ...TURNTABLE_COMMANDS.map((c) => ({ id: c.id, label: c.label })),
 ];
 
+/** Convert API error to a string — detail can be object/array (e.g. Pydantic validation errors) */
+function formatCommandError(err: unknown): string {
+  if (err instanceof ApiClientError) {
+    const d: unknown = (err as ApiClientError & { detail?: unknown }).detail;
+    if (typeof d === "string") return d;
+    if (Array.isArray(d)) {
+      const msgs = (d as Array<{ msg?: string }>).map((e) => e?.msg ?? JSON.stringify(e));
+      return msgs.join("; ") || err.message;
+    }
+    if (d && typeof d === "object") return JSON.stringify(d);
+    return err.message ?? "Command failed";
+  }
+  return "Command failed. Check network.";
+}
+
 interface TargetPopupControlsProps {
   target: Target;
 }
@@ -71,11 +86,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
         last_error: out.last_error,
       });
     } catch (err) {
-      setCommandError(
-        err instanceof ApiClientError
-          ? err.detail ?? err.message
-          : "Command failed. Check network."
-      );
+      setCommandError(formatCommandError(err));
     } finally {
       setCommandPending(false);
     }
@@ -94,8 +105,8 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
       const out = await createCommand({
         mission_id: activeMissionId,
         device_id: deviceId,
-        command_type: "JAM_START",
-        payload: {},
+        command_type: "ATTACK_MODE_SET",
+        payload: { mode: "JAM", switch: 1 },
       });
       useCommandsStore.getState().addOrUpdateCommand({
         id: out.id,
@@ -108,11 +119,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
         last_error: out.last_error,
       });
     } catch (err) {
-      setCommandError(
-        err instanceof ApiClientError
-          ? err.detail ?? err.message
-          : "Command failed. Check network."
-      );
+      setCommandError(formatCommandError(err));
     } finally {
       setCommandPending(false);
     }
@@ -169,7 +176,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
         <button
           type="button"
           onClick={handleEngage}
-          disabled={target.classification !== "ENEMY" || commandPending}
+          disabled={!["ENEMY", "UNKNOWN"].includes(target.classification) || commandPending}
           className="flex-1 px-2 py-1 text-[10px] font-mono border border-red-500/60 text-red-400 hover:border-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Engage
@@ -211,11 +218,7 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
         last_error: out.last_error,
       });
     } catch (err) {
-      setCommandError(
-        err instanceof ApiClientError
-          ? err.detail ?? err.message
-          : "Command failed. Check network."
-      );
+      setCommandError(formatCommandError(err));
     } finally {
       setCommandPending(false);
     }
