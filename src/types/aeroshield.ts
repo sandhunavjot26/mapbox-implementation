@@ -162,7 +162,7 @@ export interface WsDeviceStateUpdate {
   monitor_device_id: number;
   status: string;
   last_seen: string;
-  op_status?: string;
+  op_status?: string | number;
 }
 
 export interface WsCommandUpdate {

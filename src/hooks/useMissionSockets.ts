@@ -35,6 +35,7 @@ function useWs(
 ): WsStatus {
   const wsRef = useRef<WebSocket | null>(null);
   const attemptRef = useRef(0);
+  const abortedRef = useRef(false);
   const [status, setStatus] = useState<WsStatus>("closed");
   const onMessageRef = useRef(onMessage);
   onMessageRef.current = onMessage;
@@ -47,19 +48,26 @@ function useWs(
 
     let timeoutId: ReturnType<typeof setTimeout>;
     attemptRef.current = 0;
+    abortedRef.current = false;
 
     const connect = () => {
+      if (abortedRef.current) return;
       setStatus("connecting");
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
+        if (abortedRef.current) {
+          ws.close();
+          return;
+        }
         setStatus("open");
-        attemptRef.current = 0; // reset backoff on success
+        attemptRef.current = 0;
       };
       ws.onclose = () => {
-        setStatus("closed");
         wsRef.current = null;
+        if (abortedRef.current) return;
+        setStatus("closed");
         const delay = Math.min(
           RECONNECT_BASE_MS * Math.pow(2, attemptRef.current),
           RECONNECT_MAX_MS
@@ -67,7 +75,9 @@ function useWs(
         attemptRef.current++;
         timeoutId = setTimeout(connect, delay);
       };
-      ws.onerror = () => setStatus("error");
+      ws.onerror = () => {
+        if (!abortedRef.current) setStatus("error");
+      };
       ws.onmessage = (e) => {
         try {
           const data = JSON.parse(e.data);
@@ -78,8 +88,12 @@ function useWs(
       };
     };
 
-    connect();
+    // Defer initial connect to avoid "closed before established" in React Strict Mode
+    // (effect runs twice in dev; cleanup closes the first socket before it opens)
+    const initialId = setTimeout(connect, 0);
     return () => {
+      abortedRef.current = true;
+      clearTimeout(initialId);
       clearTimeout(timeoutId);
       if (wsRef.current) {
         wsRef.current.close();
@@ -95,6 +109,7 @@ function useWs(
 export function useMissionSockets(): UseMissionSocketsResult {
   const token = useAuthStore((s) => s.getToken());
   const missionId = useMissionStore((s) => s.activeMissionId);
+  const cachedMission = useMissionStore((s) => s.cachedMission);
   const addOrUpdateTarget = useTargetsStore((s) => s.addOrUpdateTarget);
   const addOrUpdateCommand = useCommandsStore((s) => s.addOrUpdateCommand);
   const setDeviceStatus = useDeviceStatusStore((s) => s.setDeviceStatus);
@@ -142,8 +157,14 @@ export function useMissionSockets(): UseMissionSocketsResult {
       if (eventType === "DETECTED") {
         const uav = payload.uav as Record<string, unknown> | undefined;
         if (uav) {
-          // device_id is at the event level, not inside payload (per doc Section 2.2)
-          const deviceId = ev.device_id ?? null;
+          // Resolve device_id: event level, or from payload.monitor_device_id via mission devices
+          let deviceId = ev.device_id ?? null;
+          if (!deviceId && payload.monitor_device_id != null && cachedMission?.devices) {
+            const d = cachedMission.devices.find(
+              (dev) => dev.monitor_device_id === payload.monitor_device_id
+            );
+            deviceId = d?.id ?? null;
+          }
           const target = uavPayloadToTarget(
             uav as unknown as Parameters<typeof uavPayloadToTarget>[0],
             deviceId,
@@ -153,7 +174,7 @@ export function useMissionSockets(): UseMissionSocketsResult {
         }
       }
     },
-    [missionId, addOrUpdateTarget, addMissionEvent],
+    [missionId, cachedMission, addOrUpdateTarget, addMissionEvent],
   );
 
   const onDevice = useCallback(
@@ -165,7 +186,7 @@ export function useMissionSockets(): UseMissionSocketsResult {
         status?: string;
         last_seen?: string;
         name?: string;
-        op_status?: string;
+        op_status?: string | number;
       };
       if (
         (msg.type === "device_state_update" ||
@@ -215,6 +236,7 @@ export function useMissionSockets(): UseMissionSocketsResult {
       };
 
       const commandTypes = [
+        "command_update",
         "command_status_update",
         "command_sent",
         "command_response",

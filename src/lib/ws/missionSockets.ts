@@ -2,18 +2,21 @@
  * WebSocket URL builder for mission-scoped streams.
  *
  * Device-service (port 8001):
- *   GET ws://<host>/api/v1/ws/missions/{mission_id}/events?token=<JWT>
- *   GET ws://<host>/api/v1/ws/missions/{mission_id}/devices?token=<JWT>
+ *   ws://<host>/ws/missions/{mission_id}/events?token=<JWT>
+ *   ws://<host>/ws/missions/{mission_id}/devices?token=<JWT>
  *
  * Command-service (port 8002):
- *   GET ws://<host>/api/v1/ws/missions/{mission_id}/commands?token=<JWT>
+ *   ws://<host>/ws/missions/{mission_id}/commands?token=<JWT>
  *
- * When behind nginx proxy: set NEXT_PUBLIC_WS_BASE_URL.
+ * Base URL: NEXT_PUBLIC_WS_BASE_URL or NEXT_PUBLIC_WS_DEVICE_URL / NEXT_PUBLIC_WS_COMMAND_URL.
+ * WebSockets use separate URLs from REST (e.g. IP-based for WS, HTTPS for REST).
  */
 
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_BASE_URL ?? "";
-const DEVICE_URL = process.env.NEXT_PUBLIC_DEVICE_URL ?? "";
-const COMMAND_URL = process.env.NEXT_PUBLIC_COMMAND_URL ?? "";
+const WS_DEVICE_URL = process.env.NEXT_PUBLIC_WS_DEVICE_URL ?? "";
+const WS_COMMAND_URL = process.env.NEXT_PUBLIC_WS_COMMAND_URL ?? "";
+
+const WS_PATH = "/ws/missions/{mission_id}";
 
 function wsBaseUrl(httpUrl: string): string {
   const secure =
@@ -32,35 +35,53 @@ function buildWsUrl(
   return `${wsHost}${path.replace("{mission_id}", missionId)}?token=${encodeURIComponent(token)}`;
 }
 
-/** ws(s)://<host>/api/v1/ws/missions/{id}/events — mission events (DETECTED, JAMMED, etc.) */
-export function getEventsWsUrl(missionId: string, token: string): string {
-  const base = WS_BASE_URL || DEVICE_URL;
-  return buildWsUrl(
-    base,
-    "/api/v1/ws/missions/{mission_id}/events",
-    missionId,
-    token,
-  );
+/** Returns null if base URL is not configured (avoids malformed relative URL). */
+export function getEventsWsUrl(
+  missionId: string,
+  token: string,
+): string | null {
+  const base = WS_BASE_URL || WS_DEVICE_URL;
+  if (!base) {
+    if (typeof console !== "undefined") {
+      console.warn(
+        "[missionSockets] Missing base URL for events WebSocket. Set NEXT_PUBLIC_WS_BASE_URL or NEXT_PUBLIC_WS_DEVICE_URL.",
+      );
+    }
+    return null;
+  }
+  return buildWsUrl(base, `${WS_PATH}/events`, missionId, token);
 }
 
-/** ws(s)://<host>/api/v1/ws/missions/{id}/devices — device state (online/offline/status) */
-export function getDevicesWsUrl(missionId: string, token: string): string {
-  const base = WS_BASE_URL || DEVICE_URL;
-  return buildWsUrl(
-    base,
-    "/api/v1/ws/missions/{mission_id}/devices",
-    missionId,
-    token,
-  );
+/** Returns null if base URL is not configured (avoids malformed relative URL). */
+export function getDevicesWsUrl(
+  missionId: string,
+  token: string,
+): string | null {
+  const base = WS_BASE_URL || WS_DEVICE_URL;
+  if (!base) {
+    if (typeof console !== "undefined") {
+      console.warn(
+        "[missionSockets] Missing base URL for devices WebSocket. Set NEXT_PUBLIC_WS_BASE_URL or NEXT_PUBLIC_WS_DEVICE_URL.",
+      );
+    }
+    return null;
+  }
+  return buildWsUrl(base, `${WS_PATH}/devices`, missionId, token);
 }
 
-/** ws(s)://<host>/api/v1/ws/missions/{id}/commands — command lifecycle */
-export function getCommandsWsUrl(missionId: string, token: string): string {
-  const base = WS_BASE_URL || COMMAND_URL;
-  return buildWsUrl(
-    base,
-    "/api/v1/ws/missions/{mission_id}/commands",
-    missionId,
-    token,
-  );
+/** Returns null if base URL is not configured (avoids malformed relative URL). */
+export function getCommandsWsUrl(
+  missionId: string,
+  token: string,
+): string | null {
+  const base = WS_BASE_URL || WS_COMMAND_URL;
+  if (!base) {
+    if (typeof console !== "undefined") {
+      console.warn(
+        "[missionSockets] Missing base URL for commands WebSocket. Set NEXT_PUBLIC_WS_BASE_URL or NEXT_PUBLIC_WS_COMMAND_URL.",
+      );
+    }
+    return null;
+  }
+  return buildWsUrl(base, `${WS_PATH}/commands`, missionId, token);
 }
