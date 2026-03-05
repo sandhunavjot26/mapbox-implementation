@@ -240,3 +240,53 @@ export function getDriifUiMapFeatures(): GeoJSON.FeatureCollection {
 }
 
 export { RAJASTHAN_CENTER };
+
+/** Mock missions for Missions overlay (Figma node 235:3799) */
+export type MissionStatus = "STAGED" | "LAUNCHED" | "ACTIVE" | "COMPLETED";
+
+export interface MockMission {
+  id: string;
+  name: string;
+  createdAt: string; // e.g. "24 Jan 2025"
+  status: MissionStatus;
+}
+
+export const MOCK_MISSIONS: MockMission[] = [
+  { id: "m1", name: "Mission Name", createdAt: "24 Jan 2025", status: "STAGED" },
+  { id: "m2", name: "Mission Alpha", createdAt: "15 Feb 2025", status: "LAUNCHED" },
+  { id: "m3", name: "Mission Beta", createdAt: "30 Mar 2025", status: "ACTIVE" },
+  { id: "m4", name: "Mission Gamma", createdAt: "10 Apr 2025", status: "COMPLETED" },
+];
+
+/** Fences for Create Mission form — from MOCK_ZONES (Figma node 259:1746) */
+const ZONE_COLORS: Record<number, string> = {
+  1: "#EF4444",
+  2: "#F59E0B",
+  3: "#16D969",
+  4: "#9043F9",
+  5: "#FF30C6",
+  6: "#E2FF00",
+};
+
+export const MOCK_CREATE_FENCES = MOCK_ZONES.slice(0, 3).map((z) => ({
+  id: z.id,
+  label: z.label,
+  color: ZONE_COLORS[z.priority] ?? "#8a8a8a",
+}));
+
+/** Assets for Create Mission form — Aakash Drone style (Figma node 259:1767) */
+export const MOCK_CREATE_ASSETS = MOCK_DEVICES.slice(0, 3).map((d, i) => ({
+  id: d.id,
+  name: "Aakash Drone",
+  assetId: `#0${1928 + i}`,
+  battery: [74, 68, 81][i] ?? 74,
+  coords: `${d.longitude.toFixed(6)},${d.latitude.toFixed(6)}`,
+}));
+
+/** Assets for Select Asset screen (Figma node 235:5039) — with payload and GNSS */
+export const MOCK_SELECT_ASSETS = [
+  { id: "sel-1", name: "Aakash Drone", assetId: "#01928", battery: 74, coords: "80.571918,96.571918", payload: "EOS, IR", gnssValid: true },
+  { id: "sel-2", name: "Breeze UAV", assetId: "#D24710", battery: 85, coords: "77.123456,98.654321", payload: "RGB, LiDAR", gnssValid: false },
+  { id: "sel-3", name: "SkyWatcher", assetId: "#3B8C57", battery: 90, coords: "80.987654,92.345678", payload: "Thermal, Multispectral", gnssValid: true },
+  { id: "sel-4", name: "Falcon X1", assetId: "#F9C74F", battery: 78, coords: "76.543210,97.123456", payload: "HD Camera, Sonar", gnssValid: true },
+];
