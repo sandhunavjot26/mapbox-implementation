@@ -25,8 +25,13 @@ import {
   getDriifUiCachedMission,
   MOCK_TARGETS,
   MOCK_DEVICES,
+  MOCK_MISSIONS,
+  MOCK_CREATE_FENCES,
+  MOCK_CREATE_ASSETS,
+  MOCK_SELECT_ASSETS,
   DRIIF_UI_BOUNDS,
 } from "@/data/driifUiMockData";
+import type { MockMission, MissionStatus } from "@/data/driifUiMockData";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useMissionStore } from "@/stores/missionStore";
 import { getMap } from "@/components/map/mapController";
@@ -616,6 +621,888 @@ function AssetsOverlay({
 }
 
 // ---------------------------------------------------------------------------
+// Missions overlay — Figma node 235:3799 (missions icon click)
+// Header: "Missions" + "Create mission" | Search | Mission list with status badges
+// ---------------------------------------------------------------------------
+
+const STATUS_CONFIG: Record<
+  MissionStatus,
+  { label: string; color: string; icon: "hourglass" | "launched" | "broadcast" | "check" }
+> = {
+  STAGED:    { label: "STAGED",    color: "#8a8a8a", icon: "hourglass" },
+  LAUNCHED:  { label: "LAUNCHED", color: "#f4a30c", icon: "launched" },
+  ACTIVE:    { label: "ACTIVE",    color: "#eeff30", icon: "broadcast" },
+  COMPLETED: { label: "COMPLETED", color: "#0cbb58", icon: "check" },
+};
+
+function MissionsOverlay({
+  isOpen,
+  onClose,
+  onCreateMissionClick,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+  onCreateMissionClick?: () => void;
+}) {
+  const [search, setSearch] = useState("");
+  const filteredMissions = MOCK_MISSIONS.filter((m) =>
+    m.name.toLowerCase().includes(search.toLowerCase())
+  );
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") onClose();
+    },
+    [onClose],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => e.key === "Escape" && onClose();
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOpen, onClose]);
+
+  if (!isOpen) return null;
+
+  return (
+    <div
+      className="absolute inset-0 z-20"
+      onClick={onClose}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-label="Missions"
+    >
+      <div
+        className="absolute inset-0"
+        style={{ background: "rgba(0,0,0,0.2)" }}
+        aria-hidden
+      />
+      <div
+        className="absolute z-10 flex flex-col overflow-hidden"
+        style={{
+          left:         POSITION.missionsLeft,
+          top:          POSITION.missionsTop,
+          width:        POSITION.missionsWidth,
+          height:       POSITION.missionsHeight,
+          padding:      "12px 16px",
+          gap:          "14px",
+          background:   "rgba(0,0,0,0.64)",
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          border:       `1px solid ${COLOR.borderMedium}`,
+          borderRadius: RADIUS.panel,
+          boxShadow:    "0px 4px 8px 0px rgba(0,0,0,0.24)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header — "Missions" + "Create mission" button */}
+        <div className="flex items-center justify-between shrink-0 gap-2">
+          <span
+            style={{
+              fontFamily: FONT.family,
+              fontSize:   "18px",
+              fontWeight: 500,
+              lineHeight: "26px",
+              color:      "#d3d3d3",
+              flex:       "1 0 0",
+            }}
+          >
+            Missions
+          </span>
+          <button
+            type="button"
+            onClick={onCreateMissionClick}
+            className="flex items-center gap-1 shrink-0 transition-opacity hover:opacity-90"
+            style={{
+              padding:      "8px 12px 8px 4px",
+              background:   "#4c5c0b",
+              borderRadius: RADIUS.panel,
+              fontFamily:   FONT.family,
+              fontSize:     "14px",
+              fontWeight:   500,
+              color:        "#c6e600",
+              lineHeight:   "16px",
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+            }}
+          >
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" aria-hidden>
+              <line x1="7" y1="2" x2="7" y2="12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              <line x1="2" y1="7" x2="12" y2="7" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+            </svg>
+            Create mission
+          </button>
+        </div>
+
+        {/* Search — bg rgba(0,0,0,0.4), border #404040 */}
+        <div
+          className="flex items-center shrink-0"
+          style={{
+            height:       "32px",
+            padding:      "0 12px",
+            background:   "rgba(0,0,0,0.4)",
+            border:       "1px solid #404040",
+            borderRadius: RADIUS.panel,
+          }}
+        >
+          <input
+            type="text"
+            placeholder="Search Missions...."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            className="flex-1 bg-transparent outline-none min-w-0"
+            style={{
+              fontFamily: FONT.family,
+              fontSize:   "14px",
+              color:      "white",
+              lineHeight: "20px",
+            }}
+          />
+          <img src="/icons/search.svg" alt="" width={16} height={16} style={{ opacity: 0.5, flexShrink: 0 }} />
+        </div>
+
+        {/* Mission list — scrollable */}
+        <div className="flex flex-col gap-2 overflow-y-auto flex-1 min-h-0">
+          {filteredMissions.map((m) => (
+            <MissionCard key={m.id} mission={m} />
+          ))}
+          {filteredMissions.length === 0 && (
+            <div
+              style={{
+                fontFamily: FONT.family,
+                fontSize:   "12px",
+                color:      "#8a8a8a",
+                padding:    "12px",
+              }}
+            >
+              No missions found
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function MissionCard({ mission }: { mission: MockMission }) {
+  const cfg = STATUS_CONFIG[mission.status];
+  return (
+    <div
+      className="flex flex-col items-start shrink-0 cursor-pointer transition-opacity hover:opacity-90"
+      style={{
+        padding:      "12px",
+        background:   "rgba(0,0,0,0.4)",
+        border:       `1px solid ${COLOR.borderMedium}`,
+        borderRadius: RADIUS.panel,
+        width:        "100%",
+      }}
+    >
+      <div className="flex items-start justify-between w-full gap-2">
+        <div className="flex flex-col gap-1 min-w-0 flex-1">
+          <span
+            style={{
+              fontFamily: FONT.family,
+              fontSize:   "14px",
+              fontWeight: 400,
+              lineHeight: "20px",
+              color:      "#e6e6e6",
+            }}
+          >
+            {mission.name}
+          </span>
+          <span
+            style={{
+              fontFamily: FONT.family,
+              fontSize:   "12px",
+              lineHeight: "16px",
+              color:      "#d3d3d3",
+              opacity:    0.6,
+            }}
+          >
+            Created on {mission.createdAt}
+          </span>
+        </div>
+        <div
+          className="flex items-center gap-2 shrink-0"
+          style={{
+            padding:      "4px 8px",
+            background:   "#171717",
+            borderRadius: RADIUS.panel,
+            color:       cfg.color,
+          }}
+        >
+          <StatusIcon type={cfg.icon} />
+          <span
+            style={{
+              fontFamily: FONT.family,
+              fontSize:   "12px",
+              lineHeight: "16px",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {cfg.label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusIcon({ type }: { type: "hourglass" | "launched" | "broadcast" | "check" }) {
+  const size = 14;
+  if (type === "hourglass") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path d="M4 2h6v2.5L7 7l3 2.5V12H4V9.5L7 7 4 4.5V2z" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      </svg>
+    );
+  }
+  if (type === "launched") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
+        <path d="M7 1.5v10M4 4.5l3-3 3 3M4 9.5l3 3 3-3" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+      </svg>
+    );
+  }
+  if (type === "broadcast") {
+    return (
+      <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
+        <circle cx="7" cy="7" r="1.5" fill="currentColor"/>
+        <path d="M4.5 4.5a3.5 3.5 0 0 0 0 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+        <path d="M9.5 4.5a3.5 3.5 0 0 1 0 5" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+        <path d="M2.5 2.5a6.5 6.5 0 0 0 0 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+        <path d="M11.5 2.5a6.5 6.5 0 0 1 0 9" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" fill="none"/>
+      </svg>
+    );
+  }
+  return (
+    <svg width={size} height={size} viewBox="0 0 14 14" fill="none" aria-hidden>
+      <circle cx="7" cy="7" r="6" stroke="currentColor" strokeWidth="1.2" fill="none"/>
+      <path d="M4 7l2 2 4-4" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" strokeLinejoin="round" fill="none"/>
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Select Asset view — Figma node 235:5039
+// Opens when "ASSIGN ASSET" is clicked in Create Mission dialog
+// Back button returns to Create Mission
+// ---------------------------------------------------------------------------
+
+function SelectAssetView({
+  onBack,
+  onAssignAsset,
+}: {
+  onBack: () => void;
+  onAssignAsset: () => void;
+}) {
+  const [selectedId, setSelectedId] = useState<string | null>(MOCK_SELECT_ASSETS[0]?.id ?? null);
+
+  return (
+    <div
+      className="absolute z-10 flex flex-col overflow-hidden"
+      style={{
+        left:         POSITION.selectAssetLeft,
+        top:          POSITION.selectAssetTop,
+        width:        POSITION.selectAssetWidth,
+        height:       POSITION.selectAssetHeight,
+        padding:      "12px 16px",
+        gap:          "14px",
+        background:   "rgba(0,0,0,0.64)",
+        backdropFilter: "blur(40px)",
+        WebkitBackdropFilter: "blur(40px)",
+        border:       `1px solid ${COLOR.borderMedium}`,
+        borderRadius: RADIUS.panel,
+        boxShadow:    "0px 4px 8px 0px rgba(0,0,0,0.24)",
+      }}
+      onClick={(e) => e.stopPropagation()}
+    >
+      {/* Header — Back + "Select Asset" */}
+      <div className="flex items-center gap-2 shrink-0">
+        <button
+          type="button"
+          onClick={onBack}
+          className="shrink-0 size-8 flex items-center justify-center transition-opacity hover:opacity-80"
+          aria-label="Back"
+        >
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+            <path d="M10 12L6 8l4-4" />
+          </svg>
+        </button>
+        <span
+          style={{
+            fontFamily: FONT.family,
+            fontSize:   "18px",
+            fontWeight: 500,
+            lineHeight: "26px",
+            color:      "#d3d3d3",
+            flex:       "1 0 0",
+          }}
+        >
+          Select Asset
+        </span>
+      </div>
+
+      {/* Content — two columns: asset list (left) + config (right) */}
+      <div
+        className="flex gap-4 flex-1 min-h-0 overflow-hidden"
+        style={{ background: "rgba(0,0,0,0.4)", borderRadius: RADIUS.panel, padding: 8 }}
+      >
+        {/* Left — asset list */}
+        <div className="flex flex-col gap-2 w-[328px] shrink-0 overflow-y-auto">
+          {MOCK_SELECT_ASSETS.map((a) => (
+            <button
+              key={a.id}
+              type="button"
+              onClick={() => setSelectedId(a.id)}
+              className="text-left shrink-0"
+              style={{
+                padding:      "12px 8px",
+                background:   "rgba(0,0,0,0.4)",
+                border:       selectedId === a.id ? "1px solid #c6e600" : "1px solid transparent",
+                borderRadius: RADIUS.panel,
+              }}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex flex-col gap-2 min-w-0">
+                  <div className="flex items-center gap-1">
+                    <div className="shrink-0 size-5 flex items-center justify-center" style={{ background: "rgba(0,0,0,0.4)", borderRadius: 2 }}>
+                      <DroneIconSmall />
+                    </div>
+                    <span style={{ fontFamily: FONT.family, fontSize: "14px", color: "#e6e6e6" }}>{a.name}</span>
+                    <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>{a.assetId}</span>
+                  </div>
+                  <div className="flex items-center gap-2" style={{ opacity: 0.7 }}>
+                    <BatteryIcon />
+                    <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "white" }}>{a.battery}%</span>
+                    <MapPinIcon />
+                    <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "white" }}>{a.coords}</span>
+                  </div>
+                  <div className="flex items-center justify-between gap-2">
+                    <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>
+                      Payload: {a.payload}
+                    </span>
+                    <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.4)", textTransform: "uppercase" }}>
+                      GNSS {a.gnssValid ? "Valid" : "Invalid"}
+                    </span>
+                  </div>
+                </div>
+                <BroadcastIcon />
+              </div>
+            </button>
+          ))}
+        </div>
+
+        {/* Right — config placeholder + ASSIGN ASSET button */}
+        <div className="flex flex-col flex-1 min-w-0 gap-4">
+          <div className="flex flex-col gap-2 flex-1 min-h-0">
+            <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.64)" }}>Asset Task</span>
+            <div
+              style={{
+                height:       "32px",
+                padding:      "0 12px",
+                background:   "rgba(0,0,0,0.4)",
+                border:       "1px solid #404040",
+                borderRadius: RADIUS.panel,
+                fontFamily:   FONT.family,
+                fontSize:     "14px",
+                color:        "#8a8a8a",
+                display:      "flex",
+                alignItems:   "center",
+              }}
+            >
+              Surveillance
+            </div>
+            <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.64)" }}>Payload</span>
+            <div
+              style={{
+                height:       "32px",
+                padding:      "0 12px",
+                background:   "rgba(0,0,0,0.4)",
+                border:       "1px solid #404040",
+                borderRadius: RADIUS.panel,
+                fontFamily:   FONT.family,
+                fontSize:     "14px",
+                color:        "#8a8a8a",
+                display:      "flex",
+                alignItems:   "center",
+              }}
+            >
+              EOS Camera
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={onAssignAsset}
+            className="w-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-90"
+            style={{
+              padding:      "12px 16px",
+              background:   "white",
+              border:       "none",
+              borderRadius: RADIUS.panel,
+              fontFamily:   FONT.family,
+              fontSize:     "14px",
+              fontWeight:   500,
+              color:        "#171717",
+              lineHeight:   "20px",
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+            }}
+          >
+            ASSIGN ASSET
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Create Mission modal — Figma node 235:3866 / 259:1726
+// Opens when "Create mission" is clicked in Missions overlay
+// ---------------------------------------------------------------------------
+
+const MISSION_TYPES = ["Surveillance", "Interception", "Patrol"] as const;
+
+type CreateMissionView = "create" | "assignAsset";
+
+function CreateMissionModal({
+  isOpen,
+  onClose,
+}: {
+  isOpen: boolean;
+  onClose: () => void;
+}) {
+  const [view, setView] = useState<CreateMissionView>("create");
+  const [missionName, setMissionName] = useState("");
+  const [missionType, setMissionType] = useState<(typeof MISSION_TYPES)[number]>("Surveillance");
+  const [typeDropdownOpen, setTypeDropdownOpen] = useState(false);
+  const [fences, setFences] = useState(MOCK_CREATE_FENCES);
+  const [assets, setAssets] = useState(MOCK_CREATE_ASSETS);
+
+  const handleKeyDown = useCallback(
+    (e: React.KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (view === "assignAsset") {
+          setView("create");
+        } else {
+          setTypeDropdownOpen(false);
+          onClose();
+        }
+      }
+    },
+    [onClose, view],
+  );
+
+  useEffect(() => {
+    if (!isOpen) return;
+    const handler = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        if (view === "assignAsset") {
+          setView("create");
+        } else {
+          setTypeDropdownOpen(false);
+          onClose();
+        }
+      }
+    };
+    window.addEventListener("keydown", handler);
+    return () => window.removeEventListener("keydown", handler);
+  }, [isOpen, onClose, view]);
+
+  if (!isOpen) return null;
+
+  // Select Asset view — Figma node 235:5039
+  if (view === "assignAsset") {
+    return (
+      <div
+        className="absolute inset-0 z-30"
+        onClick={() => setView("create")}
+        onKeyDown={handleKeyDown}
+        role="dialog"
+        aria-label="Select Asset"
+      >
+        <div className="absolute inset-0" style={{ background: "rgba(0,0,0,0.3)" }} aria-hidden />
+        <SelectAssetView
+          onBack={() => setView("create")}
+          onAssignAsset={() => setView("create")}
+        />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      className="absolute inset-0 z-30"
+      onClick={onClose}
+      onKeyDown={handleKeyDown}
+      role="dialog"
+      aria-label="Create Mission"
+    >
+      <div
+        className="absolute inset-0"
+        style={{ background: "rgba(0,0,0,0.3)" }}
+        aria-hidden
+      />
+      <div
+        className="absolute z-10 flex flex-col overflow-hidden"
+        style={{
+          left:         POSITION.createMissionLeft,
+          top:          POSITION.createMissionTop,
+          width:        POSITION.createMissionWidth,
+          height:       POSITION.createMissionHeight,
+          padding:      "12px 16px",
+          gap:          "14px",
+          background:   "rgba(0,0,0,0.64)",
+          backdropFilter: "blur(40px)",
+          WebkitBackdropFilter: "blur(40px)",
+          border:       `1px solid ${COLOR.borderMedium}`,
+          borderRadius: RADIUS.panel,
+          boxShadow:    "0px 4px 8px 0px rgba(0,0,0,0.24)",
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header — "Create Mission" + X close */}
+        <div className="flex items-center justify-between shrink-0 gap-2">
+          <span
+            style={{
+              fontFamily: FONT.family,
+              fontSize:   "18px",
+              fontWeight: 500,
+              lineHeight: "26px",
+              color:      "#d3d3d3",
+              flex:       "1 0 0",
+            }}
+          >
+            Create Mission
+          </span>
+          <button
+            type="button"
+            className="shrink-0 size-8 flex items-center justify-center transition-opacity hover:opacity-80"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden>
+              <path d="M4 4l8 8M12 4l-8 8" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Form — Mission Name, Mission Type, Fence, Assets */}
+        <div className="flex flex-col gap-3 overflow-y-auto flex-1 min-h-0">
+          {/* Mission Name */}
+          <div
+            className="flex items-center shrink-0"
+            style={{
+              height:       "32px",
+              padding:      "0 12px",
+              background:   "rgba(0,0,0,0.4)",
+              border:       "1px solid #404040",
+              borderRadius: RADIUS.panel,
+            }}
+          >
+            <input
+              type="text"
+              placeholder="Mission Name"
+              value={missionName}
+              onChange={(e) => setMissionName(e.target.value)}
+              className="flex-1 bg-transparent outline-none min-w-0"
+              style={{
+                fontFamily: FONT.family,
+                fontSize:   "14px",
+                color:     "white",
+                lineHeight: "20px",
+              }}
+            />
+          </div>
+
+          {/* Mission Type dropdown */}
+          <div className="flex flex-col gap-2 shrink-0">
+            <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.64)" }}>
+              Mission Type
+            </span>
+            <div className="relative">
+              <button
+                type="button"
+                className="w-full flex items-center justify-between shrink-0"
+                style={{
+                  height:       "32px",
+                  padding:      "0 12px",
+                  background:   "rgba(0,0,0,0.4)",
+                  border:       "1px solid #404040",
+                  borderRadius: RADIUS.panel,
+                }}
+                onClick={() => setTypeDropdownOpen(!typeDropdownOpen)}
+              >
+                <span style={{ fontFamily: FONT.family, fontSize: "14px", color: "#8a8a8a" }}>
+                  {missionType}
+                </span>
+                <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden>
+                  <path d="M3 4.5l3 3 3-3" />
+                </svg>
+              </button>
+              {typeDropdownOpen && (
+                <div
+                  className="absolute left-0 right-0 top-full mt-1 z-10"
+                  style={{
+                    background:   "rgba(26,26,26,0.98)",
+                    border:       `1px solid ${COLOR.borderMedium}`,
+                    borderRadius: RADIUS.panel,
+                    overflow:     "hidden",
+                  }}
+                >
+                  {MISSION_TYPES.map((t) => (
+                    <button
+                      key={t}
+                      type="button"
+                      className="w-full text-left px-3 py-2 transition-colors hover:bg-white/10"
+                      style={{ fontFamily: FONT.family, fontSize: "14px", color: "#e6e6e6" }}
+                      onClick={() => {
+                        setMissionType(t);
+                        setTypeDropdownOpen(false);
+                      }}
+                    >
+                      {t}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Fence section */}
+          <div className="flex flex-col gap-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.64)" }}>
+                Fence
+              </span>
+              <button
+                type="button"
+                className="flex items-center gap-1 transition-opacity hover:opacity-90"
+                style={{
+                  padding:      "2px 8px",
+                  fontFamily:   FONT.family,
+                  fontSize:     "12px",
+                  fontWeight:   500,
+                  color:        "#c6e600",
+                  lineHeight:   "16px",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <line x1="7" y1="2" x2="7" y2="12" />
+                  <line x1="2" y1="7" x2="12" y2="7" />
+                </svg>
+                NEW FENCE
+              </button>
+            </div>
+            <div
+              className="flex flex-col shrink-0"
+              style={{
+                background:   "rgba(0,0,0,0.4)",
+                padding:      "0 8px",
+                borderRadius: RADIUS.panel,
+              }}
+            >
+              {fences.map((f) => (
+                <div
+                  key={f.id}
+                  className="flex items-center justify-between gap-2"
+                  style={{
+                    padding:      "12px 8px",
+                    borderBottom: "1px solid rgba(255,255,255,0.16)",
+                  }}
+                >
+                  <div className="flex items-center gap-2 min-w-0">
+                    <div
+                      className="shrink-0 rounded-full"
+                      style={{ width: 8, height: 8, background: f.color }}
+                    />
+                    <span style={{ fontFamily: FONT.family, fontSize: "14px", color: "rgba(255,255,255,0.64)", whiteSpace: "nowrap",
+ overflow: "hidden", textOverflow: "ellipsis" }}>
+                      {f.label}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    className="shrink-0 size-4 flex items-center justify-center transition-opacity hover:opacity-80"
+                    onClick={() => setFences((prev) => prev.filter((x) => x.id !== f.id))}
+                    aria-label={`Remove ${f.label}`}
+                  >
+                    <TrashIcon />
+                  </button>
+                </div>
+              ))}
+              {fences.length === 0 && (
+                <div style={{ padding: "12px 8px", fontFamily: FONT.family, fontSize: "12px", color: "#8a8a8a" }}>
+                  No fences added
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* Assets section */}
+          <div className="flex flex-col gap-2 shrink-0">
+            <div className="flex items-center justify-between">
+              <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.64)" }}>
+                Assets
+              </span>
+              <button
+                type="button"
+                onClick={() => setView("assignAsset")}
+                className="flex items-center gap-1 transition-opacity hover:opacity-90"
+                style={{
+                  padding:      "2px 8px",
+                  fontFamily:   FONT.family,
+                  fontSize:     "12px",
+                  fontWeight:   500,
+                  color:        "#c6e600",
+                  lineHeight:   "16px",
+                  letterSpacing: "0.05em",
+                  textTransform: "uppercase",
+                }}
+              >
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+                  <line x1="7" y1="2" x2="7" y2="12" />
+                  <line x1="2" y1="7" x2="12" y2="7" />
+                </svg>
+                ASSIGN ASSET
+              </button>
+            </div>
+            <div
+              className="flex flex-col shrink-0"
+              style={{
+                background:   "rgba(0,0,0,0.4)",
+                padding:      "0 8px",
+                borderRadius: RADIUS.panel,
+              }}
+            >
+              {assets.map((a) => (
+                <div
+                  key={a.id}
+                  className="flex items-end justify-between gap-2"
+                  style={{
+                    padding:      "12px 8px",
+                    borderBottom: "1px solid rgba(255,255,255,0.16)",
+                  }}
+                >
+                  <div className="flex flex-col gap-2 min-w-0 flex-1">
+                    <div className="flex items-center gap-3">
+                      <div
+                        className="shrink-0 size-5 flex items-center justify-center"
+                        style={{ background: "rgba(0,0,0,0.4)", borderRadius: 2 }}
+                      >
+                        <DroneIconSmall />
+                      </div>
+                      <div className="flex items-center gap-1">
+                        <span style={{ fontFamily: FONT.family, fontSize: "14px", color: "#e6e6e6" }}>{a.name}</span>
+                        <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "rgba(255,255,255,0.4)" }}>{a.assetId}</span>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2" style={{ opacity: 0.7 }}>
+                      <BatteryIcon />
+                      <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "white" }}>{a.battery}%</span>
+                      <MapPinIcon />
+                      <span style={{ fontFamily: FONT.family, fontSize: "12px", color: "white" }}>{a.coords}</span>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <BroadcastIcon />
+                    <button
+                      type="button"
+                      className="shrink-0 size-4 flex items-center justify-center transition-opacity hover:opacity-80"
+                      onClick={() => setAssets((prev) => prev.filter((x) => x.id !== a.id))}
+                      aria-label={`Remove ${a.name}`}
+                    >
+                      <TrashIcon />
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {assets.length === 0 && (
+                <div style={{ padding: "12px 8px", fontFamily: FONT.family, fontSize: "12px", color: "#8a8a8a" }}>
+                  No assets assigned
+                </div>
+              )}
+            </div>
+          </div>
+
+          {/* CREATE MISSION button */}
+          <button
+            type="button"
+            className="w-full flex items-center justify-center shrink-0 transition-opacity hover:opacity-90"
+            style={{
+              padding:      "12px 16px",
+              background:   "#171717",
+              border:       "1px solid rgba(255,255,255,0.12)",
+              borderRadius: RADIUS.panel,
+              fontFamily:   FONT.family,
+              fontSize:     "14px",
+              fontWeight:   500,
+              color:        "white",
+              lineHeight:   "20px",
+              letterSpacing: "0.05em",
+              textTransform: "uppercase",
+            }}
+            onClick={() => onClose()}
+          >
+            CREATE MISSION
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function TrashIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden>
+      <path d="M2 4h12M5 4V3a1 1 0 011-1h4a1 1 0 011 1v1M7 7v4M9 7v4M11 4v8a1 1 0 01-1 1H6a1 1 0 01-1-1V4" />
+    </svg>
+  );
+}
+
+function DroneIconSmall() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
+      <path d="M8 2v4M4 6l4 4 4-4M8 10v4" />
+    </svg>
+  );
+}
+
+function BatteryIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden>
+      <rect x="1" y="4" width="11" height="8" rx="1" />
+      <rect x="12" y="6" width="2" height="4" rx="0.5" fill="currentColor" />
+    </svg>
+  );
+}
+
+function MapPinIcon() {
+  return (
+    <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" strokeWidth="1.2" aria-hidden>
+      <path d="M6 1a6 6 0 00-6 6c0 4 6 6 6 6s6-2 6-6a6 6 0 00-6-6z" clipRule="evenodd" />
+      <circle cx="6" cy="6" r="2" />
+    </svg>
+  );
+}
+
+function BroadcastIcon() {
+  return (
+    <svg width="14" height="14" viewBox="0 0 14 14" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round" aria-hidden>
+      <circle cx="7" cy="7" r="1.5" fill="currentColor" />
+      <path d="M4.5 4.5a3.5 3.5 0 0 0 0 5" />
+      <path d="M9.5 4.5a3.5 3.5 0 0 1 0 5" />
+      <path d="M2.5 2.5a6.5 6.5 0 0 0 0 9" />
+      <path d="M11.5 2.5a6.5 6.5 0 0 1 0 9" />
+    </svg>
+  );
+}
+
+// ---------------------------------------------------------------------------
 // Drone detail panel — Figma node 5:530 / Component 1 (node I33:543;33:447)
 // Appears when a drone marker is clicked on the map.
 // Width: 316px, bg #272727. Positioned near the clicked marker.
@@ -947,11 +1834,13 @@ function DroneDetailPanel({
 function FloatingNav({
   onSearchClick,
   onAssetsClick,
+  onMissionsClick,
   activeNav,
 }: {
   onSearchClick?: () => void;
   onAssetsClick?: () => void;
-  activeNav?: "Search" | "Assets" | null;
+  onMissionsClick?: () => void;
+  activeNav?: "Search" | "Assets" | "Missions" | null;
 }) {
   return (
     <nav
@@ -971,7 +1860,8 @@ function FloatingNav({
       {NAV_ICONS.map(({ src, label }) => {
         const onClick =
           label === "Search" ? onSearchClick :
-          label === "Assets" ? onAssetsClick : undefined;
+          label === "Assets" ? onAssetsClick :
+          label === "Missions" ? onMissionsClick : undefined;
         const active = activeNav === label;
         return (
           <div
@@ -1233,6 +2123,8 @@ export default function DriifUiPage() {
   const [mapMode, setMapMode] = useState<"2D" | "3D">("2D");
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [isAssetsOpen, setIsAssetsOpen] = useState(false);
+  const [isMissionsOpen, setIsMissionsOpen] = useState(false);
+  const [isCreateMissionOpen, setIsCreateMissionOpen] = useState(false);
   const [selectedDrone, setSelectedDrone] = useState<DroneDetail | null>(null);
   const mapFeatures   = useMemo(() => getDriifUiMapFeatures(), []);
   const setTargets    = useTargetsStore((s) => s.setTargets);
@@ -1375,9 +2267,11 @@ export default function DriifUiPage() {
         <FloatingNav
           onSearchClick={() => setIsSearchOpen(true)}
           onAssetsClick={() => setIsAssetsOpen(true)}
+          onMissionsClick={() => setIsMissionsOpen(true)}
           activeNav={
             isSearchOpen ? "Search" :
-            isAssetsOpen ? "Assets" : null
+            isAssetsOpen ? "Assets" :
+            isMissionsOpen ? "Missions" : null
           }
         />
         <FloatingSettings />
@@ -1387,6 +2281,19 @@ export default function DriifUiPage() {
 
         {/* ── Assets overlay (opens when Assets icon clicked) ─────────── */}
         <AssetsOverlay isOpen={isAssetsOpen} onClose={() => setIsAssetsOpen(false)} />
+
+        {/* ── Missions overlay (opens when Missions icon clicked) ─────── */}
+        <MissionsOverlay
+          isOpen={isMissionsOpen}
+          onClose={() => setIsMissionsOpen(false)}
+          onCreateMissionClick={() => setIsCreateMissionOpen(true)}
+        />
+
+        {/* ── Create Mission modal (opens when Create mission clicked) ── */}
+        <CreateMissionModal
+          isOpen={isCreateMissionOpen}
+          onClose={() => setIsCreateMissionOpen(false)}
+        />
 
         {/* ── Drone detail panel (opens when a drone marker is clicked) ── */}
         {selectedDrone && (

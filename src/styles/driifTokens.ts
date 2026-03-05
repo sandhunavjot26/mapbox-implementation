@@ -65,28 +65,28 @@ export const COLOR = {
    * Zone fill / outline colors — match zones.ts priority mapping
    * Extracted from Figma zone ellipse fills
    */
-  zoneRed:    "#EF4444", // priority 1  — rgba(239,68,68) from TL-1
-  zoneAmber:  "#F59E0B", // priority 2  — TL-2
-  zoneGreen:  "#16D969", // priority 3  — Figma Ellipse 4: rgb(22,217,105)
+  zoneRed: "#EF4444", // priority 1  — rgba(239,68,68) from TL-1
+  zoneAmber: "#F59E0B", // priority 2  — TL-2
+  zoneGreen: "#16D969", // priority 3  — Figma Ellipse 4: rgb(22,217,105)
   zonePurple: "#9043F9", // priority 4  — Figma Ellipse 5: rgb(144,67,249)
-  zonePink:   "#FF30C6", // priority 5  — Figma Vector 3: rgb(255,48,198)
+  zonePink: "#FF30C6", // priority 5  — Figma Vector 3: rgb(255,48,198)
   zoneYellow: "#E2FF00", // priority 6  — Figma Ellipse 1: rgb(226,255,0)
-  zoneBlue:   "#3B82F6", // default
+  zoneBlue: "#3B82F6", // default
 
   /** Target / drone marker colors */
-  droneEnemy:    "#EF4444",
+  droneEnemy: "#EF4444",
   droneFriendly: "#22C55E",
-  droneUnknown:  "#94A3B8",
+  droneUnknown: "#94A3B8",
 
   /** Asset tower marker color */
-  towerActive:   "#FBBF24",
+  towerActive: "#FBBF24",
   towerInactive: "#64748B",
 
   /** Assets panel (Frame 34) — Figma node 118:1568 */
-  assetCardBg:   "rgb(64, 64, 64)",
+  assetCardBg: "rgb(64, 64, 64)",
   assetSearchBg: "rgb(26, 26, 26)",
-  addAssetBtn:   "rgb(76, 92, 11)",
-  sosLandBtn:    "rgb(69, 27, 3)",
+  addAssetBtn: "rgb(76, 92, 11)",
+  sosLandBtn: "rgb(69, 27, 3)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -142,35 +142,53 @@ export const RADIUS = {
 export const POSITION = {
   /** Logo (Frame 3): left=22, top=20 */
   logoLeft: "22px",
-  logoTop:  "20px",
+  logoTop: "20px",
 
   /** Nav panel (Frame 103): left=17, top=76, width=46, height=268 */
-  navLeft:   "17px",
-  navTop:    "76px",
-  navWidth:  "46px",
+  navLeft: "17px",
+  navTop: "76px",
+  navWidth: "46px",
   navHeight: "268px",
 
   /** Settings panel (Frame 99): left=16, bottom=40px (1024-896-88=40) */
-  settingsLeft:   "16px",
+  settingsLeft: "16px",
   settingsBottom: "40px",
-  settingsWidth:  "44px",
+  settingsWidth: "44px",
   settingsHeight: "88px",
 
   /** Notification bell (Frame 104): right=48px (1440-1348-44=48), top=76 */
   bellRight: "48px",
-  bellTop:   "76px",
-  bellSize:  "44px",
+  bellTop: "76px",
+  bellSize: "44px",
 
   /** Zoom controls (Frame 88): right=16px, bottom=16px */
-  zoomRight:  "16px",
+  zoomRight: "16px",
   zoomBottom: "16px",
-  zoomWidth:  "42px",
+  zoomWidth: "42px",
 
   /** Assets panel (Frame 34): left=79, top=76, size 393×649 */
-  assetsLeft:   "79px",
-  assetsTop:    "76px",
-  assetsWidth:  "393px",
+  assetsLeft: "79px",
+  assetsTop: "76px",
+  assetsWidth: "393px",
   assetsHeight: "649px",
+
+  /** Missions panel (Figma node 235:3799): left=79, top=77, size 360×394 */
+  missionsLeft: "79px",
+  missionsTop: "77px",
+  missionsWidth: "360px",
+  missionsHeight: "auto",
+
+  /** Create Mission panel (Figma node 259:1726): same left/top, 360×520 */
+  createMissionLeft: "79px",
+  createMissionTop: "77px",
+  createMissionWidth: "360px",
+  createMissionHeight: "auto",
+
+  /** Select Asset panel (Figma node 235:5039): left=79, top=76, 712×649 */
+  selectAssetLeft: "79px",
+  selectAssetTop: "76px",
+  selectAssetWidth: "712px",
+  selectAssetHeight: "auto",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -179,13 +197,13 @@ export const POSITION = {
 
 export const FONT = {
   family: "Space Grotesk",
-  mono:   "Geist Mono",
+  mono: "Geist Mono",
   sizeXs: "10px",
   sizeSm: "12px",
   sizeMd: "14px",
   weightNormal: "400",
   weightMedium: "500",
-  weightBold:   "700",
+  weightBold: "700",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -193,6 +211,6 @@ export const FONT = {
 // ---------------------------------------------------------------------------
 
 export const Z = {
-  map:     0,
+  map: 0,
   overlay: 10,
 } as const;
