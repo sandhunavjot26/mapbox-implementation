@@ -19,9 +19,8 @@ const WS_COMMAND_URL = process.env.NEXT_PUBLIC_WS_COMMAND_URL ?? "";
 const WS_PATH = "/ws/missions/{mission_id}";
 
 function wsBaseUrl(httpUrl: string): string {
-  const secure =
-    typeof window !== "undefined" && window.location.protocol === "https:";
-  const proto = secure ? "wss" : "ws";
+  // Use wss when base URL is https; otherwise ws (matches REST API protocol)
+  const proto = httpUrl.startsWith("https") ? "wss" : "ws";
   return httpUrl.replace(/^https?/, proto).replace(/\/$/, "");
 }
 
