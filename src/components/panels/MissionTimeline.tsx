@@ -30,6 +30,7 @@ function eventLabel(eventType: string): string {
     COMMAND_SENT: "Command sent",
     COMMAND_SUCCEEDED: "Command succeeded",
     COMMAND_FAILED: "Command failed",
+    COMMAND_TIMEOUT: "Command timeout",
   };
   return labels[eventType] ?? eventType;
 }
@@ -38,7 +39,7 @@ function eventColor(eventType: string): string {
   if (eventType === "DETECTED") return "text-amber-400";
   if (eventType.startsWith("JAM")) return "text-red-400";
   if (eventType.includes("SUCCEEDED")) return "text-green-400";
-  if (eventType.includes("FAILED")) return "text-red-400";
+  if (eventType.includes("FAILED") || eventType === "COMMAND_TIMEOUT") return "text-red-400";
   return "text-slate-400";
 }
 

@@ -5,8 +5,13 @@ import type { Asset } from "@/types/assets";
 import type { Target } from "@/types/targets";
 import { subscribeToPopup, PopupState, clearSelection } from "../mapController";
 import { useTargetsStore } from "@/stores/targetsStore";
+import { useAttackModeStore } from "@/stores/attackModeStore";
+import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import { TargetPopupControls } from "@/components/commands/PopupControls";
 import { AssetPopupControls } from "@/components/commands/PopupControls";
+
+/** Staleness threshold: no update for this many seconds → show stale */
+const STALE_SECONDS = 30;
 
 // Classification color mapping
 const classificationColors: Record<string, string> = {
@@ -82,6 +87,20 @@ export function EntityHoverPopup() {
   );
 }
 
+function formatLastSeen(iso?: string): string {
+  if (!iso) return "—";
+  try {
+    const d = new Date(iso);
+    const now = Date.now();
+    const diffSec = Math.floor((now - d.getTime()) / 1000);
+    if (diffSec < 60) return `${diffSec}s ago`;
+    if (diffSec < 3600) return `${Math.floor(diffSec / 60)}m ago`;
+    return d.toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit", hour12: false });
+  } catch {
+    return "—";
+  }
+}
+
 function AssetPopupContent({
   data,
   isPinned,
@@ -89,6 +108,9 @@ function AssetPopupContent({
   data: Asset;
   isPinned: boolean;
 }) {
+  const attackMode = useAttackModeStore((s) => s.getAttackMode(data.id));
+  const deviceStatus = useDeviceStatusStore((s) => s.getDeviceStatus(data.id));
+
   return (
     <div className="space-y-1">
       {/* Header */}
@@ -96,9 +118,20 @@ function AssetPopupContent({
         <span className="text-slate-200 text-xs font-mono font-semibold">
           {data.name}
         </span>
-        <span className={`text-[10px] font-mono ${statusColors[data.status]}`}>
-          {data.status}
-        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {attackMode && (
+            <span
+              className={`text-[10px] font-mono px-1.5 py-0.5 ${
+                attackMode.jamActive ? "text-red-400 bg-red-950/50" : "text-slate-500 bg-slate-800"
+              }`}
+            >
+              {attackMode.jamActive ? "Jam: ON" : "Idle"}
+            </span>
+          )}
+          <span className={`text-[10px] font-mono ${statusColors[data.status]}`}>
+            {data.status}
+          </span>
+        </div>
       </div>
 
       {/* Details */}
@@ -119,6 +152,20 @@ function AssetPopupContent({
           <span className="text-slate-500">Coverage</span>
           <span className="text-slate-400">{data.coverageRadiusKm} KM</span>
         </div>
+        {deviceStatus && (
+          <>
+            <div className="flex justify-between">
+              <span className="text-slate-500">Last seen</span>
+              <span className="text-slate-400 truncate max-w-[120px]">{formatLastSeen(deviceStatus.last_seen)}</span>
+            </div>
+            {deviceStatus.op_status != null && (
+              <div className="flex justify-between">
+                <span className="text-slate-500">Op status</span>
+                <span className="text-slate-400">{String(deviceStatus.op_status)}</span>
+              </div>
+            )}
+          </>
+        )}
       </div>
 
       {isPinned && <AssetPopupControls asset={data} />}
@@ -139,18 +186,33 @@ function TargetPopupContent({
   const liveTarget = targets.find((t) => t.id === data.id);
   const target = liveTarget ?? data;
 
+  const isStale = target.lastSeenAt != null && (Date.now() - target.lastSeenAt) / 1000 > STALE_SECONDS;
+  const isLowConfidence = target.confidence != null && target.confidence < 60;
+
   return (
     <div className="space-y-1">
       {/* Header */}
       <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50 pr-5">
         <span className="text-slate-200 text-xs font-mono font-semibold truncate max-w-[140px]">
-          {target.id}
+          {target.targetName ?? target.id}
         </span>
-        <span
-          className={`text-[10px] font-mono shrink-0 ${classificationColors[target.classification]}`}
-        >
-          {target.classification}
-        </span>
+        <div className="flex items-center gap-1 shrink-0">
+          {isStale && (
+            <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-1 py-0.5 animate-pulse whitespace-nowrap">
+              Stale
+            </span>
+          )}
+          {isLowConfidence && (
+            <span className="text-[10px] font-mono text-amber-400 bg-amber-950/50 px-1 py-0.5 whitespace-nowrap">
+              Low conf
+            </span>
+          )}
+          <span
+            className={`text-[10px] font-mono ${classificationColors[target.classification]}`}
+          >
+            {target.classification}
+          </span>
+        </div>
       </div>
 
       {/* Details */}
@@ -190,6 +252,20 @@ function TargetPopupContent({
             dBm
           </span>
         </div>
+        {target.confidence != null && (
+          <div className="flex justify-between">
+            <span className="text-slate-500">Confidence</span>
+            <span className="text-slate-400">{target.confidence}%</span>
+          </div>
+        )}
+        {target.rcCoords && (
+          <div className="flex justify-between gap-4 min-w-0">
+            <span className="text-slate-500 shrink-0">RC/GCS</span>
+            <span className="text-slate-400 truncate">
+              {target.rcCoords[0].toFixed(5)}, {target.rcCoords[1].toFixed(5)}
+            </span>
+          </div>
+        )}
       </div>
 
       {isPinned && <TargetPopupControls target={target} />}

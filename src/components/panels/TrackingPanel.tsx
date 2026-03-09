@@ -24,6 +24,30 @@ const classificationStyles: Record<TargetClassification, string> = {
   UNKNOWN: "text-amber-400 bg-amber-950",
 };
 
+const classificationBorderStyles: Record<TargetClassification, string> = {
+  ENEMY: "border-red-500/70",
+  FRIENDLY: "border-green-500/70",
+  UNKNOWN: "border-slate-600",
+};
+
+const classificationTagStyles: Record<TargetClassification, string> = {
+  ENEMY: "text-red-400",
+  FRIENDLY: "text-green-400",
+  UNKNOWN: "text-slate-400",
+};
+
+/** High-threat: ENEMY, not neutralized, within 5km */
+function isHighThreat(
+  target: Target,
+  isNeutralized: boolean,
+): boolean {
+  return (
+    target.classification === "ENEMY" &&
+    !isNeutralized &&
+    target.distanceKm <= 5
+  );
+}
+
 const interceptStateStyles: Record<InterceptState, string> = {
   vectoring: "text-amber-400",
   engaging: "text-orange-400 animate-pulse",
@@ -133,13 +157,16 @@ export function TrackingPanel({
               Tracking
             </h2>
           </div>
-          <span
-            className={`text-[10px] font-mono text-red-400 bg-red-950 px-2 py-0.5 animate-pulse whitespace-nowrap transition-all duration-300 ${
-              collapsed ? "opacity-0 w-0 overflow-hidden" : "opacity-100"
-            }`}
-          >
-            INBOUND
-          </span>
+          {!collapsed && filteredTargets.some((t) => {
+            const inter = intercepts.find((i) => i.targetId === t.id);
+            return isHighThreat(t, inter?.state === "neutralized");
+          }) && (
+            <span
+              className="text-[10px] font-mono text-red-400 bg-red-950 px-2 py-0.5 animate-pulse whitespace-nowrap"
+            >
+              INBOUND
+            </span>
+          )}
         </div>
         {!collapsed && (
           <div className="flex gap-1 mt-2">
@@ -179,20 +206,24 @@ export function TrackingPanel({
           const isNeutralized = intercept?.state === "neutralized";
           const isEnemy = target.classification === "ENEMY";
           const showEnemyHighlight = isEnemy && !isNeutralized;
+          const highThreat = isHighThreat(target, isNeutralized);
+          const tagColor = classificationTagStyles[target.classification];
+          const borderColor = classificationBorderStyles[target.classification];
+
           return (
             <div
               key={target.id}
               onClick={() => selectTargetAndShowPopup(target)}
-              className={`p-3 cursor-pointer transition-all ${
+              className={`p-3 cursor-pointer transition-all border-2 ${
                 isNeutralized
-                  ? "bg-slate-800/40 border border-slate-700 opacity-60"
+                  ? "bg-slate-800/40 border-slate-700 opacity-60"
                   : isAlert
-                    ? "bg-red-950/60 border-2 border-red-500/80 ring-2 ring-red-500/30 animate-pulse"
+                    ? "bg-red-950/60 border-red-500/80 ring-2 ring-red-500/30 animate-pulse"
                     : isPulsing
-                      ? "bg-slate-900/50 border-2 border-cyan-500/60 ring-2 ring-cyan-500/30"
+                      ? "bg-slate-900/50 border-cyan-500/60 ring-1 ring-cyan-500/30"
                       : showEnemyHighlight
-                        ? "bg-red-950/30 border-2 border-red-500/60 ring-1 ring-red-500/20"
-                        : "bg-slate-900/50 border border-slate-800 hover:border-slate-600 hover:bg-slate-900/70"
+                        ? "bg-red-950/30 border-red-500/60 ring-1 ring-red-500/20"
+                        : `bg-slate-900/50 ${borderColor} hover:border-opacity-100 hover:bg-slate-900/70`
               }`}
             >
               <div className="flex items-center justify-between mb-2">
@@ -211,10 +242,15 @@ export function TrackingPanel({
                         : "text-slate-200"
                     }`}
                   >
-                    {target.id}
+                    {target.targetName ?? target.id}
                   </span>
                 </div>
                 <div className="flex items-center gap-1 flex-wrap justify-end">
+                  {highThreat && (
+                    <span className="text-[10px] font-mono text-red-400 bg-red-950 px-1.5 py-0.5 animate-pulse">
+                      INBOUND
+                    </span>
+                  )}
                   {intercept && (
                     <span
                       className={`text-[10px] font-mono uppercase ${interceptStateStyles[intercept.state]}`}
@@ -222,8 +258,11 @@ export function TrackingPanel({
                       {intercept.state}
                     </span>
                   )}
-                  <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-1.5 py-0.5">
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 ${tagColor}`}>
                     {target.distanceKm.toFixed(1)} KM
+                  </span>
+                  <span className={`text-[10px] font-mono px-1.5 py-0.5 ${tagColor}`}>
+                    {target.altitude} FT
                   </span>
                   <span
                     className={`text-[10px] font-mono px-1.5 py-0.5 ${
@@ -242,43 +281,53 @@ export function TrackingPanel({
                 }`}
               >
                 <div className="flex">
-                  <span className="w-16">Altitude:</span>
-                  <span className="text-slate-400">{target.altitude} FT</span>
+                  <span className="w-16">Distance:</span>
+                  <span className={tagColor}>{target.distanceKm.toFixed(1)} KM</span>
                 </div>
                 <div className="flex">
-                  <span className="w-16">Heading:</span>
+                  <span className="w-16">Altitude:</span>
+                  <span className={tagColor}>{target.altitude} FT</span>
+                </div>
+                <div className="flex">
+                  <span className="w-16">Frequency:</span>
+                  <span className="text-slate-400">{target.frequencyMHz} MHz</span>
+                </div>
+                <div className="flex">
+                  <span className="w-16">Azimuth:</span>
                   <span className="text-slate-400">{target.heading}°</span>
+                </div>
+                {target.bandwidthMHz != null && (
+                  <div className="flex">
+                    <span className="w-16">Bandwidth:</span>
+                    <span className="text-slate-400">{target.bandwidthMHz.toFixed(2)} MHz</span>
+                  </div>
+                )}
+                <div className="flex col-span-2 min-w-0">
+                  <span className="w-16 shrink-0">RSSI:</span>
+                  <span className="text-slate-400 truncate">
+                    {(typeof target.rssi === "number" ? target.rssi : Number(target.rssi ?? 0)).toFixed(1)} dBm
+                  </span>
+                </div>
+                {target.rcCoords && (
+                  <div className="flex col-span-2 min-w-0">
+                    <span className="w-16 shrink-0">RC/GCS:</span>
+                    <span className="text-slate-400 truncate">
+                      {target.rcCoords[0].toFixed(5)}, {target.rcCoords[1].toFixed(5)}
+                    </span>
+                  </div>
+                )}
+                <div className="flex col-span-2">
+                  <span className="w-16">Coords:</span>
+                  <span className="text-slate-400">
+                    {target.coordinates[1].toFixed(5)}, {target.coordinates[0].toFixed(5)}
+                  </span>
                 </div>
                 {target.speedKmH != null && (
                   <div className="flex">
                     <span className="w-16">Speed:</span>
-                    <span className="text-slate-400">
-                      {target.speedKmH.toFixed(1)} km/h
-                    </span>
+                    <span className="text-slate-400">{target.speedKmH.toFixed(1)} km/h</span>
                   </div>
                 )}
-                <div className="flex">
-                  <span className="w-16">Frequency:</span>
-                  <span className="text-slate-400">
-                    {target.frequencyMHz} MHz
-                  </span>
-                </div>
-                <div className="flex col-span-2 min-w-0">
-                  <span className="w-16 shrink-0">RSSI:</span>
-                  <span className="text-slate-400 whitespace-nowrap overflow-x-auto flex-1 min-w-0">
-                    {typeof target.rssi === "number"
-                      ? target.rssi
-                      : Number(target.rssi ?? 0)}{" "}
-                    dBm
-                  </span>
-                </div>
-                <div className="flex col-span-2">
-                  <span className="w-16">Coords:</span>
-                  <span className="text-slate-400">
-                    {target.coordinates[1].toFixed(5)},{" "}
-                    {target.coordinates[0].toFixed(5)}
-                  </span>
-                </div>
               </div>
             </div>
           );

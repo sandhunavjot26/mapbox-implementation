@@ -9,11 +9,8 @@ import { useMissionStore } from "@/stores/missionStore";
 import { createCommand } from "@/lib/api/commands";
 import { ApiClientError } from "@/lib/api/client";
 import { useCommandsStore } from "@/stores/commandsStore";
-import {
-  QUERY_COMMANDS,
-  OPERATIONAL_COMMANDS,
-  TURNTABLE_COMMANDS,
-} from "@/lib/commands";
+import { TurntableControls } from "@/components/commands/TurntableControls";
+import { BandRangeEditor } from "@/components/commands/BandRangeEditor";
 
 const CLASSIFY_OPTIONS: { id: TargetClassification; label: string }[] = [
   { id: "FRIENDLY", label: "Friendly" },
@@ -21,10 +18,9 @@ const CLASSIFY_OPTIONS: { id: TargetClassification; label: string }[] = [
   { id: "UNKNOWN", label: "Unknown" },
 ];
 
-const ASSET_COMMANDS = [
-  ...QUERY_COMMANDS.slice(0, 3).map((c) => ({ id: c.id, label: c.label })),
-  ...OPERATIONAL_COMMANDS.map((c) => ({ id: c.id, label: c.label })),
-  ...TURNTABLE_COMMANDS.map((c) => ({ id: c.id, label: c.label })),
+/** Commands shown as simple buttons (excludes Turntable, Band Range — those have dedicated UIs) */
+const ASSET_QUERY_COMMANDS = [
+  { id: "ATTACK_MODE_QUERY", label: "Attack Mode Query" },
 ];
 
 /** Convert API error to a string — detail can be object/array (e.g. Pydantic validation errors) */
@@ -84,6 +80,8 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
         approved_count: out.approved_count,
         required_approvals: out.required_approvals,
         last_error: out.last_error,
+        packet_no: out.packet_no ?? undefined,
+        created_at: new Date().toISOString(),
       });
     } catch (err) {
       setCommandError(formatCommandError(err));
@@ -102,12 +100,15 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
     setCommandPending(true);
     setCommandError(null);
     try {
+      // Per GUI Developer Guide: ATTACK_MODE_SET payload { mode, switch }
+      // mode: 0=Expulsion (Jam), 1=ForcedLanding; switch: 0=Off, 1=On
       const out = await createCommand({
         mission_id: activeMissionId,
         device_id: deviceId,
         command_type: "ATTACK_MODE_SET",
-        payload: { mode: "JAM", switch: 1 },
+        payload: { mode: 0, switch: 1 },
       });
+      // Store command with full fields for RecentCommands (packet_no, created_at)
       useCommandsStore.getState().addOrUpdateCommand({
         id: out.id,
         mission_id: out.mission_id,
@@ -117,6 +118,9 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
         approved_count: out.approved_count,
         required_approvals: out.required_approvals,
         last_error: out.last_error,
+        engaged_target_id: target.id,
+        packet_no: out.packet_no ?? undefined,
+        created_at: new Date().toISOString(),
       });
     } catch (err) {
       setCommandError(formatCommandError(err));
@@ -193,6 +197,7 @@ interface AssetPopupControlsProps {
 export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
   const [commandPending, setCommandPending] = useState(false);
   const [commandError, setCommandError] = useState<string | null>(null);
+  const [showBandEditor, setShowBandEditor] = useState(false);
   const activeMissionId = useMissionStore((s) => s.activeMissionId);
 
   const handleAssetCommand = async (commandType: string) => {
@@ -216,6 +221,8 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
         approved_count: out.approved_count,
         required_approvals: out.required_approvals,
         last_error: out.last_error,
+        packet_no: out.packet_no ?? undefined,
+        created_at: new Date().toISOString(),
       });
     } catch (err) {
       setCommandError(formatCommandError(err));
@@ -241,8 +248,10 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
           </button>
         </div>
       )}
+
+      {/* Query button */}
       <div className="flex flex-wrap gap-1">
-        {ASSET_COMMANDS.map((cmd) => (
+        {ASSET_QUERY_COMMANDS.map((cmd) => (
           <button
             key={cmd.id}
             type="button"
@@ -253,7 +262,27 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
             {cmd.label}
           </button>
         ))}
+        <button
+          type="button"
+          onClick={() => setShowBandEditor(true)}
+          className="px-2 py-1 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors"
+        >
+          Band Range
+        </button>
       </div>
+
+      {/* Turntable D-pad + Point */}
+      {activeMissionId && (
+        <TurntableControls asset={asset} missionId={activeMissionId} />
+      )}
+
+      {showBandEditor && activeMissionId && (
+        <BandRangeEditor
+          asset={asset}
+          missionId={activeMissionId}
+          onClose={() => setShowBandEditor(false)}
+        />
+      )}
     </div>
   );
 }

@@ -72,6 +72,16 @@ function lngLatToViewport(lngLat: mapboxgl.LngLat): { x: number; y: number } {
   return { x: rect.left + point.x, y: rect.top + point.y };
 }
 
+/** Project [lng, lat] to viewport coordinates (for overlays) */
+export function projectLngLatToViewport(
+  lngLat: [number, number],
+): { x: number; y: number } {
+  if (!mapInstance) return { x: 0, y: 0 };
+  const point = mapInstance.project(new mapboxgl.LngLat(lngLat[0], lngLat[1]));
+  const rect = mapInstance.getContainer().getBoundingClientRect();
+  return { x: rect.left + point.x, y: rect.top + point.y };
+}
+
 // Subscribe to popup state changes
 export function subscribeToPopup(callback: PopupSubscriber): () => void {
   popupSubscribers.add(callback);
@@ -186,6 +196,19 @@ export function updatePinnedPopupPosition() {
 // ============================================================
 // Map Reference Management
 // ============================================================
+
+// Overlay position subscribers (e.g. EngageOverlay) — notified on map move/zoom
+type OverlaySubscriber = () => void;
+const overlaySubscribers = new Set<OverlaySubscriber>();
+
+export function subscribeToMapMove(cb: OverlaySubscriber): () => void {
+  overlaySubscribers.add(cb);
+  return () => overlaySubscribers.delete(cb);
+}
+
+export function notifyOverlayPositionUpdate() {
+  overlaySubscribers.forEach((cb) => cb());
+}
 
 // Set map reference
 export function setMap(map: mapboxgl.Map | null) {

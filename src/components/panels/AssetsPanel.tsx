@@ -1,6 +1,7 @@
 import Image from "next/image";
 import type { Asset } from "@/types/assets";
 import { flyToAsset, selectAsset } from "@/components/map/mapController";
+import { useAttackModeStore } from "@/stores/attackModeStore";
 
 import AssetsIcon from "@/assets/assets.svg";
 import TowerIcon from "@/assets/tower.svg";
@@ -12,6 +13,8 @@ interface AssetsPanelProps {
 }
 
 export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
+  const getAttackMode = useAttackModeStore((s) => s.getAttackMode);
+
   return (
     <aside
       className={`shrink-0 border-r border-slate-800 bg-slate-950/50 flex flex-col transition-all duration-300 ease-in-out ${
@@ -72,7 +75,9 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
           collapsed ? "opacity-0 pointer-events-none" : "opacity-100"
         }`}
       >
-        {assets.map((asset) => (
+        {assets.map((asset) => {
+          const attackMode = getAttackMode(asset.id);
+          return (
           <div
             key={asset.id}
             onClick={() => {
@@ -89,6 +94,15 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
                 </span>
               </div>
               <div className="flex items-center gap-1">
+                {attackMode && (
+                  <span
+                    className={`text-[10px] font-mono px-1.5 py-0.5 ${
+                      attackMode.jamActive ? "text-red-400 bg-red-950" : "text-slate-500 bg-slate-800"
+                    }`}
+                  >
+                    {attackMode.jamActive ? "Jam: ON" : "Idle"}
+                  </span>
+                )}
                 <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-1.5 py-0.5 whitespace-nowrap">
                   ALT {asset.altitude} FT
                 </span>
@@ -121,7 +135,8 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
               </div>
             </div>
           </div>
-        ))}
+          );
+        })}
       </div>
     </aside>
   );

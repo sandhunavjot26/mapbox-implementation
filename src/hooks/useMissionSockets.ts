@@ -13,10 +13,16 @@ import {
   getDevicesWsUrl,
   getCommandsWsUrl,
 } from "@/lib/ws/missionSockets";
-import { useTargetsStore, uavPayloadToTarget } from "@/stores/targetsStore";
+import {
+  useTargetsStore,
+  uavPayloadToTarget,
+  trackUpdatePayloadToTarget,
+} from "@/stores/targetsStore";
 import { useCommandsStore } from "@/stores/commandsStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import { useMissionEventsStore } from "@/stores/missionEventsStore";
+import { useAttackModeStore } from "@/stores/attackModeStore";
+import { useEngageOverlayStore } from "@/stores/engageOverlayStore";
 
 type WsStatus = "connecting" | "open" | "closed" | "error";
 
@@ -111,9 +117,12 @@ export function useMissionSockets(): UseMissionSocketsResult {
   const missionId = useMissionStore((s) => s.activeMissionId);
   const cachedMission = useMissionStore((s) => s.cachedMission);
   const addOrUpdateTarget = useTargetsStore((s) => s.addOrUpdateTarget);
+  const markTargetLost = useTargetsStore((s) => s.markTargetLost);
   const addOrUpdateCommand = useCommandsStore((s) => s.addOrUpdateCommand);
   const setDeviceStatus = useDeviceStatusStore((s) => s.setDeviceStatus);
   const addMissionEvent = useMissionEventsStore((s) => s.addEvent);
+  const setAttackMode = useAttackModeStore((s) => s.setAttackMode);
+  const setEngageOverlay = useEngageOverlayStore((s) => s.setOverlay);
 
   const eventsUrl =
     missionId && token ? getEventsWsUrl(missionId, token) : null;
@@ -153,7 +162,7 @@ export function useMissionSockets(): UseMissionSocketsResult {
         payload: Object.keys(payload).length ? payload : null,
       });
 
-      // DETECTED: add/update target for map
+      // DETECTED: add/update target for map (nested payload.uav structure)
       if (eventType === "DETECTED") {
         const uav = payload.uav as Record<string, unknown> | undefined;
         if (uav) {
@@ -173,8 +182,26 @@ export function useMissionSockets(): UseMissionSocketsResult {
           addOrUpdateTarget(target);
         }
       }
+
+      // TRACK_UPDATE: continuous position updates (flat payload: lat, lon, target_uid, etc.)
+      // Merges with existing target; creates new if track appeared without prior DETECTED
+      if (eventType === "TRACK_UPDATE") {
+        const trackPayload = payload as unknown as Parameters<typeof trackUpdatePayloadToTarget>[0];
+        if (trackPayload.target_uid && trackPayload.lat != null && trackPayload.lon != null) {
+          const target = trackUpdatePayloadToTarget(trackPayload);
+          addOrUpdateTarget(target);
+        }
+      }
+
+      // TRACK_LOST: backend signals track loss — mark target as lost (greyed on map)
+      if (eventType === "TRACK_LOST" || eventType === "TRACK_END") {
+        const targetUid = (payload.target_uid ?? payload.target_id) as string | undefined;
+        if (targetUid) {
+          markTargetLost(targetUid);
+        }
+      }
     },
-    [missionId, cachedMission, addOrUpdateTarget, addMissionEvent],
+    [missionId, cachedMission, addOrUpdateTarget, addMissionEvent, markTargetLost],
   );
 
   const onDevice = useCallback(
@@ -210,8 +237,8 @@ export function useMissionSockets(): UseMissionSocketsResult {
 
   const onCommand = useCallback(
     (data: unknown) => {
-      // Backend sends flat messages: { type, command_id, status, ... }
-      // Types: command_status_update, command_sent, command_response, command_failed, command_timeout
+      // Backend sends: command_update, command_sent, command_response, command_failed, command_timeout
+      // Supports both flat and nested { command: { id, status, ... } } formats
       const msg = data as {
         type?: string;
         command_id?: string;
@@ -224,8 +251,9 @@ export function useMissionSockets(): UseMissionSocketsResult {
           approved_count?: number;
           required_approvals?: number;
           last_error?: string | null;
+          packet_no?: number | null;
+          result?: Record<string, unknown>;
         };
-        // Flat format fields
         mission_id?: string;
         device_id?: string | null;
         command_type?: string;
@@ -233,6 +261,9 @@ export function useMissionSockets(): UseMissionSocketsResult {
         approved_count?: number;
         required_approvals?: number;
         last_error?: string | null;
+        packet_no?: number | null;
+        result?: Record<string, unknown>;
+        payload?: { status?: string; result?: Record<string, unknown> };
       };
 
       const commandTypes = [
@@ -242,17 +273,19 @@ export function useMissionSockets(): UseMissionSocketsResult {
         "command_response",
         "command_failed",
         "command_timeout",
+        "command_requested",
       ];
 
       if (!msg.type || !commandTypes.includes(msg.type)) return;
 
-      // Support both flat format (confirmed) and nested format (fallback)
       const commandId = msg.command_id ?? msg.command?.id;
       if (!commandId) return;
 
+      // Status can be in: msg.status, msg.command.status, msg.payload.status
       const status =
         msg.status ??
         msg.command?.status ??
+        msg.payload?.status ??
         (msg.type === "command_sent"
           ? "SENT"
           : msg.type === "command_failed"
@@ -260,6 +293,14 @@ export function useMissionSockets(): UseMissionSocketsResult {
             : msg.type === "command_timeout"
               ? "TIMEOUT"
               : "PENDING");
+
+      // Dev: check console — if only SENDING, backend may not send SENT/SUCCEEDED (device offline?)
+      if (process.env.NODE_ENV === "development") {
+        console.debug("[Commands WS]", msg.type, "→", status, "id:", commandId);
+      }
+
+      const packetNo = msg.packet_no ?? msg.command?.packet_no;
+      const resultPayload = msg.result ?? msg.command?.result ?? msg.payload?.result;
 
       addOrUpdateCommand({
         id: commandId,
@@ -271,9 +312,56 @@ export function useMissionSockets(): UseMissionSocketsResult {
         required_approvals:
           msg.required_approvals ?? msg.command?.required_approvals,
         last_error: msg.last_error ?? msg.command?.last_error,
+        packet_no: packetNo ?? undefined,
+        result_payload: resultPayload ?? undefined,
       });
+
+      // Add command completion to MissionTimeline when status is terminal
+      const terminalStatuses = ["SUCCEEDED", "FAILED", "TIMEOUT"];
+      if (terminalStatuses.includes(status)) {
+        const eventType =
+          status === "SUCCEEDED"
+            ? "COMMAND_SUCCEEDED"
+            : status === "FAILED"
+              ? "COMMAND_FAILED"
+              : "COMMAND_TIMEOUT";
+        addMissionEvent({
+          id: `cmd-${commandId}-${status}`,
+          mission_id: msg.mission_id ?? msg.command?.mission_id ?? missionId ?? "",
+          device_id: msg.device_id ?? msg.command?.device_id ?? null,
+          event_type: eventType,
+          ts: new Date().toISOString(),
+          payload: {
+            command_id: commandId,
+            command_type: msg.command_type ?? msg.command?.command_type,
+            status,
+            ...(resultPayload && { result: resultPayload }),
+          },
+        });
+
+        // ATTACK_MODE_QUERY succeeded: update attack mode store for device badge
+        const cmdType = msg.command_type ?? msg.command?.command_type;
+        const deviceId = msg.device_id ?? msg.command?.device_id;
+        if (status === "SUCCEEDED" && cmdType === "ATTACK_MODE_QUERY" && deviceId && resultPayload) {
+          setAttackMode(deviceId, resultPayload as Record<string, unknown>);
+        }
+
+        // ATTACK_MODE_SET succeeded: show Engage overlay near target
+        if (status === "SUCCEEDED" && cmdType === "ATTACK_MODE_SET") {
+          const cmd = useCommandsStore.getState().commands.find((c) => c.id === commandId);
+          const targetId = cmd?.engaged_target_id ?? undefined;
+          if (targetId) {
+            const jamActive = resultPayload && (resultPayload.switch === 1 || resultPayload.sw === 1);
+            setEngageOverlay({
+              targetId,
+              message: jamActive ? "Jam active" : "Command delivered",
+              expiresAt: 0,
+            });
+          }
+        }
+      }
     },
-    [addOrUpdateCommand],
+    [missionId, addOrUpdateCommand, addMissionEvent, setAttackMode, setEngageOverlay],
   );
 
   const eventsStatus = useWs(eventsUrl, onEvent);
