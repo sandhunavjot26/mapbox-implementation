@@ -11,6 +11,7 @@ import {
   selectEntity,
   clearSelection,
   updatePinnedPopupPosition,
+  notifyOverlayPositionUpdate,
 } from "./mapController";
 import {
   registerMapActions,
@@ -531,6 +532,7 @@ export function MapContainer({
               ...t,
               neutralized: getNeutralizedTargetIds().includes(t.id),
             })),
+            useTargetsStore.getState().positionHistory,
           );
 
           // Intercept source and layer
@@ -690,8 +692,14 @@ export function MapContainer({
             clearSelection();
           });
 
-          map.on("move", updatePinnedPopupPosition);
-          map.on("zoom", updatePinnedPopupPosition);
+          map.on("move", () => {
+            updatePinnedPopupPosition();
+            notifyOverlayPositionUpdate();
+          });
+          map.on("zoom", () => {
+            updatePinnedPopupPosition();
+            notifyOverlayPositionUpdate();
+          });
         });
       });
 
@@ -749,12 +757,56 @@ export function MapContainer({
     };
   }, []);
 
-  // Update target layer data when computedTargets or neutralized state changes
+  // Smooth interpolation: lerp display positions toward target positions (~20fps)
+  const displayCoordsRef = useRef<Record<string, [number, number]>>({});
+  const interpolationRafRef = useRef<number | null>(null);
+  const LERP_FACTOR = 0.2;
+  const frameCountRef = useRef(0);
+
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
-    updateTargetLayersData(map, targetsForMap);
-  }, [targetsForMap, mapReady, isIntroComplete]);
+
+    const tick = () => {
+      frameCountRef.current++;
+      if (frameCountRef.current % 3 !== 0) {
+        interpolationRafRef.current = requestAnimationFrame(tick);
+        return;
+      }
+
+      const targets = computedTargetsRef.current.map((t) => ({
+        ...t,
+        neutralized: getNeutralizedTargetIds().includes(t.id),
+      }));
+      const posHist = useTargetsStore.getState().positionHistory;
+
+      const interpolated = targets.map((t) => {
+        const [lng, lat] = t.coordinates;
+        let disp = displayCoordsRef.current[t.id];
+        if (!disp) disp = [lng, lat];
+        const newLng = disp[0] + (lng - disp[0]) * LERP_FACTOR;
+        const newLat = disp[1] + (lat - disp[1]) * LERP_FACTOR;
+        displayCoordsRef.current[t.id] = [newLng, newLat];
+        return { ...t, coordinates: [newLng, newLat] as [number, number] };
+      });
+
+      const ids = new Set(targets.map((t) => t.id));
+      for (const id of Object.keys(displayCoordsRef.current)) {
+        if (!ids.has(id)) delete displayCoordsRef.current[id];
+      }
+
+      updateTargetLayersData(map, interpolated, posHist);
+      interpolationRafRef.current = requestAnimationFrame(tick);
+    };
+
+    interpolationRafRef.current = requestAnimationFrame(tick);
+    return () => {
+      if (interpolationRafRef.current != null) {
+        cancelAnimationFrame(interpolationRafRef.current);
+        interpolationRafRef.current = null;
+      }
+    };
+  }, [mapReady, isIntroComplete]);
 
   // Update assets from device data (primary source for radar icons)
   useEffect(() => {

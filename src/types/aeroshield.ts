@@ -81,6 +81,23 @@ export interface MissionEvent {
   payload: Record<string, unknown> | null;
 }
 
+/**
+ * TRACK_UPDATE payload — flat structure from events WebSocket.
+ * Continuous position updates for existing tracks (different from DETECTED which has nested uav).
+ */
+export interface TrackUpdatePayload {
+  target_uid: string;
+  target_name?: string;
+  lat: number;
+  lon: number;
+  speed_mps?: number;
+  heading_deg?: number;
+  azimuth_deg?: number;
+  distance_m?: number;
+  confidence?: number;
+  source?: string;
+}
+
 // DETECTED payload.uav structure (from dt56 parser)
 export interface DetectedUavPayload {
   target_uid: string;

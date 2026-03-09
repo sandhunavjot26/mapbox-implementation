@@ -52,6 +52,14 @@ const EntityHoverPopup = dynamic(
   { ssr: false },
 );
 
+const EngageOverlay = dynamic(
+  () =>
+    import("@/components/map/overlays/EngageOverlay").then(
+      (mod) => mod.EngageOverlay,
+    ),
+  { ssr: false },
+);
+
 interface MissionWorkspaceProps {
   missionId: string;
   assetsCollapsed: boolean;
@@ -142,6 +150,7 @@ export function MissionWorkspace({
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       <EntityHoverPopup />
+      <EngageOverlay />
       <div className="flex-1 flex overflow-hidden">
         <ErrorBoundary label="Assets Panel">
           <AssetsPanel
