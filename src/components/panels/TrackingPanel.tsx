@@ -17,6 +17,8 @@ import type { InterceptState } from "@/stores/mapActionsStore";
 
 import TrackingIcon from "@/assets/tracking.svg";
 import DroneIcon from "@/assets/drone.svg";
+import { COP_GLASS_PANEL } from "@/components/cop-shell/shellStyles";
+import { RADIUS } from "@/styles/driifTokens";
 
 const classificationStyles: Record<TargetClassification, string> = {
   ENEMY: "text-red-400 bg-red-950",
@@ -108,13 +110,21 @@ export function TrackingPanel({
 
   return (
     <aside
-      className={`shrink-0 border-l border-slate-800 bg-slate-950/50 flex flex-col transition-all duration-300 ease-in-out ${
+      className={`shrink-0 flex flex-col transition-all duration-300 ease-in-out ${
         collapsed ? "w-12" : "w-72"
       }`}
+      style={{
+        background: COP_GLASS_PANEL.background,
+        borderLeft: COP_GLASS_PANEL.border,
+        backdropFilter: COP_GLASS_PANEL.backdropFilter,
+        boxShadow: COP_GLASS_PANEL.boxShadow,
+        borderTopLeftRadius: RADIUS.panel,
+        borderBottomLeftRadius: RADIUS.panel,
+      }}
     >
       {/* Panel header */}
       <div
-        className={`px-3 py-3 border-b border-slate-800 ${collapsed ? "cursor-pointer" : ""}`}
+        className={`px-3 py-3 border-b border-white/[0.08] ${collapsed ? "cursor-pointer" : ""}`}
         onClick={collapsed ? onToggle : undefined}
       >
         <div className="flex items-center justify-between">

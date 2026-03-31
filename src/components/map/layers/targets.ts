@@ -1,6 +1,12 @@
 import mapboxgl from "mapbox-gl";
 import type { Target } from "@/types/targets";
 
+/** Same slot / treatment as asset radar overlays — visible on Standard night + monochrome */
+const TARGET_OVERLAY_SLOT = "top" as const;
+
+/** Set to `true` to render and update position-history trail lines behind drone symbols. */
+const SHOW_DRONE_TRAILS = false;
+
 type TargetWithNeutralized = Target & { neutralized?: boolean };
 
 function targetsToGeoJSON(
@@ -36,7 +42,10 @@ function trailsToGeoJSON(
     if (!trail || trail.length < 2) continue;
     features.push({
       type: "Feature",
-      properties: { targetId: target.id, classification: target.classification },
+      properties: {
+        targetId: target.id,
+        classification: target.classification,
+      },
       geometry: { type: "LineString", coordinates: trail },
     });
   }
@@ -82,36 +91,41 @@ export async function addTargetLayers(
     promoteId: "id",
   });
 
-  // Track trails (LineString) — below symbols so trails render under drones
-  const trails = positionHistory ?? {};
-  map.addSource("target-trails", {
-    type: "geojson",
-    data: trailsToGeoJSON(trails, targets),
-  });
-  map.addLayer({
-    id: "target-trails-line",
-    type: "line",
-    source: "target-trails",
-    paint: {
-      "line-color": [
-        "match",
-        ["get", "classification"],
-        "ENEMY",
-        "rgba(248,113,113,0.6)",
-        "FRIENDLY",
-        "rgba(74,222,128,0.6)",
-        "rgba(251,191,36,0.6)",
-      ],
-      "line-width": 2,
-      "line-opacity": 0.8,
-    },
-  });
+  if (SHOW_DRONE_TRAILS) {
+    const trails = positionHistory ?? {};
+    map.addSource("target-trails", {
+      type: "geojson",
+      data: trailsToGeoJSON(trails, targets),
+    });
+    map.addLayer({
+      id: "target-trails-line",
+      type: "line",
+      source: "target-trails",
+      slot: TARGET_OVERLAY_SLOT,
+      paint: {
+        "line-color": [
+          "match",
+          ["get", "classification"],
+          "ENEMY",
+          "#f87171",
+          "FRIENDLY",
+          "#4ade80",
+          "#facc15",
+        ],
+        "line-width": 2.5,
+        "line-opacity": 0.95,
+        "line-emissive-strength": 1,
+        "line-color-use-theme": "disabled",
+      },
+    });
+  }
 
   // NATO style rotating symbols — greyed when neutralized or lost
   map.addLayer({
     id: "targets-symbols",
     type: "symbol",
     source: "targets",
+    slot: TARGET_OVERLAY_SLOT,
     layout: {
       "icon-image": [
         "case",
@@ -132,6 +146,7 @@ export async function addTargetLayers(
         0.35,
         ["case", ["==", ["get", "lost"], true], 0.25, 1],
       ],
+      "icon-emissive-strength": 1,
     },
   });
 }
@@ -145,8 +160,10 @@ export function updateTargetLayersData(
   const targetsSource = map.getSource("targets") as mapboxgl.GeoJSONSource;
   if (targetsSource) targetsSource.setData(targetsToGeoJSON(targets));
 
-  const trailsSource = map.getSource("target-trails") as mapboxgl.GeoJSONSource;
-  if (trailsSource && positionHistory) {
-    trailsSource.setData(trailsToGeoJSON(positionHistory, targets));
+  if (SHOW_DRONE_TRAILS) {
+    const trailsSource = map.getSource("target-trails") as mapboxgl.GeoJSONSource;
+    if (trailsSource && positionHistory) {
+      trailsSource.setData(trailsToGeoJSON(positionHistory, targets));
+    }
   }
 }

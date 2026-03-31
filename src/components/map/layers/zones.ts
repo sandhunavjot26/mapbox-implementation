@@ -54,6 +54,8 @@ const ZONE_LINE_COLOR: mapboxgl.Expression = [
   "#3b82f6", // default: blue
 ];
 
+const ZONE_SLOT = "top" as const;
+
 const ZONE_LINE_WIDTH: mapboxgl.Expression = [
   "match",
   ["to-number", ["get", "priority"], 0],
@@ -84,9 +86,12 @@ export function addZonesLayer(
     id: "zones-fill",
     type: "fill",
     source: ZONE_SOURCE_ID,
+    slot: ZONE_SLOT,
     paint: {
       "fill-color": ZONE_FILL_COLOR as unknown as string,
       "fill-opacity": 1, // opacity baked into the rgba colors
+      "fill-emissive-strength": 0.85,
+      "fill-color-use-theme": "disabled",
     },
   });
 
@@ -94,10 +99,13 @@ export function addZonesLayer(
     id: "zones-outline",
     type: "line",
     source: ZONE_SOURCE_ID,
+    slot: ZONE_SLOT,
     paint: {
       "line-color": ZONE_LINE_COLOR as unknown as string,
       "line-width": ZONE_LINE_WIDTH as unknown as number,
-      "line-opacity": 0.8,
+      "line-opacity": 0.9,
+      "line-emissive-strength": 0.85,
+      "line-color-use-theme": "disabled",
     },
   });
 
@@ -106,6 +114,7 @@ export function addZonesLayer(
     id: "zones-label",
     type: "symbol",
     source: ZONE_SOURCE_ID,
+    slot: ZONE_SLOT,
     layout: {
       "text-field": [
         "concat",
@@ -121,6 +130,8 @@ export function addZonesLayer(
       "text-halo-color": "rgba(0,0,0,0.8)",
       "text-halo-width": 1.5,
       "text-opacity": 0.9,
+      "text-emissive-strength": 0.75,
+      "text-color-use-theme": "disabled",
     },
   });
 }

@@ -18,6 +18,13 @@ let requestAnimationId: number | null = null;
 // Sweep speed: ACTIVE = fast, INACTIVE = slow
 const SWEEP_SPEED = { ACTIVE: 2, INACTIVE: 0.5 } as const;
 
+/** Figma Driif-UI map symbology — must stay vivid on Standard + night + monochrome */
+const RADAR_SLOT = "top" as const;
+const RADAR_ORANGE = "#F4A30C"; // Yellow/50
+const RADAR_ORANGE_DEEP = "#EA580C"; // outer dashed ring
+const RADAR_LIME = "#C6E600"; // Primary/60 — inner ring
+const RADAR_SWEEP_FILL = "#0CBB58"; // Green/50 — scan wedge
+
 // Compute destination point from [lng, lat], bearing (degrees), distance (km)
 function destinationPoint(
   center: [number, number],
@@ -89,13 +96,13 @@ function generateGradientRadarSweep(
   center: [number, number],
   bearing: number,
   radiusKm: number,
-  arcAngle = 40,
+  arcAngle = 52,
 ): Array<{ coords: GeoJSON.Position[]; opacity: number }> {
   const segments = [
-    { r0: 0.02, r1: 0.25, opacity: 0.4 },
-    { r0: 0.25, r1: 0.5, opacity: 0.25 },
-    { r0: 0.5, r1: 0.75, opacity: 0.15 },
-    { r0: 0.75, r1: 1, opacity: 0.08 },
+    { r0: 0.02, r1: 0.25, opacity: 0.48 },
+    { r0: 0.25, r1: 0.5, opacity: 0.32 },
+    { r0: 0.5, r1: 0.75, opacity: 0.2 },
+    { r0: 0.75, r1: 1, opacity: 0.12 },
   ];
   return segments.map(({ r0, r1, opacity }) => ({
     coords: generateRadarSweepSegment(
@@ -220,6 +227,7 @@ export async function addAssetLayers(
     id: "assets-coverage",
     type: "circle",
     source: "assets",
+    slot: RADAR_SLOT,
     paint: {
       "circle-radius": [
         "interpolate",
@@ -264,10 +272,13 @@ export async function addAssetLayers(
         0.8,
         0.4,
       ],
+      "circle-emissive-strength": 1,
+      "circle-color-use-theme": "disabled",
+      "circle-stroke-color-use-theme": "disabled",
     },
   });
 
-  // Layer 2: Pulsing concentric rings (line outlines)
+  // Layer 2: Concentric range rings (static opacity; sweep provides motion)
   if (!map.getSource("radar-rings")) {
     map.addSource("radar-rings", {
       type: "geojson",
@@ -278,10 +289,36 @@ export async function addAssetLayers(
     id: "radar-rings-layer",
     type: "line",
     source: "radar-rings",
+    slot: RADAR_SLOT,
     paint: {
-      "line-color": "#22c55e",
-      "line-width": 1.5,
-      "line-opacity": ["get", "pulsePhase"],
+      "line-color": [
+        "match",
+        ["get", "ringTier"],
+        2,
+        RADAR_ORANGE_DEEP,
+        1,
+        RADAR_ORANGE,
+        RADAR_LIME,
+      ],
+      "line-width": [
+        "match",
+        ["get", "ringTier"],
+        2,
+        2,
+        1,
+        1.5,
+        1.25,
+      ],
+      "line-dasharray": [
+        "match",
+        ["get", "ringTier"],
+        2,
+        ["literal", [4, 3]],
+        ["literal", [1, 0]],
+      ],
+      "line-opacity": ["*", 0.92, ["get", "statusDim"]],
+      "line-emissive-strength": 1,
+      "line-color-use-theme": "disabled",
     },
   });
 
@@ -296,9 +333,12 @@ export async function addAssetLayers(
     id: "radar-sweep-layer",
     type: "fill",
     source: "radar-sweep",
+    slot: RADAR_SLOT,
     paint: {
-      "fill-color": "#22c55e",
+      "fill-color": RADAR_SWEEP_FILL,
       "fill-opacity": ["get", "opacity"],
+      "fill-emissive-strength": 1,
+      "fill-color-use-theme": "disabled",
     },
   });
 
@@ -313,12 +353,16 @@ export async function addAssetLayers(
     id: "radar-lockon-layer",
     type: "circle",
     source: "radar-lockon",
+    slot: RADAR_SLOT,
     paint: {
       "circle-radius": 12,
       "circle-color": "#ef4444",
-      "circle-opacity": ["get", "lockPhase"],
+      "circle-opacity": 0.88,
       "circle-stroke-width": 2,
       "circle-stroke-color": "#ffffff",
+      "circle-emissive-strength": 1,
+      "circle-color-use-theme": "disabled",
+      "circle-stroke-color-use-theme": "disabled",
     },
   });
 
@@ -327,25 +371,22 @@ export async function addAssetLayers(
     id: "assets-symbols",
     type: "symbol",
     source: "assets",
+    slot: RADAR_SLOT,
     layout: {
       "icon-image": "asset-tower",
       "icon-size": 0.2,
       "icon-allow-overlap": true,
+    },
+    paint: {
+      "icon-emissive-strength": 1,
     },
   });
 
   // Per-asset sweep angles (speed based on status)
   const sweepAngles = new Map<string, number>();
 
-  let pulsePhase = 0;
-  let lockPhase = 0;
-  let frameCount = 0;
   let lastAnimateTime = 0;
   const FRAME_INTERVAL = 33; // ~30fps throttle (ms)
-  const LOCKON_INTERVAL = 30; // recompute lock-on every ~30 frames (~1s)
-
-  // Cached lock-on features to avoid recalculating every frame
-  let cachedLockonFeatures: GeoJSON.Feature<GeoJSON.Point>[] = [];
 
   function animate(now: number) {
     // Throttle to ~30fps
@@ -354,12 +395,6 @@ export async function addAssetLayers(
       return;
     }
     lastAnimateTime = now;
-    frameCount++;
-
-    const t = now / 1000;
-
-    pulsePhase = 0.5 + 0.4 * Math.sin(t * 4);
-    lockPhase = 0.5 + 0.5 * Math.sin(t * 3);
 
     const assets = currentAssetsForAnimation;
     // Update per-asset sweep angles
@@ -392,47 +427,48 @@ export async function addAssetLayers(
       });
     });
 
-    // Pulsing rings (3 per asset at 33%, 66%, 100%)
+    // Pulsing rings — Figma: inner lime, mid solid orange, outer dashed orange-red
     const ringFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = [];
     assets.forEach((asset) => {
-      [0.33, 0.66, 1].forEach((ratio) => {
+      const statusDim = asset.status === "ACTIVE" ? 1 : 0.38;
+      (
+        [
+          { ratio: 0.33, ringTier: 0 },
+          { ratio: 0.66, ringTier: 1 },
+          { ratio: 1, ringTier: 2 },
+        ] as const
+      ).forEach(({ ratio, ringTier }) => {
         const ring = generateRing(
           asset.coordinates,
           asset.coverageRadiusKm * ratio,
         );
-        ring.push(ring[0]); // close the ring
+        ring.push(ring[0]);
         ringFeatures.push({
           type: "Feature",
-          properties: { pulsePhase },
+          properties: { ringTier, statusDim },
           geometry: { type: "LineString", coordinates: ring },
         });
       });
     });
 
-    // Lock-on: only recompute every ~1 second instead of every frame
-    if (frameCount % LOCKON_INTERVAL === 0) {
-      const targets = useTargetsStore.getState().targets;
-      const lockedAssets = assets.filter((asset) =>
-        targets.some(
-          (target) =>
-            distanceKm(asset.coordinates, target.coordinates) <=
-            asset.coverageRadiusKm,
-        ),
-      );
-      cachedLockonFeatures = lockedAssets.map((asset) => ({
+    const targets = useTargetsStore.getState().targets;
+    const lockedAssets = assets.filter((asset) =>
+      targets.some(
+        (target) =>
+          distanceKm(asset.coordinates, target.coordinates) <=
+          asset.coverageRadiusKm,
+      ),
+    );
+    const lockonFeatures: GeoJSON.Feature<GeoJSON.Point>[] = lockedAssets.map(
+      (asset) => ({
         type: "Feature" as const,
-        properties: { lockPhase },
+        properties: {},
         geometry: {
           type: "Point" as const,
           coordinates: asset.coordinates,
         },
-      }));
-    } else {
-      // Update only the lockPhase property without recomputing geometry
-      cachedLockonFeatures.forEach((f) => {
-        if (f.properties) f.properties.lockPhase = lockPhase;
-      });
-    }
+      }),
+    );
 
     try {
       const sweepSource = map.getSource("radar-sweep") as
@@ -460,7 +496,7 @@ export async function addAssetLayers(
       if (lockonSource) {
         lockonSource.setData({
           type: "FeatureCollection",
-          features: cachedLockonFeatures,
+          features: lockonFeatures,
         });
       }
     } catch {

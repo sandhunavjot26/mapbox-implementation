@@ -18,11 +18,15 @@ export interface AuthLoginResponse {
 }
 
 // --- Missions ---
+/** Optional list fields when API returns them (Figma mission cards). */
 export interface Mission {
   id: string;
   name: string;
   aop: string | null;
   border_geojson: GeoJSON.Polygon | null;
+  /** e.g. LIVE_OPS, TRAINING_SIM, ACTIVE, COMPLETED — see missionListUi resolver */
+  status?: string | null;
+  created_at?: string | null;
 }
 
 export interface MissionLoad extends Mission {
@@ -54,7 +58,12 @@ export interface MissionFeature {
 
 // --- Devices (towers/sensors) ---
 export type DeviceType = "DETECTION" | "JAMMER" | "DETECTION_JAMMER";
-export type DeviceStatus = "ONLINE" | "OFFLINE" | "UNKNOWN" | "WORKING" | "IDLE";
+export type DeviceStatus =
+  | "ONLINE"
+  | "OFFLINE"
+  | "UNKNOWN"
+  | "WORKING"
+  | "IDLE";
 
 export interface Device {
   id: string;

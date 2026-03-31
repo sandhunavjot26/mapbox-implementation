@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import mapboxgl from "mapbox-gl";
+import mapboxgl, {
+  type ConfigSpecification,
+  type MapOptions,
+} from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
   setMap,
@@ -42,6 +45,14 @@ import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import type { Asset } from "@/types/assets";
 import type { Target } from "@/types/targets";
 import { destinationPoint } from "@/utils/geo";
+import { fitMapToIndia, easeMapToIndia } from "@/utils/missionOverview";
+import {
+  getMapboxStyleUrl,
+  getMapInitialConfig,
+  getBasemapFragmentConfig,
+  type BasemapVariant,
+  type MapLightPreset,
+} from "@/utils/mapboxBasemapConfig";
 
 // Default fly-in center (Jammu region) — used only when no device data is available
 const DEFAULT_FLY_CENTER: [number, number] = [75.1072, 32.5574];
@@ -90,8 +101,8 @@ function calculateDistanceKm(a: [number, number], b: [number, number]): number {
   const x =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
@@ -125,25 +136,48 @@ function getNearestActiveAsset(
   return closest;
 }
 
-const FOG_CONFIG = {
-  color: "rgb(10,10,15)",
-  "high-color": "rgb(36,92,223)",
-  "horizon-blend": 0.02,
-  "space-color": "rgb(5,5,10)",
-  "star-intensity": 0.6,
-} as const;
-
 export interface MapContainerProps {
   mapMode: "2D" | "3D";
   missionId?: string | null;
   mapFeatures?: GeoJSON.FeatureCollection | null;
+  basemapVariant?: BasemapVariant;
+  mapLightPreset?: MapLightPreset;
+  /** Fired when the user clicks the map canvas but not on asset/target hit targets (e.g. dismiss shell overlays). */
+  onMapBackgroundClick?: () => void;
 }
+
+const EMPTY_FC: GeoJSON.FeatureCollection = {
+  type: "FeatureCollection",
+  features: [],
+};
 
 export function MapContainer({
   mapMode,
   missionId,
   mapFeatures,
+  basemapVariant = "standard",
+  mapLightPreset = "night",
+  onMapBackgroundClick,
 }: MapContainerProps) {
+  const onMapBackgroundClickRef = useRef(onMapBackgroundClick);
+  onMapBackgroundClickRef.current = onMapBackgroundClick;
+
+  const missionIdRef = useRef(missionId);
+  missionIdRef.current = missionId;
+  const basemapVariantRef = useRef(basemapVariant);
+  basemapVariantRef.current = basemapVariant;
+  const mapLightPresetRef = useRef(mapLightPreset);
+  mapLightPresetRef.current = mapLightPreset;
+  const mapModeRef = useRef(mapMode);
+  mapModeRef.current = mapMode;
+  const mapFeaturesRef = useRef(mapFeatures);
+  mapFeaturesRef.current = mapFeatures;
+
+  const appliedStyleUrlRef = useRef<string | null>(null);
+  const appliedLightPresetRef = useRef<MapLightPreset | null>(null);
+  const mapInteractionListenersAttachedRef = useRef(false);
+  const mountOperationalLayersRef = useRef<(() => Promise<void>) | null>(null);
+
   const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<mapboxgl.Map | null>(null);
   const initAttemptRef = useRef(0);
@@ -342,6 +376,252 @@ export function MapContainer({
   }, [computedTargets, targetOverrides]);
 
   useEffect(() => {
+    const mountOperationalLayers = async () => {
+      const map = mapRef.current;
+      if (!map) return;
+
+      stopAssetAnimation();
+
+      if (interceptAnimationFrameRef.current != null) {
+        cancelAnimationFrame(interceptAnimationFrameRef.current);
+        interceptAnimationFrameRef.current = null;
+      }
+      interceptAnimationStartedRef.current = false;
+
+      map.dragRotate.enable();
+      map.touchZoomRotate.enableRotation();
+
+      if (!map.getSource("mapbox-dem")) {
+        map.addSource("mapbox-dem", {
+          type: "raster-dem",
+          url: "mapbox://mapbox.mapbox-terrain-dem-v1",
+          tileSize: 512,
+          maxzoom: 14,
+        });
+      }
+      if (mapModeRef.current === "3D") {
+        map.setTerrain({ source: "mapbox-dem", exaggeration: 1.3 });
+      } else {
+        map.setTerrain(null);
+      }
+
+      const mf = mapFeaturesRef.current;
+      const missionDevices =
+        useMissionStore.getState().cachedMission?.devices;
+      let assetsGeoJSON: GeoJSON.FeatureCollection | undefined;
+      if (missionDevices?.length) {
+        const statusStore = useDeviceStatusStore.getState().byDeviceId;
+        const deviceAssets: Asset[] = missionDevices.map((d) => {
+          const ws = statusStore[d.id];
+          const isActive = ws
+            ? ws.status === "ONLINE" || ws.status === "WORKING"
+            : d.status === "ONLINE" || d.status === "WORKING";
+          return {
+            id: d.id,
+            name: d.name ?? d.serial_number ?? d.id,
+            coordinates: [d.longitude, d.latitude] as [number, number],
+            coverageRadiusKm: (d.detection_radius_m ?? 2000) / 1000,
+            status: (isActive ? "ACTIVE" : "INACTIVE") as Asset["status"],
+            altitude: 0,
+            area: "",
+          };
+        });
+        assetsGeoJSON = assetsToGeoJSON(deviceAssets);
+      } else if (mf) {
+        assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mf);
+      }
+      await addAssetLayers(map, assetsGeoJSON);
+
+      const missionZones = useMissionStore.getState().cachedMission?.zones;
+      if (missionZones?.length) {
+        addZonesLayer(map, missionZonesToGeoJSON(missionZones));
+      } else if (mf) {
+        addZonesLayer(map, mapFeaturesToZonesGeoJSON(mf));
+      }
+      if (mf) {
+        const border = mapFeaturesToBorderGeoJSON(mf);
+        if (border) setBorderLayer(map, border);
+      }
+      await addTargetLayers(
+        map,
+        computedTargetsRef.current.map((t) => ({
+          ...t,
+          neutralized: getNeutralizedTargetIds().includes(t.id),
+        })),
+        useTargetsStore.getState().positionHistory,
+      );
+
+      map.addSource("intercepts", {
+        type: "geojson",
+        data: {
+          type: "FeatureCollection",
+          features: [...interceptFeaturesRef.current],
+        },
+      });
+
+      map.addLayer({
+        id: "intercept-line",
+        type: "line",
+        source: "intercepts",
+        slot: "top",
+        paint: {
+          "line-color": "#ff3333",
+          "line-width": 3,
+          "line-dasharray": [2, 2],
+          "line-opacity": 0.95,
+          "line-emissive-strength": 1,
+          "line-color-use-theme": "disabled",
+        },
+      });
+
+      addInterceptRef.current = (target: Target) => {
+        const assets = assetsForInterceptRef.current;
+        const asset =
+          getNearestActiveAsset(target, assets) ?? assets[0] ?? null;
+        if (!asset) return;
+
+        addInterceptToStore(target.id, asset.id);
+
+        const source = map.getSource("intercepts") as mapboxgl.GeoJSONSource;
+        if (!source) return;
+
+        const newFeature: GeoJSON.Feature<GeoJSON.LineString> = {
+          type: "Feature",
+          properties: { targetId: target.id },
+          geometry: {
+            type: "LineString",
+            coordinates: [asset.coordinates, target.coordinates],
+          },
+        };
+
+        interceptFeaturesRef.current.push(newFeature);
+        source.setData({
+          type: "FeatureCollection",
+          features: [...interceptFeaturesRef.current],
+        });
+
+        removeInterceptLineRef.current = (targetId: string) => {
+          interceptFeaturesRef.current =
+            interceptFeaturesRef.current.filter(
+              (f) => (f.properties?.targetId as string) !== targetId,
+            );
+          const src = map.getSource("intercepts") as mapboxgl.GeoJSONSource;
+          if (src) {
+            src.setData({
+              type: "FeatureCollection",
+              features: [...interceptFeaturesRef.current],
+            });
+          }
+        };
+
+        if (!interceptAnimationStartedRef.current) {
+          interceptAnimationStartedRef.current = true;
+          let dashOffset = 0;
+
+          function animateIntercept() {
+            const m = mapRef.current;
+            if (!m) return;
+            dashOffset += 0.5;
+            if (dashOffset > 4) dashOffset = 0;
+            try {
+              m.setPaintProperty("intercept-line", "line-dasharray", [
+                2,
+                2,
+                dashOffset,
+              ]);
+            } catch {
+              /* style reload */
+            }
+            interceptAnimationFrameRef.current =
+              requestAnimationFrame(animateIntercept);
+          }
+          interceptAnimationFrameRef.current =
+            requestAnimationFrame(animateIntercept);
+        }
+      };
+
+      if (!mapInteractionListenersAttachedRef.current) {
+        mapInteractionListenersAttachedRef.current = true;
+
+        const getAssetById = (id: string): Asset | undefined => {
+          return assetsForInterceptRef.current.find((x) => x.id === id);
+        };
+        map.on("mousemove", "assets-symbols", (e) => {
+          if (!e.features || e.features.length === 0) return;
+          map.getCanvas().style.cursor = "pointer";
+          const feature = e.features[0];
+          const assetId = feature.properties?.id as string;
+          const asset = getAssetById(assetId);
+          if (asset) showHoverPopup("asset", asset, e.lngLat);
+        });
+
+        map.on("mouseleave", "assets-symbols", () => {
+          map.getCanvas().style.cursor = "";
+          hideHoverPopup();
+        });
+
+        map.on("mousemove", "targets-symbols", (e) => {
+          if (!e.features || e.features.length === 0) return;
+          map.getCanvas().style.cursor = "pointer";
+          const feature = e.features[0];
+          const targetId = feature.properties?.id;
+          const target = computedTargetsRef.current.find(
+            (t) => t.id === targetId,
+          );
+          if (target) showHoverPopup("target", target, e.lngLat);
+        });
+
+        map.on("mouseleave", "targets-symbols", () => {
+          map.getCanvas().style.cursor = "";
+          hideHoverPopup();
+        });
+
+        const handleAssetClick = (
+          e: mapboxgl.MapMouseEvent & { features?: GeoJSON.Feature[] },
+        ) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const asset = getAssetById(feature.properties?.id as string);
+          if (asset) selectEntity("asset", asset, e.lngLat);
+        };
+
+        const handleTargetClick = (
+          e: mapboxgl.MapMouseEvent & { features?: GeoJSON.Feature[] },
+        ) => {
+          if (!e.features || e.features.length === 0) return;
+          const feature = e.features[0];
+          const target = computedTargetsRef.current.find(
+            (t) => t.id === feature.properties?.id,
+          );
+          if (target) selectEntity("target", target, e.lngLat);
+        };
+
+        map.on("click", "assets-symbols", handleAssetClick);
+        map.on("click", "assets-coverage", handleAssetClick);
+        map.on("click", "targets-symbols", handleTargetClick);
+
+        map.on("click", (e) => {
+          const features = map.queryRenderedFeatures(e.point, {
+            layers: ["assets-symbols", "assets-coverage", "targets-symbols"],
+          });
+          if (features.length > 0) return;
+          clearSelection();
+          onMapBackgroundClickRef.current?.();
+        });
+
+        map.on("move", () => {
+          updatePinnedPopupPosition();
+          notifyOverlayPositionUpdate();
+        });
+        map.on("zoom", () => {
+          updatePinnedPopupPosition();
+          notifyOverlayPositionUpdate();
+        });
+      }
+    };
+
+    mountOperationalLayersRef.current = mountOperationalLayers;
+
     const tryInitialize = () => {
       if (mapRef.current) return;
       if (!mapContainerRef.current) return;
@@ -373,10 +653,18 @@ export function MapContainer({
 
       mapboxgl.accessToken = token;
 
-      // 1️⃣ Map initialization — global view, satellite streets, zoom 2, no pitch
+      const initStyleUrl = getMapboxStyleUrl(basemapVariantRef.current);
+      const initConfig = getMapInitialConfig(
+        basemapVariantRef.current,
+        mapLightPresetRef.current,
+      );
+      appliedStyleUrlRef.current = initStyleUrl;
+      appliedLightPresetRef.current = mapLightPresetRef.current;
+
       const map = new mapboxgl.Map({
-        container: container,
-        style: "mapbox://styles/mapbox/satellite-streets-v12",
+        container,
+        style: initStyleUrl,
+        config: initConfig as MapOptions["config"],
         center: [0, 20],
         zoom: 2,
         pitch: 0,
@@ -393,313 +681,49 @@ export function MapContainer({
         map.resize();
         setMapReady(true);
 
-        // 2️⃣ Globe projection
         map.setProjection("globe");
 
-        // 3️⃣ Atmospheric fog
-        map.setFog(FOG_CONFIG);
-
-        // 4️⃣ Disable interaction during intro
+        // Disable interaction during intro
         map.dragRotate.disable();
         map.touchZoomRotate.disableRotation();
 
-        // 5️⃣ Cinematic fly-in — dynamic: use device positions if available, else default
-        const missionData = useMissionStore.getState().cachedMission;
-        const deviceCoords: [number, number][] = (
-          missionData?.devices ?? []
-        ).map((d) => [d.longitude, d.latitude] as [number, number]);
-        const bounds = computeBounds(deviceCoords);
-        const flyCenter = computeCentroid(deviceCoords) ?? DEFAULT_FLY_CENTER;
-
-        if (bounds && deviceCoords.length >= 2) {
-          // Fit to data bounds with padding
-          map.fitBounds(bounds, {
-            padding: { top: 80, bottom: 80, left: 320, right: 320 },
-            pitch: 55,
-            bearing: -20,
-            duration: 5000,
-            essential: true,
-            maxZoom: 14,
-          });
+        // 5️⃣ Cinematic fly-in — overview: India; mission: devices or default center
+        const mid = missionIdRef.current;
+        if (!mid) {
+          fitMapToIndia(map);
         } else {
-          // Single device or no devices — fly to centroid
-          map.flyTo({
-            center: flyCenter,
-            zoom: deviceCoords.length > 0 ? 12 : 10,
-            pitch: 55,
-            bearing: -20,
-            duration: 5000,
-            essential: true,
-          });
+          const missionData = useMissionStore.getState().cachedMission;
+          const deviceCoords: [number, number][] = (
+            missionData?.devices ?? []
+          ).map((d) => [d.longitude, d.latitude] as [number, number]);
+          const bounds = computeBounds(deviceCoords);
+          const flyCenter = computeCentroid(deviceCoords) ?? DEFAULT_FLY_CENTER;
+
+          if (bounds && deviceCoords.length >= 2) {
+            map.fitBounds(bounds, {
+              padding: { top: 80, bottom: 80, left: 320, right: 320 },
+              pitch: 55,
+              bearing: -20,
+              duration: 5000,
+              essential: true,
+              maxZoom: 14,
+            });
+          } else {
+            map.flyTo({
+              center: flyCenter,
+              zoom: deviceCoords.length > 0 ? 12 : 10,
+              pitch: 55,
+              bearing: -20,
+              duration: 5000,
+              essential: true,
+            });
+          }
         }
 
-        // 6️⃣ After fly-in ends → terrain, 3D buildings, layers, enable interaction
         map.once("moveend", async () => {
           console.log("Operational mode activated");
+          await mountOperationalLayers();
           setIsIntroComplete(true);
-
-          // Enable user interaction
-          map.dragRotate.enable();
-          map.touchZoomRotate.enableRotation();
-
-          // Enable terrain
-          map.addSource("mapbox-dem", {
-            type: "raster-dem",
-            url: "mapbox://mapbox.mapbox-terrain-dem-v1",
-            tileSize: 512,
-            maxzoom: 14,
-          });
-          map.setTerrain({ source: "mapbox-dem", exaggeration: 1.3 });
-
-          // Add 3D buildings layer
-          if (!map.getLayer("3d-buildings")) {
-            map.addLayer({
-              id: "3d-buildings",
-              source: "composite",
-              "source-layer": "building",
-              filter: ["==", "extrude", "true"],
-              type: "fill-extrusion",
-              minzoom: 14,
-              paint: {
-                "fill-extrusion-color": "#222",
-                "fill-extrusion-height": ["get", "height"],
-                "fill-extrusion-base": ["get", "min_height"],
-                "fill-extrusion-opacity": 0.6,
-              },
-            });
-          }
-
-          // 7️⃣ Dim satellite base for tactical clarity
-          const layers = map.getStyle().layers;
-
-          layers?.forEach((layer) => {
-            if (layer.type === "raster") {
-              map.setPaintProperty(layer.id, "raster-brightness-max", 0.75);
-              map.setPaintProperty(layer.id, "raster-saturation", -0.45);
-              map.setPaintProperty(layer.id, "raster-contrast", -0.2);
-            }
-
-            // Slightly reduce label intensity
-            if (layer.type === "symbol" && layer.layout?.["text-field"]) {
-              try {
-                map.setPaintProperty(layer.id, "text-opacity", 0.85);
-              } catch {}
-            }
-          });
-
-          // Build initial asset GeoJSON: prefer mission devices, fall back to map features API
-          const missionDevices =
-            useMissionStore.getState().cachedMission?.devices;
-          let assetsGeoJSON: GeoJSON.FeatureCollection | undefined;
-          if (missionDevices?.length) {
-            // Device data already available — convert directly
-            const statusStore = useDeviceStatusStore.getState().byDeviceId;
-            const deviceAssets: Asset[] = missionDevices.map((d) => {
-              const ws = statusStore[d.id];
-              const isActive = ws
-                ? ws.status === "ONLINE" || ws.status === "WORKING"
-                : d.status === "ONLINE" || d.status === "WORKING";
-              return {
-                id: d.id,
-                name: d.name ?? d.serial_number ?? d.id,
-                coordinates: [d.longitude, d.latitude] as [number, number],
-                coverageRadiusKm: (d.detection_radius_m ?? 2000) / 1000,
-                status: (isActive ? "ACTIVE" : "INACTIVE") as Asset["status"],
-                altitude: 0,
-                area: "",
-              };
-            });
-            assetsGeoJSON = assetsToGeoJSON(deviceAssets);
-          } else if (mapFeatures) {
-            assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mapFeatures);
-          }
-          await addAssetLayers(map, assetsGeoJSON);
-
-          // Zones layer: prefer mission zones (has priority for color coding)
-          const missionZones = useMissionStore.getState().cachedMission?.zones;
-          if (missionZones?.length) {
-            addZonesLayer(map, missionZonesToGeoJSON(missionZones));
-          } else if (mapFeatures) {
-            addZonesLayer(map, mapFeaturesToZonesGeoJSON(mapFeatures));
-          }
-          if (mapFeatures) {
-            const border = mapFeaturesToBorderGeoJSON(mapFeatures);
-            if (border) setBorderLayer(map, border);
-          }
-          await addTargetLayers(
-            map,
-            computedTargetsRef.current.map((t) => ({
-              ...t,
-              neutralized: getNeutralizedTargetIds().includes(t.id),
-            })),
-            useTargetsStore.getState().positionHistory,
-          );
-
-          // Intercept source and layer
-          map.addSource("intercepts", {
-            type: "geojson",
-            data: {
-              type: "FeatureCollection",
-              features: [],
-            },
-          });
-
-          map.addLayer({
-            id: "intercept-line",
-            type: "line",
-            source: "intercepts",
-            paint: {
-              "line-color": "#ff0000",
-              "line-width": 3,
-              "line-dasharray": [2, 2],
-            },
-          });
-
-          addInterceptRef.current = (target: Target) => {
-            const assets = assetsForInterceptRef.current;
-            const asset =
-              getNearestActiveAsset(target, assets) ?? assets[0] ?? null;
-            if (!asset) return;
-
-            addInterceptToStore(target.id, asset.id);
-
-            const source = map.getSource(
-              "intercepts",
-            ) as mapboxgl.GeoJSONSource;
-            if (!source) return;
-
-            const newFeature: GeoJSON.Feature<GeoJSON.LineString> = {
-              type: "Feature",
-              properties: { targetId: target.id },
-              geometry: {
-                type: "LineString",
-                coordinates: [asset.coordinates, target.coordinates],
-              },
-            };
-
-            interceptFeaturesRef.current.push(newFeature);
-            source.setData({
-              type: "FeatureCollection",
-              features: [...interceptFeaturesRef.current],
-            });
-
-            removeInterceptLineRef.current = (targetId: string) => {
-              interceptFeaturesRef.current =
-                interceptFeaturesRef.current.filter(
-                  (f) => (f.properties?.targetId as string) !== targetId,
-                );
-              const source = map.getSource(
-                "intercepts",
-              ) as mapboxgl.GeoJSONSource;
-              if (source) {
-                source.setData({
-                  type: "FeatureCollection",
-                  features: [...interceptFeaturesRef.current],
-                });
-              }
-            };
-
-            if (!interceptAnimationStartedRef.current) {
-              interceptAnimationStartedRef.current = true;
-              let dashOffset = 0;
-
-              function animateIntercept() {
-                dashOffset += 0.5;
-                if (dashOffset > 4) dashOffset = 0;
-                try {
-                  map.setPaintProperty("intercept-line", "line-dasharray", [
-                    2,
-                    2,
-                    dashOffset,
-                  ]);
-                } catch {
-                  // Layer may be removed
-                }
-                requestAnimationFrame(animateIntercept);
-              }
-              interceptAnimationFrameRef.current =
-                requestAnimationFrame(animateIntercept);
-            }
-          };
-
-          // Hover and click listeners (layers exist only after this point)
-          const getAssetById = (id: string): Asset | undefined => {
-            return assetsForInterceptRef.current.find((x) => x.id === id);
-          };
-          map.on("mousemove", "assets-symbols", (e) => {
-            if (!e.features || e.features.length === 0) return;
-            map.getCanvas().style.cursor = "pointer";
-            const feature = e.features[0];
-            const assetId = feature.properties?.id as string;
-            const asset = getAssetById(assetId);
-            if (asset) showHoverPopup("asset", asset, e.lngLat);
-          });
-
-          map.on("mouseleave", "assets-symbols", () => {
-            map.getCanvas().style.cursor = "";
-            hideHoverPopup();
-          });
-
-          map.on("mousemove", "targets-symbols", (e) => {
-            if (!e.features || e.features.length === 0) return;
-            map.getCanvas().style.cursor = "pointer";
-            const feature = e.features[0];
-            const targetId = feature.properties?.id;
-            const target = computedTargetsRef.current.find(
-              (t) => t.id === targetId,
-            );
-            if (target) showHoverPopup("target", target, e.lngLat);
-          });
-
-          map.on("mouseleave", "targets-symbols", () => {
-            map.getCanvas().style.cursor = "";
-            hideHoverPopup();
-          });
-
-          const handleAssetClick = (
-            e: mapboxgl.MapMouseEvent & { features?: GeoJSON.Feature[] },
-          ) => {
-            if (!e.features || e.features.length === 0) return;
-            const feature = e.features[0];
-            const asset = getAssetById(feature.properties?.id as string);
-            if (asset) selectEntity("asset", asset, e.lngLat);
-          };
-
-          const handleTargetClick = (
-            e: mapboxgl.MapMouseEvent & { features?: GeoJSON.Feature[] },
-          ) => {
-            if (!e.features || e.features.length === 0) return;
-            const feature = e.features[0];
-            const target = computedTargetsRef.current.find(
-              (t) => t.id === feature.properties?.id,
-            );
-            if (target) selectEntity("target", target, e.lngLat);
-          };
-
-          map.on("click", "assets-symbols", handleAssetClick);
-          map.on("click", "assets-coverage", handleAssetClick);
-          map.on("click", "targets-symbols", handleTargetClick);
-
-          map.on("click", (e) => {
-            const features = map.queryRenderedFeatures(e.point, {
-              layers: [
-                "assets-symbols",
-                "assets-coverage",
-                "targets-symbols",
-              ],
-            });
-            if (features.length > 0) return;
-            clearSelection();
-          });
-
-          map.on("move", () => {
-            updatePinnedPopupPosition();
-            notifyOverlayPositionUpdate();
-          });
-          map.on("zoom", () => {
-            updatePinnedPopupPosition();
-            notifyOverlayPositionUpdate();
-          });
         });
       });
 
@@ -724,7 +748,7 @@ export function MapContainer({
 
       map.addControl(
         new mapboxgl.NavigationControl({ showCompass: true }),
-        "top-right",
+        "bottom-right",
       );
 
       map.addControl(
@@ -740,6 +764,9 @@ export function MapContainer({
 
     return () => {
       clearTimeout(timer);
+      mapInteractionListenersAttachedRef.current = false;
+      appliedStyleUrlRef.current = null;
+      appliedLightPresetRef.current = null;
       setMap(null);
       setMapReady(false);
       setIsIntroComplete(false);
@@ -756,6 +783,42 @@ export function MapContainer({
       }
     };
   }, []);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isIntroComplete) return;
+
+    const url = getMapboxStyleUrl(basemapVariant);
+    const basemapFrag = getBasemapFragmentConfig(
+      basemapVariant,
+      mapLightPreset,
+    ) as ConfigSpecification;
+    const fullConfig = { basemap: basemapFrag } as MapOptions["config"];
+
+    const sameStyle = appliedStyleUrlRef.current === url;
+    const sameLight = appliedLightPresetRef.current === mapLightPreset;
+    if (sameStyle && sameLight) return;
+
+    if (!sameStyle) {
+      appliedStyleUrlRef.current = url;
+      appliedLightPresetRef.current = mapLightPreset;
+      if (interceptAnimationFrameRef.current != null) {
+        cancelAnimationFrame(interceptAnimationFrameRef.current);
+        interceptAnimationFrameRef.current = null;
+      }
+      interceptAnimationStartedRef.current = false;
+      map.setStyle(url, { config: fullConfig } as Parameters<
+        mapboxgl.Map["setStyle"]
+      >[1]);
+      map.once("style.load", () => {
+        map.setProjection("globe");
+        void mountOperationalLayersRef.current?.();
+      });
+    } else {
+      appliedLightPresetRef.current = mapLightPreset;
+      map.setConfig("basemap", basemapFrag);
+    }
+  }, [basemapVariant, mapLightPreset, isIntroComplete]);
 
   // Smooth interpolation: lerp display positions toward target positions (~20fps)
   const displayCoordsRef = useRef<Record<string, [number, number]>>({});
@@ -874,6 +937,32 @@ export function MapContainer({
     }
   }, [assetsForIntercept, mapReady, isIntroComplete]);
 
+  const prevMissionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !isIntroComplete) return;
+    const prev = prevMissionIdRef.current;
+    const cur = missionId ?? null;
+    if (prev === cur) return;
+    if (prev && !cur) {
+      hasFittedRef.current = false;
+      easeMapToIndia(map);
+    }
+    if ((!prev && cur) || (prev && cur && prev !== cur)) {
+      hasFittedRef.current = false;
+    }
+    prevMissionIdRef.current = cur;
+  }, [missionId, mapReady, isIntroComplete]);
+
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !isIntroComplete) return;
+    if (missionId) return;
+    setAssetLayersData(map, EMPTY_FC);
+    setZonesLayerData(map, EMPTY_FC);
+    setBorderLayer(map, null);
+  }, [missionId, mapReady, isIntroComplete]);
+
   // 2D / 3D toggle (only after intro completes; terrain added in moveend)
   useEffect(() => {
     const map = mapRef.current;
@@ -919,7 +1008,7 @@ export function MapContainer({
   return (
     <div
       ref={mapContainerRef}
-      className="absolute inset-0"
+      className="driif-map-host absolute inset-0"
       style={{ width: "100%", height: "100%" }}
     />
   );

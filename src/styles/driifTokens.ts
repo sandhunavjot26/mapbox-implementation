@@ -87,6 +87,17 @@ export const COLOR = {
   assetSearchBg: "rgb(26, 26, 26)",
   addAssetBtn: "rgb(76, 92, 11)",
   sosLandBtn: "rgb(69, 27, 3)",
+
+  /** Missions overlay — Figma node 853:9729 / cards 853:9739 */
+  missionsPanelBg: "#272727",
+  missionsSearchBg: "#1A1A1A",
+  missionsSearchBorder: "#535353",
+  missionsCardBg: "#404040",
+  missionsTitleMuted: "#D3D3D3",
+  missionsSecondaryText: "#8A8A8A",
+  missionsBodyText: "#E6E6E6",
+  missionsCreateBtnBg: "#4C5C0B",
+  missionsCreateBtnText: "#C6E600",
 } as const;
 
 // ---------------------------------------------------------------------------
