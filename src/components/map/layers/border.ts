@@ -31,6 +31,7 @@ export function setBorderLayer(
     id: "border-fill",
     type: "fill",
     source: BORDER_SOURCE_ID,
+    slot: "top",
     paint: {
       "fill-color": "transparent",
       "fill-opacity": 0,
@@ -41,10 +42,14 @@ export function setBorderLayer(
     id: "border-outline",
     type: "line",
     source: BORDER_SOURCE_ID,
+    slot: "top",
     paint: {
-      "line-color": "#06b6d4",
+      "line-color": "#22d3ee",
       "line-width": 2,
       "line-dasharray": [2, 1],
+      "line-opacity": 0.95,
+      "line-emissive-strength": 1,
+      "line-color-use-theme": "disabled",
     },
   });
 }

@@ -5,7 +5,7 @@
  * Uses map features from API, targets from WebSocket/REST, devices from mission.
  */
 
-import { useMemo, useEffect, useState } from "react";
+import { useMemo, useEffect } from "react";
 import dynamic from "next/dynamic";
 import { StatusBadge } from "@/components/status/StatusBadge";
 import { AssetsPanel } from "@/components/panels/AssetsPanel";
@@ -13,44 +13,18 @@ import { TrackingPanel } from "@/components/panels/TrackingPanel";
 import { EngagementLog } from "@/components/panels/EngagementLog";
 import { MissionTimeline } from "@/components/panels/MissionTimeline";
 import { RecentCommands } from "@/components/panels/RecentCommands";
-import { WsStatusIndicator } from "@/components/status/WsStatusIndicator";
-import {
-  subscribeToIntercepts,
-  getInterceptStats,
-} from "@/stores/mapActionsStore";
 import { useMissionStore } from "@/stores/missionStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
-import { useMapFeatures, useMissionLoad } from "@/hooks/useMissions";
+import { useMissionLoad } from "@/hooks/useMissions";
 import { useMissionSockets } from "@/hooks/useMissionSockets";
 import { useMissionEvents } from "@/hooks/useMissionEvents";
-import { mapFeaturesToAssetsGeoJSON } from "@/utils/mapFeatures";
 import type { Asset } from "@/types/assets";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 
-const MapContainer = dynamic(
-  () => import("@/components/map/MapContainer").then((mod) => mod.MapContainer),
-  {
-    ssr: false,
-    loading: () => (
-      <div className="w-full h-full bg-slate-900/30 flex items-center justify-center">
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 bg-cyan-500 animate-pulse" />
-          <span className="text-slate-500 text-xs font-mono tracking-widest uppercase">
-            Loading Map...
-          </span>
-        </div>
-      </div>
-    ),
-  },
-);
+/** Set to `true` to show Assets (left) and Tracking (right) side rails during a mission. */
+const SHOW_MISSION_SIDE_PANELS = false;
 
-const EntityHoverPopup = dynamic(
-  () =>
-    import("@/components/map/overlays/EntityHoverPopup").then(
-      (mod) => mod.EntityHoverPopup,
-    ),
-  { ssr: false },
-);
+/** Map is rendered once at dashboard level; this workspace is panels only. */
 
 const EngageOverlay = dynamic(
   () =>
@@ -64,10 +38,8 @@ interface MissionWorkspaceProps {
   missionId: string;
   assetsCollapsed: boolean;
   trackingCollapsed: boolean;
-  mapMode: "2D" | "3D";
   onAssetsToggle: () => void;
   onTrackingToggle: () => void;
-  onBackToMissions: () => void;
 }
 
 /** Convert API devices to Asset-like for AssetsPanel. Merges real-time status from WebSocket when available. */
@@ -104,19 +76,10 @@ export function MissionWorkspace({
   missionId,
   assetsCollapsed,
   trackingCollapsed,
-  mapMode,
   onAssetsToggle,
   onTrackingToggle,
-  onBackToMissions,
 }: MissionWorkspaceProps) {
-  const [interceptStats, setInterceptStats] = useState({
-    neutralized: 0,
-    confirmed: 0,
-    successRate: 0,
-  });
-
   const { data: missionData } = useMissionLoad(missionId, true);
-  const { data: mapFeatures } = useMapFeatures(missionId, true);
   const wsStatus = useMissionSockets();
   useMissionEvents(missionId, true, wsStatus.eventsStatus !== "open");
 
@@ -128,12 +91,6 @@ export function MissionWorkspace({
 
   const cachedMission = missionData ?? storedCachedMission;
   const byDeviceId = useDeviceStatusStore((s) => s.byDeviceId);
-
-  useEffect(() => {
-    return subscribeToIntercepts(() => {
-      setInterceptStats(getInterceptStats());
-    });
-  }, []);
 
   const assets = useMemo(() => {
     if (cachedMission?.devices?.length) {
@@ -148,55 +105,56 @@ export function MissionWorkspace({
   }, [cachedMission?.devices, byDeviceId]);
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-      <EntityHoverPopup />
+    <div className="flex-1 flex flex-col overflow-hidden min-w-0 pointer-events-none">
       <EngageOverlay />
-      <div className="flex-1 flex overflow-hidden">
-        <ErrorBoundary label="Assets Panel">
-          <AssetsPanel
-            assets={assets}
-            collapsed={assetsCollapsed}
-            onToggle={onAssetsToggle}
-          />
-        </ErrorBoundary>
-        <main className="flex-1 flex flex-col overflow-hidden">
-          <div className="flex-1 relative">
-            <ErrorBoundary label="Map">
-              <MapContainer
-                mapMode={mapMode}
-                missionId={missionId}
-                mapFeatures={mapFeatures}
+      <div className="flex-1 flex overflow-hidden min-h-0">
+        {SHOW_MISSION_SIDE_PANELS && (
+          <ErrorBoundary label="Assets Panel">
+            <div className="pointer-events-auto h-full">
+              <AssetsPanel
+                assets={assets}
+                collapsed={assetsCollapsed}
+                onToggle={onAssetsToggle}
               />
+            </div>
+          </ErrorBoundary>
+        )}
+        <main className="flex-1 flex flex-col overflow-hidden min-w-0 min-h-0">
+          <div className="flex-1 min-h-0 min-w-0" aria-hidden />
+          <div className="pointer-events-auto mx-16 md:mx-30 lg:mx-50 shrink-0">
+            <ErrorBoundary label="Recent Commands">
+              <RecentCommands />
             </ErrorBoundary>
-          </div>
-          <ErrorBoundary label="Recent Commands">
-            <RecentCommands />
-          </ErrorBoundary>
-          <ErrorBoundary label="Timeline">
-            <MissionTimeline />
-          </ErrorBoundary>
-          <ErrorBoundary label="Engagement Log">
-            <EngagementLog />
-          </ErrorBoundary>
-          <div className="shrink-0 border-t border-slate-800 bg-slate-950/50 px-4 py-2">
-            <div className="flex items-center justify-center gap-8">
-              <StatusBadge color="red" label="REAL-TIME DATA AGGREGATION" />
-              <StatusBadge
-                color="amber"
-                label="COMMON OPERATIONAL PICTURE (COP)"
-              />
-              <StatusBadge color="green" label="THREAT PROFILING" />
-              <StatusBadge color="cyan" label="COUNTER-UAS EFFECTORS" />
+            <ErrorBoundary label="Timeline">
+              <MissionTimeline />
+            </ErrorBoundary>
+            <ErrorBoundary label="Engagement Log">
+              <EngagementLog />
+            </ErrorBoundary>
+            <div className="border-t border-slate-800 bg-slate-950/50 px-4 py-2">
+              <div className="flex items-center justify-center gap-8 flex-wrap">
+                <StatusBadge color="red" label="REAL-TIME DATA AGGREGATION" />
+                {/* <StatusBadge
+                  color="amber"
+                  label="COMMON OPERATIONAL PICTURE (COP)"
+                /> */}
+                <StatusBadge color="green" label="THREAT PROFILING" />
+                <StatusBadge color="cyan" label="COUNTER-UAS EFFECTORS" />
+              </div>
             </div>
           </div>
         </main>
-        <ErrorBoundary label="Tracking Panel">
-          <TrackingPanel
-            collapsed={trackingCollapsed}
-            onToggle={onTrackingToggle}
-            useApiTargets
-          />
-        </ErrorBoundary>
+        {SHOW_MISSION_SIDE_PANELS && (
+          <ErrorBoundary label="Tracking Panel">
+            <div className="pointer-events-auto h-full">
+              <TrackingPanel
+                collapsed={trackingCollapsed}
+                onToggle={onTrackingToggle}
+                useApiTargets
+              />
+            </div>
+          </ErrorBoundary>
+        )}
       </div>
     </div>
   );
