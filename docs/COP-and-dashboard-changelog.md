@@ -76,6 +76,9 @@ Mapbox Standard **monochrome** can wash out custom layers. Mitigations applied:
 
 **Zones** (`zones.ts`), **border** (`border.ts`): same slot / theme / emissive pattern where added.
 
+- **Mission zones on first load:** `mountOperationalLayers` runs when the intro **`moveend`** fires; **`cachedMission.zones`** may still be empty if the mission payload is loading. In that case **`addZonesLayer`** never ran, so there was no `mission-zones` source. Later **`setZonesLayerData`** only called **`setData`** and **no-op’d** without a source—zones never appeared. **`setZonesLayerData`** now calls **`addZonesLayer`** when the source is missing and the GeoJSON has features, so zones show as soon as **`cachedMission.zones`** (or map-feature zones) arrives—**small fix**, no change to API contracts.
+- **Hide zone fills:** **`SHOW_MISSION_ZONE_FILLS`** in **`zones.ts`** (default **`true`**). Set to **`false`** to turn off semi-transparent polygon fills; **`zones-outline`** and **`zones-label`** remain.
+
 **Targets / drones** (`targets.ts`):
 
 - Trails and symbols use **`top`** slot + emissive + theme opt-out for visibility.
@@ -114,7 +117,7 @@ Design reference: [Driif-UI — Missions / Create Mission frame](https://www.fig
 | Glass tokens | `shellStyles.ts`, `TrackingPanel.tsx`, `driifTokens.ts` |
 | Layers | `layers/assets.ts`, `layers/targets.ts`, `layers/zones.ts`, `layers/border.ts` |
 | Mission UI | `MissionWorkspace.tsx`, `MissionSelector.tsx`, `missionListUi.ts` |
-| Feature flags | `SHOW_DRONE_TRAILS` in `targets.ts`; `SHOW_MISSION_SIDE_PANELS` in `MissionWorkspace.tsx` |
+| Feature flags | `SHOW_DRONE_TRAILS` in `targets.ts`; `SHOW_MISSION_ZONE_FILLS` in `zones.ts`; `SHOW_MISSION_SIDE_PANELS` in `MissionWorkspace.tsx` |
 
 ---
 
@@ -123,6 +126,7 @@ Design reference: [Driif-UI — Missions / Create Mission frame](https://www.fig
 | Feature | Where to toggle |
 |---------|------------------|
 | Drone trail lines | `src/components/map/layers/targets.ts` → **`SHOW_DRONE_TRAILS = true`** |
+| Mission zone **fills** (outline + labels stay) | `src/components/map/layers/zones.ts` → **`SHOW_MISSION_ZONE_FILLS = true`** |
 | Assets + Tracking side rails | `src/components/missions/MissionWorkspace.tsx` → **`SHOW_MISSION_SIDE_PANELS = true`** |
 
 ---

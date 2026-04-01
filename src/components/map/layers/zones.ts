@@ -12,6 +12,9 @@
 
 import mapboxgl from "mapbox-gl";
 
+/** Set `false` to hide zone polygon fills; outlines + TL labels stay visible. */
+export const SHOW_MISSION_ZONE_FILLS = false;
+
 const ZONE_SOURCE_ID = "mission-zones";
 
 /**
@@ -74,6 +77,15 @@ export function addZonesLayer(
   if (map.getSource(ZONE_SOURCE_ID)) {
     const source = map.getSource(ZONE_SOURCE_ID) as mapboxgl.GeoJSONSource;
     source.setData(geoJSON);
+    try {
+      map.setPaintProperty(
+        "zones-fill",
+        "fill-opacity",
+        SHOW_MISSION_ZONE_FILLS ? 1 : 0,
+      );
+    } catch {
+      /* layer missing during style swap */
+    }
     return;
   }
 
@@ -89,7 +101,7 @@ export function addZonesLayer(
     slot: ZONE_SLOT,
     paint: {
       "fill-color": ZONE_FILL_COLOR as unknown as string,
-      "fill-opacity": 1, // opacity baked into the rgba colors
+      "fill-opacity": SHOW_MISSION_ZONE_FILLS ? 0.6 : 0,
       "fill-emissive-strength": 0.85,
       "fill-color-use-theme": "disabled",
     },
@@ -103,7 +115,7 @@ export function addZonesLayer(
     paint: {
       "line-color": ZONE_LINE_COLOR as unknown as string,
       "line-width": ZONE_LINE_WIDTH as unknown as number,
-      "line-opacity": 0.9,
+      "line-opacity": SHOW_MISSION_ZONE_FILLS ? 0.6 : 0,
       "line-emissive-strength": 0.85,
       "line-color-use-theme": "disabled",
     },
@@ -136,11 +148,23 @@ export function addZonesLayer(
   });
 }
 
-/** Update zones data */
+/**
+ * Update zones data. If the map never had zones at first `mountOperationalLayers`
+ * (mission still loading), there is no source yet — create layers here so late
+ * `cachedMission.zones` / map features still show.
+ */
 export function setZonesLayerData(
   map: mapboxgl.Map,
   geoJSON: GeoJSON.FeatureCollection,
 ): void {
-  const source = map.getSource(ZONE_SOURCE_ID) as mapboxgl.GeoJSONSource;
-  if (source) source.setData(geoJSON);
+  const source = map.getSource(ZONE_SOURCE_ID) as
+    | mapboxgl.GeoJSONSource
+    | undefined;
+  if (source) {
+    source.setData(geoJSON);
+    return;
+  }
+  if (geoJSON.features.length > 0) {
+    addZonesLayer(map, geoJSON);
+  }
 }
