@@ -14,8 +14,8 @@ export const LANDING_REGION_BOUNDS: [[number, number], [number, number]] = [
   [78.55, 27.95],
 ];
 
-/** Allow a closer end zoom than full-India framing (~ zoom 6–7 at this latitude). */
-const MAX_ZOOM_LANDING = 7.35;
+/** Allow a closer end zoom for the mission selected assets. */
+export const MAX_ZOOM_LANDING = 7.35;
 
 export function getLandingFitOptions(): FitBoundsOptions {
   return {

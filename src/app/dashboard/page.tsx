@@ -16,7 +16,7 @@ import { logout } from "@/lib/api/auth";
 import { useMissionStore } from "@/stores/missionStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useWsStatusStore } from "@/stores/wsStatusStore";
-import { useMapFeatures } from "@/hooks/useMissions"; 
+import { useLandingMissionAssets, useMapFeatures } from "@/hooks/useMissions";
 import { COLOR, POSITION } from "@/styles/driifTokens";
 
 const MapContainer = dynamic(
@@ -61,6 +61,7 @@ export default function DashboardPage() {
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [activeNavKey, setActiveNavKey] = useState<string | null>(null);
+  const [mapDismissLocked, setMapDismissLocked] = useState(false);
   const [interceptStats, setInterceptStats] = useState({
     neutralized: 0,
     confirmed: 0,
@@ -82,6 +83,7 @@ export default function DashboardPage() {
     activeMissionId,
     !!activeMissionId,
   );
+  const { data: landingMissionAssets } = useLandingMissionAssets(!activeMissionId);
 
   useEffect(() => {
     return subscribeToIntercepts(() => {
@@ -125,9 +127,10 @@ export default function DashboardPage() {
 
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
   const onMapBackgroundClick = useCallback(() => {
+    if (mapDismissLocked) return;
     setMissionsOpen(false);
     setActiveNavKey(null);
-  }, []);
+  }, [mapDismissLocked]);
 
   if (!isAuthorized) {
     return (
@@ -168,6 +171,7 @@ export default function DashboardPage() {
           mapMode={mapMode}
           missionId={activeMissionId}
           mapFeatures={mapFeatures ?? undefined}
+          landingAssets={landingMissionAssets}
           basemapVariant={basemapVariant}
           mapLightPreset={mapLightPreset}
           onMapBackgroundClick={onMapBackgroundClick}
@@ -208,9 +212,11 @@ export default function DashboardPage() {
           <MissionSelector
             variant="overlay"
             activeMissionId={activeMissionId}
+            onMapDismissLockChange={setMapDismissLocked}
             onClose={() => {
               setMissionsOpen(false);
               setActiveNavKey(null);
+              setMapDismissLocked(false);
             }}
           />
         </div>

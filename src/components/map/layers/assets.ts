@@ -24,6 +24,8 @@ const RADAR_ORANGE = "#F4A30C"; // Yellow/50
 const RADAR_ORANGE_DEEP = "#EA580C"; // outer dashed ring
 const RADAR_LIME = "#C6E600"; // Primary/60 — inner ring
 const RADAR_SWEEP_FILL = "#0CBB58"; // Green/50 — scan wedge
+const RADAR_YELLOW_FILL = "rgba(244, 163, 12, 0.16)";
+const RADAR_ORANGE_FILL = "rgba(234, 88, 12, 0.1)";
 
 // Compute destination point from [lng, lat], bearing (degrees), distance (km)
 function destinationPoint(
@@ -130,6 +132,17 @@ function generateRing(
   return points;
 }
 
+function generateRingBand(
+  center: [number, number],
+  innerRadiusKm: number,
+  outerRadiusKm: number,
+  steps = 16,
+): GeoJSON.Position[] {
+  const outer = generateRing(center, outerRadiusKm, steps);
+  const inner = generateRing(center, innerRadiusKm, steps).reverse();
+  return [...outer, outer[0], ...inner, inner[0]];
+}
+
 // Load tower icon into map
 async function loadAssetIcon(map: mapboxgl.Map): Promise<void> {
   return new Promise((resolve) => {
@@ -234,11 +247,11 @@ export async function addAssetLayers(
         ["exponential", 2],
         ["zoom"],
         5,
-        ["*", ["get", "coverageRadiusKm"], 0.3],
+        ["*", ["get", "coverageRadiusKm"], 0.5],
         10,
-        ["*", ["get", "coverageRadiusKm"], 3],
+        ["*", ["get", "coverageRadiusKm"], 4],
         15,
-        ["*", ["get", "coverageRadiusKm"], 100],
+        ["*", ["get", "coverageRadiusKm"], 120],
         20,
         ["*", ["get", "coverageRadiusKm"], 3000],
       ],
@@ -251,14 +264,14 @@ export async function addAssetLayers(
       "circle-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        0.35,
-        0.15,
+        0.42,
+        0.3,
       ],
       "circle-stroke-width": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
+        3,
         2,
-        1,
       ],
       "circle-stroke-color": [
         "case",
@@ -269,8 +282,8 @@ export async function addAssetLayers(
       "circle-stroke-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
-        0.8,
-        0.4,
+        0.95,
+        0.88,
       ],
       "circle-emissive-strength": 1,
       "circle-color-use-theme": "disabled",
@@ -278,7 +291,27 @@ export async function addAssetLayers(
     },
   });
 
-  // Layer 2: Concentric range rings (static opacity; sweep provides motion)
+  // Layer 2: Filled warm radar bands
+  if (!map.getSource("radar-band-fills")) {
+    map.addSource("radar-band-fills", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  map.addLayer({
+    id: "radar-band-fills-layer",
+    type: "fill",
+    source: "radar-band-fills",
+    slot: RADAR_SLOT,
+    paint: {
+      "fill-color": ["get", "fillColor"],
+      "fill-opacity": ["*", ["get", "fillOpacity"], ["get", "statusDim"]],
+      "fill-emissive-strength": 1,
+      "fill-color-use-theme": "disabled",
+    },
+  });
+
+  // Layer 3: Concentric dashed range rings
   if (!map.getSource("radar-rings")) {
     map.addSource("radar-rings", {
       type: "geojson",
@@ -296,33 +329,17 @@ export async function addAssetLayers(
         ["get", "ringTier"],
         2,
         RADAR_ORANGE_DEEP,
-        1,
         RADAR_ORANGE,
-        RADAR_LIME,
       ],
-      "line-width": [
-        "match",
-        ["get", "ringTier"],
-        2,
-        2,
-        1,
-        1.5,
-        1.25,
-      ],
-      "line-dasharray": [
-        "match",
-        ["get", "ringTier"],
-        2,
-        ["literal", [4, 3]],
-        ["literal", [1, 0]],
-      ],
+      "line-width": ["match", ["get", "ringTier"], 2, 2, 1.6],
+      "line-dasharray": ["literal", [4, 3]],
       "line-opacity": ["*", 0.92, ["get", "statusDim"]],
       "line-emissive-strength": 1,
       "line-color-use-theme": "disabled",
     },
   });
 
-  // Layer 3: Gradient radar sweep
+  // Layer 4: Gradient radar sweep
   if (!map.getSource("radar-sweep")) {
     map.addSource("radar-sweep", {
       type: "geojson",
@@ -342,7 +359,7 @@ export async function addAssetLayers(
     },
   });
 
-  // Layer 4: Lock-on indicators (when target in coverage)
+  // Layer 5: Lock-on indicators (when target in coverage)
   if (!map.getSource("radar-lockon")) {
     map.addSource("radar-lockon", {
       type: "geojson",
@@ -366,7 +383,7 @@ export async function addAssetLayers(
     },
   });
 
-  // Layer 5: Tower symbols
+  // Layer 6: Tower symbols
   map.addLayer({
     id: "assets-symbols",
     type: "symbol",
@@ -374,7 +391,7 @@ export async function addAssetLayers(
     slot: RADAR_SLOT,
     layout: {
       "icon-image": "asset-tower",
-      "icon-size": 0.2,
+      "icon-size": 0.3,
       "icon-allow-overlap": true,
     },
     paint: {
@@ -427,28 +444,57 @@ export async function addAssetLayers(
       });
     });
 
-    // Pulsing rings — Figma: inner lime, mid solid orange, outer dashed orange-red
+    // Two filled warm radar bands with dashed outlines
+    const ringFillFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
     const ringFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = [];
     assets.forEach((asset) => {
       const statusDim = asset.status === "ACTIVE" ? 1 : 0.38;
       (
         [
-          { ratio: 0.33, ringTier: 0 },
-          { ratio: 0.66, ringTier: 1 },
-          { ratio: 1, ringTier: 2 },
+          {
+            innerRatio: 0,
+            outerRatio: 0.5,
+            ringTier: 1,
+            fillColor: RADAR_YELLOW_FILL,
+            fillOpacity: 1,
+          },
+          {
+            innerRatio: 0.5,
+            outerRatio: 1,
+            ringTier: 2,
+            fillColor: RADAR_ORANGE_FILL,
+            fillOpacity: 1,
+          },
         ] as const
-      ).forEach(({ ratio, ringTier }) => {
-        const ring = generateRing(
-          asset.coordinates,
-          asset.coverageRadiusKm * ratio,
-        );
-        ring.push(ring[0]);
-        ringFeatures.push({
-          type: "Feature",
-          properties: { ringTier, statusDim },
-          geometry: { type: "LineString", coordinates: ring },
-        });
-      });
+      ).forEach(
+        ({ innerRatio, outerRatio, ringTier, fillColor, fillOpacity }) => {
+          ringFillFeatures.push({
+            type: "Feature",
+            properties: { fillColor, fillOpacity, statusDim },
+            geometry: {
+              type: "Polygon",
+              coordinates: [
+                generateRingBand(
+                  asset.coordinates,
+                  asset.coverageRadiusKm * innerRatio,
+                  asset.coverageRadiusKm * outerRatio,
+                ),
+              ],
+            },
+          });
+
+          const ring = generateRing(
+            asset.coordinates,
+            asset.coverageRadiusKm * outerRatio,
+          );
+          ring.push(ring[0]);
+          ringFeatures.push({
+            type: "Feature",
+            properties: { ringTier, statusDim },
+            geometry: { type: "LineString", coordinates: ring },
+          });
+        },
+      );
     });
 
     const targets = useTargetsStore.getState().targets;
@@ -474,6 +520,9 @@ export async function addAssetLayers(
       const sweepSource = map.getSource("radar-sweep") as
         | mapboxgl.GeoJSONSource
         | undefined;
+      const ringFillSource = map.getSource("radar-band-fills") as
+        | mapboxgl.GeoJSONSource
+        | undefined;
       const ringsSource = map.getSource("radar-rings") as
         | mapboxgl.GeoJSONSource
         | undefined;
@@ -485,6 +534,12 @@ export async function addAssetLayers(
         sweepSource.setData({
           type: "FeatureCollection",
           features: sweepFeatures,
+        });
+      }
+      if (ringFillSource) {
+        ringFillSource.setData({
+          type: "FeatureCollection",
+          features: ringFillFeatures,
         });
       }
       if (ringsSource) {

@@ -98,6 +98,26 @@ export const COLOR = {
   missionsBodyText: "#E6E6E6",
   missionsCreateBtnBg: "#4C5C0B",
   missionsCreateBtnText: "#C6E600",
+  missionCreateFieldBg: "#1A1A1A",
+  missionCreateFieldBorder: "#535353",
+  missionCreateFieldText: "#D3D3D3",
+  missionCreateFieldPlaceholder: "#8A8A8A",
+  missionCreateSectionBg: "#383838",
+  missionCreatePrimaryChipBg: "#E6E6E6",
+  missionCreatePrimaryChipText: "#171717",
+  missionCreateSecondaryChipBg: "#1A1A1A",
+  missionCreateSecondaryChipText: "#D3D3D3",
+  missionCreateTabActiveBorder: "#D3D3D3",
+  missionCreateTabInactiveText: "#D3D3D366",
+  missionCreateFenceItemBg: "#535353",
+  missionCreateFooterBorder: "#8A8A8A",
+  missionCreateDatePickerBg: "#404040",
+  missionCreateDatePickerBorder: "#535353",
+  missionCreateDatePickerText: "#E6E6E6",
+  missionCreateDatePickerMuted: "#B5B5B5",
+  missionCreateDatePickerSelection: "#2C74E3",
+  missionCreateDatePickerSelectionText: "#FAFAFA",
+  missionCreateDatePickerAction: "#D3D3D3",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -189,11 +209,12 @@ export const POSITION = {
   missionsWidth: "360px",
   missionsHeight: "auto",
 
-  /** Create Mission panel (Figma node 259:1726): same left/top, 360×520 */
+  /** Create Mission panel (Figma node 853:9815): left=79, top=76, 448px wide */
   createMissionLeft: "79px",
-  createMissionTop: "77px",
-  createMissionWidth: "360px",
+  createMissionTop: "76px",
+  createMissionWidth: "448px",
   createMissionHeight: "auto",
+  createFenceWorkspaceWidth: "398px",
 
   /** Select Asset panel (Figma node 235:5039): left=79, top=76, 712×649 */
   selectAssetLeft: "79px",

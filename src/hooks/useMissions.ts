@@ -5,19 +5,28 @@
  * GET /api/v1/missions/{id}/map/features — GeoJSON (poll 15–30s)
  */
 
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useQuery,
+  useMutation,
+  useQueryClient,
+  useQueries,
+} from "@tanstack/react-query";
 import {
   listMissions,
   loadMission,
   createMission,
   getMapFeatures,
 } from "@/lib/api/missions";
+import { resolveMissionCardStatus } from "@/utils/missionListUi";
+import { devicesToAssets } from "@/utils/missionAssets";
+import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 
 export const missionsKeys = {
   all: ["missions"] as const,
   list: (q?: string) => [...missionsKeys.all, "list", q ?? ""] as const,
   detail: (id: string) => [...missionsKeys.all, "detail", id] as const,
   mapFeatures: (id: string) => [...missionsKeys.all, "mapFeatures", id] as const,
+  landingAssets: ["missions", "landingAssets"] as const,
 };
 
 /** GET /api/v1/missions — list missions */
@@ -58,4 +67,46 @@ export function useMapFeatures(missionId: string | null, enabled = true) {
     refetchInterval: 20 * 1000, // 20s poll per AeroShield doc
     staleTime: 15 * 1000,
   });
+}
+
+/** Aggregate radar assets from active/live missions for the landing overview map. */
+export function useLandingMissionAssets(enabled = true) {
+  const missionsQuery = useMissionsList(undefined);
+  const byDeviceId = useDeviceStatusStore((s) => s.byDeviceId);
+  const statusOverrides = Object.fromEntries(
+    Object.values(byDeviceId).map((entry) => [entry.device_id, entry.status]),
+  );
+
+  const activeMissions =
+    missionsQuery.data?.filter((mission) => {
+      const status = resolveMissionCardStatus(mission);
+      return status === "ACTIVE" || status === "LIVE_OPS";
+    }) ?? [];
+
+  const missionQueries = useQueries({
+    queries: activeMissions.map((mission) => ({
+      queryKey: missionsKeys.detail(mission.id),
+      queryFn: () => loadMission(mission.id),
+      enabled,
+      staleTime: 30 * 1000,
+    })),
+  });
+
+  const data = missionQueries.flatMap((query) =>
+    query.data ? devicesToAssets(query.data.devices, statusOverrides) : [],
+  );
+
+  return {
+    data,
+    isLoading:
+      missionsQuery.isLoading ||
+      missionQueries.some((query) => query.isLoading),
+    isFetching:
+      missionsQuery.isFetching ||
+      missionQueries.some((query) => query.isFetching),
+    error:
+      missionsQuery.error ??
+      missionQueries.find((query) => query.error)?.error ??
+      null,
+  };
 }

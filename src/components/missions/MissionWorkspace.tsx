@@ -18,8 +18,8 @@ import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import { useMissionLoad } from "@/hooks/useMissions";
 import { useMissionSockets } from "@/hooks/useMissionSockets";
 import { useMissionEvents } from "@/hooks/useMissionEvents";
-import type { Asset } from "@/types/assets";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
+import { devicesToAssets } from "@/utils/missionAssets";
 
 /** Set to `true` to show Assets (left) and Tracking (right) side rails during a mission. */
 const SHOW_MISSION_SIDE_PANELS = false;
@@ -40,36 +40,6 @@ interface MissionWorkspaceProps {
   trackingCollapsed: boolean;
   onAssetsToggle: () => void;
   onTrackingToggle: () => void;
-}
-
-/** Convert API devices to Asset-like for AssetsPanel. Merges real-time status from WebSocket when available. */
-function devicesToAssets(
-  devices: Array<{
-    id: string;
-    name?: string;
-    serial_number?: string;
-    latitude: number;
-    longitude: number;
-    status?: string;
-    detection_radius_m?: number | null;
-  }>,
-  statusOverrides?: Record<string, string>,
-): Asset[] {
-  return devices.map((d) => {
-    const wsStatus = statusOverrides?.[d.id];
-    const rawStatus = wsStatus ?? d.status;
-    const isActive =
-      rawStatus === "ONLINE" || rawStatus === "WORKING" || rawStatus === "IDLE";
-    return {
-      id: d.id,
-      name: (d as { name?: string }).name ?? d.serial_number ?? d.id,
-      status: (isActive ? "ACTIVE" : "INACTIVE") as "ACTIVE" | "INACTIVE",
-      altitude: 0,
-      area: "",
-      coordinates: [d.longitude, d.latitude] as [number, number],
-      coverageRadiusKm: (d.detection_radius_m ?? 2000) / 1000,
-    };
-  });
 }
 
 export function MissionWorkspace({

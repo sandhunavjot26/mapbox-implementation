@@ -91,7 +91,7 @@ export function CopTopBar({
                 : "text-slate-400 hover:text-slate-200"
               }`}
           >
-            Day
+            Light
           </button>
           <button
             type="button"
@@ -101,7 +101,7 @@ export function CopTopBar({
                 : "text-slate-400 hover:text-slate-200"
               }`}
           >
-            Night
+            Dark
           </button>
         </div>
         <div className="flex rounded border border-slate-700/80 bg-black/40 overflow-hidden">

@@ -1,10 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useRef, useState } from "react";
-import mapboxgl, {
-  type ConfigSpecification,
-  type MapOptions,
-} from "mapbox-gl";
+import mapboxgl, { type ConfigSpecification, type MapOptions } from "mapbox-gl";
 import "mapbox-gl/dist/mapbox-gl.css";
 import {
   setMap,
@@ -101,8 +98,8 @@ function calculateDistanceKm(a: [number, number], b: [number, number]): number {
   const x =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-    Math.cos((lat2 * Math.PI) / 180) *
-    Math.sin(dLng / 2) ** 2;
+      Math.cos((lat2 * Math.PI) / 180) *
+      Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
@@ -140,6 +137,7 @@ export interface MapContainerProps {
   mapMode: "2D" | "3D";
   missionId?: string | null;
   mapFeatures?: GeoJSON.FeatureCollection | null;
+  landingAssets?: Asset[];
   basemapVariant?: BasemapVariant;
   mapLightPreset?: MapLightPreset;
   /** Fired when the user clicks the map canvas but not on asset/target hit targets (e.g. dismiss shell overlays). */
@@ -155,6 +153,7 @@ export function MapContainer({
   mapMode,
   missionId,
   mapFeatures,
+  landingAssets = [],
   basemapVariant = "standard",
   mapLightPreset = "night",
   onMapBackgroundClick,
@@ -172,6 +171,8 @@ export function MapContainer({
   mapModeRef.current = mapMode;
   const mapFeaturesRef = useRef(mapFeatures);
   mapFeaturesRef.current = mapFeatures;
+  const landingAssetsRef = useRef(landingAssets);
+  landingAssetsRef.current = landingAssets;
 
   const appliedStyleUrlRef = useRef<string | null>(null);
   const appliedLightPresetRef = useRef<MapLightPreset | null>(null);
@@ -209,6 +210,10 @@ export function MapContainer({
   const useApiTargets = !!missionId;
 
   const assetsForIntercept = useMemo((): Asset[] => {
+    if (!missionId) {
+      return landingAssets;
+    }
+
     const statusOverride = (deviceId: string, fallback: string) => {
       const ws = byDeviceId[deviceId];
       if (!ws) return fallback;
@@ -236,7 +241,7 @@ export function MapContainer({
     }
     // No mock fallback — return empty until API data loads
     return [];
-  }, [cachedMission?.devices, byDeviceId]);
+  }, [missionId, landingAssets, cachedMission?.devices, byDeviceId]);
 
   const assetsForInterceptRef = useRef(assetsForIntercept);
   assetsForInterceptRef.current = assetsForIntercept;
@@ -406,8 +411,7 @@ export function MapContainer({
       }
 
       const mf = mapFeaturesRef.current;
-      const missionDevices =
-        useMissionStore.getState().cachedMission?.devices;
+      const missionDevices = useMissionStore.getState().cachedMission?.devices;
       let assetsGeoJSON: GeoJSON.FeatureCollection | undefined;
       if (missionDevices?.length) {
         const statusStore = useDeviceStatusStore.getState().byDeviceId;
@@ -501,10 +505,9 @@ export function MapContainer({
         });
 
         removeInterceptLineRef.current = (targetId: string) => {
-          interceptFeaturesRef.current =
-            interceptFeaturesRef.current.filter(
-              (f) => (f.properties?.targetId as string) !== targetId,
-            );
+          interceptFeaturesRef.current = interceptFeaturesRef.current.filter(
+            (f) => (f.properties?.targetId as string) !== targetId,
+          );
           const src = map.getSource("intercepts") as mapboxgl.GeoJSONSource;
           if (src) {
             src.setData({
@@ -690,7 +693,23 @@ export function MapContainer({
         // 5️⃣ Cinematic fly-in — overview: India; mission: devices or default center
         const mid = missionIdRef.current;
         if (!mid) {
-          fitMapToIndia(map);
+          const landingCoords = landingAssetsRef.current.map(
+            (asset) => asset.coordinates,
+          );
+          const landingBounds = computeBounds(landingCoords);
+
+          if (landingBounds && landingCoords.length > 0) {
+            map.fitBounds(landingBounds, {
+              padding: { top: 80, bottom: 140, left: 64, right: 64 },
+              pitch: 55,
+              bearing: -20,
+              duration: 5000,
+              essential: true,
+              maxZoom: 10,
+            });
+          } else {
+            fitMapToIndia(map);
+          }
         } else {
           const missionData = useMissionStore.getState().cachedMission;
           const deviceCoords: [number, number][] = (
@@ -880,6 +899,18 @@ export function MapContainer({
     }
   }, [assetsForIntercept, mapReady, isIntroComplete]);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !mapReady || !isIntroComplete || missionId) return;
+
+    if (landingAssets.length > 0) {
+      setAssetLayersData(map, assetsToGeoJSON(landingAssets));
+      return;
+    }
+
+    setAssetLayersData(map, EMPTY_FC);
+  }, [landingAssets, missionId, mapReady, isIntroComplete]);
+
   // Update zones, border when mapFeatures or cachedMission changes
   useEffect(() => {
     const map = mapRef.current;
@@ -938,6 +969,7 @@ export function MapContainer({
   }, [assetsForIntercept, mapReady, isIntroComplete]);
 
   const prevMissionIdRef = useRef<string | null>(null);
+  const hasFittedLandingAssetsRef = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
@@ -946,22 +978,58 @@ export function MapContainer({
     if (prev === cur) return;
     if (prev && !cur) {
       hasFittedRef.current = false;
-      easeMapToIndia(map);
+      hasFittedLandingAssetsRef.current = false;
+      const landingCoords = landingAssetsRef.current.map(
+        (asset) => asset.coordinates,
+      );
+      const landingBounds = computeBounds(landingCoords);
+
+      if (landingBounds && landingCoords.length > 0) {
+        map.fitBounds(landingBounds, {
+          padding: { top: 80, bottom: 140, left: 64, right: 64 },
+          duration: 2000,
+          maxZoom: 10,
+        });
+      } else {
+        easeMapToIndia(map);
+      }
     }
     if ((!prev && cur) || (prev && cur && prev !== cur)) {
       hasFittedRef.current = false;
+      hasFittedLandingAssetsRef.current = false;
     }
     prevMissionIdRef.current = cur;
   }, [missionId, mapReady, isIntroComplete]);
 
   useEffect(() => {
     const map = mapRef.current;
+    if (!map || !mapReady || !isIntroComplete || missionId) return;
+    if (hasFittedLandingAssetsRef.current || landingAssets.length === 0) return;
+
+    const landingCoords = landingAssets.map((asset) => asset.coordinates);
+    const landingBounds = computeBounds(landingCoords);
+    if (!landingBounds) return;
+
+    hasFittedLandingAssetsRef.current = true;
+    map.fitBounds(landingBounds, {
+      padding: { top: 80, bottom: 140, left: 64, right: 64 },
+      duration: 2000,
+      maxZoom: 10,
+    });
+  }, [landingAssets, missionId, mapReady, isIntroComplete]);
+
+  useEffect(() => {
+    const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
     if (missionId) return;
-    setAssetLayersData(map, EMPTY_FC);
+    if (landingAssets.length > 0) {
+      setAssetLayersData(map, assetsToGeoJSON(landingAssets));
+    } else {
+      setAssetLayersData(map, EMPTY_FC);
+    }
     setZonesLayerData(map, EMPTY_FC);
     setBorderLayer(map, null);
-  }, [missionId, mapReady, isIntroComplete]);
+  }, [missionId, landingAssets, mapReady, isIntroComplete]);
 
   // 2D / 3D toggle (only after intro completes; terrain added in moveend)
   useEffect(() => {

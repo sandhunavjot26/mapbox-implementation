@@ -7,11 +7,15 @@
  */
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useMissionsList, useCreateMission } from "@/hooks/useMissions";
 import { useMissionStore } from "@/stores/missionStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { COLOR, FONT, POSITION } from "@/styles/driifTokens";
+import {
+  CreateMissionForm,
+  type MissionType,
+} from "@/components/missions/CreateMissionForm";
 import {
   formatMissionCreatedLine,
   formatMissionListCode,
@@ -20,26 +24,53 @@ import {
   missionStatusTagTextColor,
   resolveMissionCardStatus,
 } from "@/utils/missionListUi";
+import { ApiClientError } from "@/lib/api/client";
 
 export type MissionSelectorProps = {
   variant?: "sidebar" | "overlay";
   onClose?: () => void;
   className?: string;
   activeMissionId?: string | null;
+  onMapDismissLockChange?: (locked: boolean) => void;
 };
+
+type MissionSelectorView = "list" | "create";
+
+const COMMAND_UNITS = [
+  "Northern Command",
+  "Western Command",
+  "Eastern Command",
+];
+const MISSION_TYPES: MissionType[] = ["Live Op", "Training Sim", "Maintenance"];
+const CREATE_FENCE_ITEMS = ["DGCA South Zone", "No-fly Zone", "Fence 001"];
+const DEFAULT_DATETIME = "17-03-2026,21:00";
 
 export function MissionSelector({
   variant = "sidebar",
   onClose,
   className = "",
   activeMissionId = null,
+  onMapDismissLockChange,
 }: MissionSelectorProps) {
+  const [view, setView] = useState<MissionSelectorView>("list");
+  const [createDetailMode, setCreateDetailMode] = useState<"form" | "createFence">(
+    "form",
+  );
   const [search, setSearch] = useState("");
   const [createName, setCreateName] = useState("");
-  const [createAop, setCreateAop] = useState("");
-  const [isCreating, setIsCreating] = useState(false);
+  const [commandUnit, setCommandUnit] = useState(COMMAND_UNITS[0]);
+  const [missionType, setMissionType] = useState<MissionType>("Live Op");
+  const [startAt, setStartAt] = useState(DEFAULT_DATETIME);
+  const [endAt, setEndAt] = useState(DEFAULT_DATETIME);
+  const [fenceSearch, setFenceSearch] = useState("");
+  const [fenceItems, setFenceItems] = useState(CREATE_FENCE_ITEMS);
+  const [createError, setCreateError] = useState("");
 
-  const { data: missions, isLoading, error } = useMissionsList(search || undefined);
+  const {
+    data: missions,
+    isLoading,
+    error,
+  } = useMissionsList(search || undefined);
   const createMutation = useCreateMission();
   const setActiveMission = useMissionStore((s) => s.setActiveMission);
   const clearTargets = useTargetsStore((s) => s.clearTargets);
@@ -50,205 +81,262 @@ export function MissionSelector({
     onClose?.();
   };
 
+  const resetCreateForm = () => {
+    setCreateName("");
+    setCommandUnit(COMMAND_UNITS[0]);
+    setMissionType("Live Op");
+    setStartAt(DEFAULT_DATETIME);
+    setEndAt(DEFAULT_DATETIME);
+    setFenceSearch("");
+    setFenceItems(CREATE_FENCE_ITEMS);
+    setCreateError("");
+  };
+
+  const showCreateView = () => {
+    resetCreateForm();
+    setCreateDetailMode("form");
+    setView("create");
+  };
+
+  const showListView = () => {
+    setCreateError("");
+    setCreateDetailMode("form");
+    setView("list");
+  };
+
   const handleCreate = async () => {
-    if (!createName.trim()) return;
+    const name = createName.trim();
+    if (!name) {
+      setCreateError("Mission name is required.");
+      return;
+    }
+
     try {
       const m = await createMutation.mutateAsync({
-        name: createName.trim(),
-        aop: createAop.trim() || null,
+        name,
+        aop: null,
       });
-      setCreateName("");
-      setCreateAop("");
-      setIsCreating(false);
+      resetCreateForm();
+      setView("list");
       handleLoad(m.id);
-    } catch {
-      // error shown by mutation
+    } catch (err) {
+      if (err instanceof ApiClientError) {
+        setCreateError(err.message || "Could not create mission.");
+      } else {
+        setCreateError("Could not create mission.");
+      }
     }
   };
 
-  const overlayWidth =
-    variant === "overlay" ? { width: POSITION.missionsWidth } : undefined;
+  const panelWidth =
+    variant === "overlay"
+      ? view === "create"
+        ? createDetailMode === "createFence"
+          ? POSITION.createFenceWorkspaceWidth
+          : POSITION.createMissionWidth
+        : POSITION.missionsWidth
+      : undefined;
 
   const rootClass =
     variant === "overlay"
-      ? `flex flex-col max-h-[min(70vh,calc(100vh-120px))] overflow-hidden rounded-[2px] ${className}`
+      ? `flex flex-col max-h-[min(70vh,calc(100vh-120px))] ${
+          view === "create" && createDetailMode === "createFence"
+            ? "overflow-visible"
+            : "overflow-hidden"
+        } rounded-[2px] ${className}`
       : `flex flex-col h-full w-80 overflow-hidden rounded-[2px] ${className}`;
 
-  const fieldClass =
-    "w-full rounded-[2px] border px-3 py-2 text-[14px] leading-5 outline-none transition-colors";
-  const fieldStyle = {
-    background: COLOR.missionsSearchBg,
-    borderColor: COLOR.missionsSearchBorder,
-    color: COLOR.missionsBodyText,
+  const panelStyle = {
+    background:
+      view === "create" && createDetailMode === "createFence"
+        ? "transparent"
+        : COLOR.missionsPanelBg,
+    width: panelWidth,
     fontFamily: `${FONT.family}, sans-serif`,
-  };
+  } as const;
+
+  const filteredFenceItems = fenceItems.filter((item) =>
+    item.toLowerCase().includes(fenceSearch.trim().toLowerCase()),
+  );
+
+  useEffect(() => {
+    const locked = view === "create" && createDetailMode === "createFence";
+    onMapDismissLockChange?.(locked);
+
+    return () => {
+      onMapDismissLockChange?.(false);
+    };
+  }, [view, createDetailMode, onMapDismissLockChange]);
 
   return (
-    <div className={rootClass} style={{ background: COLOR.missionsPanelBg, ...overlayWidth }}>
-      <div
-        className="flex shrink-0 flex-col gap-[14px] px-4 py-3"
-        style={{ fontFamily: `${FONT.family}, sans-serif` }}
-      >
-        <h2
-          className="text-[18px] font-medium leading-[26px]"
-          style={{ color: COLOR.missionsTitleMuted }}
-        >
-          Missions
-        </h2>
-
-        <div className="flex flex-col gap-3">
-          <div className="flex gap-1 items-stretch">
-            <label
-              className="relative flex min-w-0 flex-1 items-center gap-2 rounded-[2px] border border-solid px-3 h-8"
-              style={{
-                background: COLOR.missionsSearchBg,
-                borderColor: COLOR.missionsSearchBorder,
-              }}
+    <div className={rootClass} style={panelStyle}>
+      {view === "list" ? (
+        <>
+          <div
+            className="flex shrink-0 flex-col gap-[14px] px-4 py-3"
+            style={panelStyle}
+          >
+            <h2
+              className="text-[18px] font-medium leading-[26px]"
+              style={{ color: COLOR.missionsTitleMuted }}
             >
-              <span className="sr-only">Search missions</span>
-              <input
-                type="text"
-                placeholder="Search Mission...."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="min-w-0 flex-1 bg-transparent text-[14px] leading-5 outline-none placeholder:text-[#8A8A8A]"
+              Missions
+            </h2>
+
+            <div className="flex gap-1 items-stretch">
+              <label
+                className="relative flex min-w-0 flex-1 items-center gap-2 rounded-[2px] border border-solid px-3 h-8"
                 style={{
-                  color: COLOR.missionsBodyText,
-                  fontFamily: `${FONT.family}, sans-serif`,
+                  background: COLOR.missionsSearchBg,
+                  borderColor: COLOR.missionsSearchBorder,
                 }}
-              />
-              <Image
-                src="/icons/search.svg"
-                alt=""
-                width={16}
-                height={16}
-                className="shrink-0 opacity-70"
-              />
-            </label>
-            <button
-              type="button"
-              onClick={() => setIsCreating(!isCreating)}
-              className="shrink-0 rounded-[2px] px-3 text-[14px] leading-5 whitespace-nowrap h-8 flex items-center justify-center"
-              style={{
-                background: COLOR.missionsCreateBtnBg,
-                color: COLOR.missionsCreateBtnText,
-                fontFamily: `${FONT.family}, sans-serif`,
-              }}
-            >
-              {isCreating ? "Cancel" : "Create Mission"}
-            </button>
-          </div>
-
-          {isCreating && (
-            <div className="flex flex-col gap-2">
-              <input
-                type="text"
-                placeholder="Mission name"
-                value={createName}
-                onChange={(e) => setCreateName(e.target.value)}
-                className={fieldClass}
-                style={fieldStyle}
-              />
-              <input
-                type="text"
-                placeholder="AOP (optional)"
-                value={createAop}
-                onChange={(e) => setCreateAop(e.target.value)}
-                className={fieldClass}
-                style={fieldStyle}
-              />
-              {createMutation.isError && (
-                <p className="text-[12px] text-red-400">Could not create mission.</p>
-              )}
+              >
+                <span className="sr-only">Search missions</span>
+                <input
+                  type="text"
+                  placeholder="Search Mission...."
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  className="min-w-0 flex-1 bg-transparent text-[14px] leading-5 outline-none placeholder:text-[#8A8A8A]"
+                  style={{
+                    color: COLOR.missionsBodyText,
+                    fontFamily: `${FONT.family}, sans-serif`,
+                  }}
+                />
+                <Image
+                  src="/icons/search.svg"
+                  alt=""
+                  width={16}
+                  height={16}
+                  className="shrink-0 opacity-70"
+                />
+              </label>
               <button
                 type="button"
-                onClick={handleCreate}
-                disabled={createMutation.isPending || !createName.trim()}
-                className="rounded-[2px] py-2 text-[14px] leading-5 disabled:opacity-50"
+                onClick={showCreateView}
+                className="shrink-0 rounded-[2px] px-3 text-[14px] leading-5 whitespace-nowrap h-8 flex items-center justify-center"
                 style={{
                   background: COLOR.missionsCreateBtnBg,
                   color: COLOR.missionsCreateBtnText,
                   fontFamily: `${FONT.family}, sans-serif`,
                 }}
               >
-                {createMutation.isPending ? "Creating..." : "Create & Load"}
+                Create Mission
               </button>
             </div>
-          )}
-        </div>
-      </div>
+          </div>
 
-      <div
-        className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 flex flex-col gap-[10px]"
-        style={{ fontFamily: `${FONT.family}, sans-serif` }}
-      >
-        {error && (
-          <p className="text-[12px] text-red-400 px-1">Failed to load missions</p>
-        )}
-        {isLoading && (
-          <p className="text-[12px] px-1" style={{ color: COLOR.missionsSecondaryText }}>
-            Loading...
-          </p>
-        )}
-        {missions?.map((m) => {
-          const kind = resolveMissionCardStatus(m);
-          const tagColor = missionStatusTagTextColor(kind);
-          const createdLine = formatMissionCreatedLine(m.created_at);
-          const selected = activeMissionId === m.id;
-          return (
-            <button
-              key={m.id}
-              type="button"
-              onClick={() => handleLoad(m.id)}
-              className="w-full text-left rounded-[2px] p-3 transition-colors"
-              style={{
-                background: COLOR.missionsCardBg,
-                boxShadow: selected ? "inset 0 0 0 1px rgba(198, 230, 0, 0.45)" : undefined,
-              }}
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0 flex flex-col gap-1">
-                  <p
-                    className="text-[14px] leading-5 line-clamp-2"
-                    style={{ color: COLOR.missionsBodyText }}
-                  >
-                    {m.name}
-                  </p>
-                  <p
-                    className="text-[12px] leading-4 opacity-60"
-                    style={{ color: COLOR.missionsTitleMuted }}
-                  >
-                    {formatMissionListCode(m.id)}
-                  </p>
-                  {createdLine && (
-                    <p
-                      className="text-[12px] leading-4 opacity-60"
-                      style={{ color: COLOR.missionsTitleMuted }}
-                    >
-                      {createdLine}
-                    </p>
-                  )}
-                </div>
-                <span
-                  className="shrink-0 rounded-[2px] px-2 py-1 text-[12px] leading-4 whitespace-nowrap"
+          <div
+            className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 flex flex-col gap-[10px]"
+            style={panelStyle}
+          >
+            {error && (
+              <p className="text-[12px] text-red-400 px-1">
+                Failed to load missions
+              </p>
+            )}
+            {isLoading && (
+              <p
+                className="text-[12px] px-1"
+                style={{ color: COLOR.missionsSecondaryText }}
+              >
+                Loading...
+              </p>
+            )}
+            {missions?.map((m) => {
+              const kind = resolveMissionCardStatus(m);
+              const tagColor = missionStatusTagTextColor(kind);
+              const createdLine = formatMissionCreatedLine(m.created_at);
+              const selected = activeMissionId === m.id;
+              return (
+                <button
+                  key={m.id}
+                  type="button"
+                  onClick={() => handleLoad(m.id)}
+                  className="w-full text-left rounded-[2px] p-3 transition-colors"
                   style={{
-                    background: MISSION_TAG_PILL_BG,
-                    color: tagColor,
-                    fontFamily: `${FONT.family}, sans-serif`,
+                    background: COLOR.missionsCardBg,
+                    boxShadow: selected
+                      ? "inset 0 0 0 1px rgba(198, 230, 0, 0.45)"
+                      : undefined,
                   }}
                 >
-                  {missionStatusTagLabel(kind)}
-                </span>
-              </div>
-            </button>
-          );
-        })}
-        {missions?.length === 0 && !isLoading && (
-          <p className="text-[12px] px-1" style={{ color: COLOR.missionsSecondaryText }}>
-            No missions. Create one to start.
-          </p>
-        )}
-      </div>
+                  <div className="flex items-start justify-between gap-3">
+                    <div className="min-w-0 flex flex-col gap-1">
+                      <p
+                        className="text-[14px] leading-5 line-clamp-2"
+                        style={{ color: COLOR.missionsBodyText }}
+                      >
+                        {m.name}
+                      </p>
+                      <p
+                        className="text-[12px] leading-4 opacity-60"
+                        style={{ color: COLOR.missionsTitleMuted }}
+                      >
+                        {formatMissionListCode(m.id)}
+                      </p>
+                      {createdLine && (
+                        <p
+                          className="text-[12px] leading-4 opacity-60"
+                          style={{ color: COLOR.missionsTitleMuted }}
+                        >
+                          {createdLine}
+                        </p>
+                      )}
+                    </div>
+                    <span
+                      className="shrink-0 rounded-[2px] px-2 py-1 text-[12px] leading-4 whitespace-nowrap"
+                      style={{
+                        background: MISSION_TAG_PILL_BG,
+                        color: tagColor,
+                        fontFamily: `${FONT.family}, sans-serif`,
+                      }}
+                    >
+                      {missionStatusTagLabel(kind)}
+                    </span>
+                  </div>
+                </button>
+              );
+            })}
+            {missions?.length === 0 && !isLoading && (
+              <p
+                className="text-[12px] px-1"
+                style={{ color: COLOR.missionsSecondaryText }}
+              >
+                No missions. Create one to start.
+              </p>
+            )}
+          </div>
+        </>
+      ) : (
+        <CreateMissionForm
+          name={createName}
+          commandUnit={commandUnit}
+          missionType={missionType}
+          startAt={startAt}
+          endAt={endAt}
+          fenceSearch={fenceSearch}
+          createError={createError}
+          isSubmitting={createMutation.isPending}
+          commandUnits={COMMAND_UNITS}
+          missionTypes={MISSION_TYPES}
+          fenceItems={filteredFenceItems}
+          allFenceItems={fenceItems}
+          onBack={showListView}
+          onNameChange={(value) => {
+            setCreateName(value);
+            setCreateError("");
+          }}
+          onCommandUnitChange={setCommandUnit}
+          onMissionTypeChange={setMissionType}
+          onStartAtChange={setStartAt}
+          onEndAtChange={setEndAt}
+          onFenceSearchChange={setFenceSearch}
+          onFenceItemsChange={setFenceItems}
+          onSubmit={handleCreate}
+          onModeChange={setCreateDetailMode}
+        />
+      )}
     </div>
   );
 }
