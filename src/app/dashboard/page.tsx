@@ -61,6 +61,7 @@ export default function DashboardPage() {
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [activeNavKey, setActiveNavKey] = useState<string | null>(null);
+  const [mapDismissLocked, setMapDismissLocked] = useState(false);
   const [interceptStats, setInterceptStats] = useState({
     neutralized: 0,
     confirmed: 0,
@@ -126,9 +127,10 @@ export default function DashboardPage() {
 
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
   const onMapBackgroundClick = useCallback(() => {
+    if (mapDismissLocked) return;
     setMissionsOpen(false);
     setActiveNavKey(null);
-  }, []);
+  }, [mapDismissLocked]);
 
   if (!isAuthorized) {
     return (
@@ -210,9 +212,11 @@ export default function DashboardPage() {
           <MissionSelector
             variant="overlay"
             activeMissionId={activeMissionId}
+            onMapDismissLockChange={setMapDismissLocked}
             onClose={() => {
               setMissionsOpen(false);
               setActiveNavKey(null);
+              setMapDismissLocked(false);
             }}
           />
         </div>

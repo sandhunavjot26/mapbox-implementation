@@ -15,7 +15,7 @@ export const LANDING_REGION_BOUNDS: [[number, number], [number, number]] = [
 ];
 
 /** Allow a closer end zoom for the mission selected assets. */
-export const MAX_ZOOM_LANDING = 7.5;
+export const MAX_ZOOM_LANDING = 7.35;
 
 export function getLandingFitOptions(): FitBoundsOptions {
   return {

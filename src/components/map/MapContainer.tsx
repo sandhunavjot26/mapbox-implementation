@@ -705,7 +705,7 @@ export function MapContainer({
               bearing: -20,
               duration: 5000,
               essential: true,
-              maxZoom: 11,
+              maxZoom: 10,
             });
           } else {
             fitMapToIndia(map);
@@ -988,7 +988,7 @@ export function MapContainer({
         map.fitBounds(landingBounds, {
           padding: { top: 80, bottom: 140, left: 64, right: 64 },
           duration: 2000,
-          maxZoom: 11,
+          maxZoom: 10,
         });
       } else {
         easeMapToIndia(map);
@@ -1014,7 +1014,7 @@ export function MapContainer({
     map.fitBounds(landingBounds, {
       padding: { top: 80, bottom: 140, left: 64, right: 64 },
       duration: 2000,
-      maxZoom: 11,
+      maxZoom: 10,
     });
   }, [landingAssets, missionId, mapReady, isIntroComplete]);
 
