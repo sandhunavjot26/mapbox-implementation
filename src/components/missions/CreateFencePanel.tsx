@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import { COLOR, FONT } from "@/styles/driifTokens";
+import type { SavedFence } from "@/types/aeroshield";
 
 export type CreateFencePanelProps = {
-  fences: string[];
+  fences: SavedFence[];
   onBack: () => void;
   onDeleteFence: (name: string) => void;
 };
@@ -39,29 +40,36 @@ export function CreateFencePanel({
       </div>
 
       <div className="flex flex-col gap-1">
-        {fences.map((fence, index) => (
-          <div
-            key={fence}
-            className="flex items-center justify-between rounded-[2px] px-[15px] py-[9px]"
-            style={{ background: COLOR.missionCreateFenceItemBg }}
+        {fences.length === 0 ? (
+          <p
+            className="py-6 text-center text-[13px] italic leading-5 opacity-50"
+            style={{ color: COLOR.missionsBodyText }}
           >
-            <p
-              className="text-[14px] leading-5"
-              style={{ color: COLOR.missionsBodyText }}
+            No fences added yet. Use the draw tools to create one.
+          </p>
+        ) : (
+          fences.map((fence) => (
+            <div
+              key={fence.name}
+              className="flex items-center justify-between rounded-[2px] px-[15px] py-[9px]"
+              style={{ background: COLOR.missionCreateFenceItemBg }}
             >
-              {fence}
-            </p>
-            {index === 0 ? (
+              <p
+                className="text-[14px] leading-5"
+                style={{ color: COLOR.missionsBodyText }}
+              >
+                {fence.name}
+              </p>
               <button
                 type="button"
-                onClick={() => onDeleteFence(fence)}
+                onClick={() => onDeleteFence(fence.name)}
                 className="flex h-4 w-4 items-center justify-center"
               >
                 <Image src="/icons/trash.svg" alt="Delete fence" width={14} height={14} />
               </button>
-            ) : null}
-          </div>
-        ))}
+            </div>
+          ))
+        )}
       </div>
     </div>
   );

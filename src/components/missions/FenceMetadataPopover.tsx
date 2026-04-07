@@ -1,6 +1,6 @@
 "use client";
 
-import { COLOR, FONT } from "@/styles/driifTokens";
+import { COLOR, FONT, POSITION } from "@/styles/driifTokens";
 
 export type FenceMetadataPopoverProps = {
   name: string;
@@ -33,8 +33,9 @@ export function FenceMetadataPopover({
 
   return (
     <div
-      className="absolute left-[641px] top-[195px] flex w-[240px] flex-col gap-[14px] rounded-[8px] border p-3"
+      className="absolute top-[195px] flex w-[240px] flex-col gap-[14px] rounded-[8px] border p-3"
       style={{
+        left: `calc(${POSITION.createFenceWorkspaceWidth} + 56px)`,
         background: COLOR.missionCreateSectionBg,
         borderColor: COLOR.missionCreateFieldBorder,
         fontFamily: `${FONT.family}, sans-serif`,

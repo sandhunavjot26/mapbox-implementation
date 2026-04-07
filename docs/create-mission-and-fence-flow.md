@@ -1,35 +1,52 @@
-# Create Mission And Fence Flow
+# Create Mission and Fence Flow
 
 ## Scope Implemented
 
-This document captures the UI and interaction work implemented so far for:
+This document captures the UI, interaction, and API integration work implemented for:
 
-- missions list improvements
-- create mission form
-- reusable form inputs
-- create fence workspace
-- phase 1 and phase 2 fence drawing
+- missions list and search
+- create mission form with fence drawing
+- fence geometry persistence as zones via API
+- mission border rendering on the landing overview map
+- camera and layer behavior across mission selection
 
-## Mission Selector Changes
+## Mission Selector
 
-The missions overlay in `src/components/missions/MissionSelector.tsx` now supports two top-level views:
+`src/components/missions/MissionSelector.tsx` supports two top-level views:
 
-- `list`
-- `create`
+- `list` -- mission list with search, status tags, and load action
+- `create` -- mission creation form with fence workspace
 
-Responsibilities kept in `MissionSelector`:
+Responsibilities:
 
-- fetching and rendering mission list data
+- fetching and rendering mission list data via `useMissionsList`
 - switching between list and create views
-- creating a mission through `useCreateMission`
-- loading a mission after successful creation
+- creating a mission through `useCreateMission` (submits `name`, `aop`, `border_geojson`)
+- bulk-saving all drawn fences as zones via `createZone` after mission POST succeeds
+- loading a mission after successful creation via `handleLoad`
 - locking map-dismiss behavior while create-fence mode is active
+
+### Zone Bulk-Save in `handleCreate`
+
+After `POST /missions` returns the new `mission.id`:
+
+1. Iterates `fenceItems` array
+2. For each fence, calls `createZone(mission.id, { label, priority, zone_geojson, action_plan })`
+3. Uses `Promise.allSettled` so one failure does not block others
+4. Then proceeds with `resetCreateForm()` + `handleLoad(m.id)`
+
+Field mapping from `SavedFence` to Zone API payload:
+
+| SavedFence field | Zone API field |
+|-----------------|----------------|
+| `name` | `label` |
+| `geometry.geometry` (the Polygon) | `zone_geojson` |
+| Default `1` | `priority` |
+| `{ altitude_ceiling: altitude, draw_mode: mode }` | `action_plan` |
 
 ## Create Mission Form
 
-The create mission UI was extracted into:
-
-- `src/components/missions/CreateMissionForm.tsx`
+`src/components/missions/CreateMissionForm.tsx`
 
 Current behavior:
 
@@ -44,61 +61,44 @@ Current behavior:
   - end date and time
   - fence search
   - create fence entry point
-  - fence list
+  - fence list with delete and "No fences added yet" empty state
 
 Current API payload behavior:
 
-- only valid mission API fields are submitted
-- current submit payload uses:
-  - `name`
-  - `aop: null`
+- `name` is submitted
+- `aop: null` is submitted
+- `border_geojson` is submitted from `fenceItems[0].geometry.geometry` (first fence becomes the mission border)
+- all fences are bulk-POSTed as zones after mission creation succeeds
 
-Fields currently shown for UI/design purposes but not submitted:
+Fields shown for UI/design purposes but not submitted:
 
 - command unit
 - mission type
 - start/end date and time
-- fence metadata
 
 ## Reusable UI Components
 
 ### Dropdown
 
-Reusable dropdown component:
+`src/components/ui/Dropdown.tsx` -- used by create mission command unit field.
 
-- `src/components/ui/Dropdown.tsx`
+### Date and Time
 
-Used by:
-
-- create mission command unit field
-
-### Date And Time
-
-Two date-time components now exist:
-
-- `src/components/ui/DateTimeField.tsx`
-  - simpler native-backed version
-- `src/components/ui/CustomDateTimeField.tsx`
-  - custom grey picker used in the create mission form
-
-Current create mission form uses:
-
-- `CustomDateTimeField`
+- `src/components/ui/DateTimeField.tsx` -- simpler native-backed version
+- `src/components/ui/CustomDateTimeField.tsx` -- custom grey picker used in the create mission form
 
 ## Create Fence Workspace
 
-The create fence flow was extracted into separate components:
+Extracted into separate components:
 
-- `src/components/missions/CreateFenceWorkspace.tsx`
-- `src/components/missions/CreateFencePanel.tsx`
-- `src/components/missions/FenceDrawToolbar.tsx`
-- `src/components/missions/FenceMetadataPopover.tsx`
+- `src/components/missions/CreateFenceWorkspace.tsx` -- orchestrates drawing state and map interaction
+- `src/components/missions/CreateFencePanel.tsx` -- displays saved fences list with delete, shows empty state when no fences
+- `src/components/missions/FenceDrawToolbar.tsx` -- drawing tool selection
+- `src/components/missions/FenceMetadataPopover.tsx` -- name and altitude input after shape completion
 
-### Current Flow
+### Flow
 
-From `CreateMissionForm`, clicking `Create Fence` switches the panel into the fence workspace.
-
-The workspace currently provides:
+From `CreateMissionForm`, clicking `Create Fence` switches the panel into the fence workspace. The workspace provides:
 
 - left fence list panel
 - detached drawing toolbar
@@ -107,82 +107,140 @@ The workspace currently provides:
 
 ### Fence Toolbar
 
-Visible tools for the current phase:
+Visible tools:
 
-- polygon
-- square
-- circle
+- polygon (pink `#FF30C6`)
+- square (purple `#9E5CFF`)
+- circle (green `#00D68F`)
 
-Hidden for now:
+Hidden for now: line.
 
-- line
+### Types
 
-Toolbar icons come from:
+Defined in `src/types/aeroshield.ts`:
 
-- `public/icons/polygon.svg`
-- `public/icons/square.svg`
-- `public/icons/circle.svg`
-
-Delete icon:
-
-- `public/icons/trash.svg`
+- `FenceDrawTool` -- `"polygon" | "square" | "circle"`
+- `SavedFence` -- `{ name, altitude, mode, geometry }` where geometry is `GeoJSON.Feature<GeoJSON.Polygon>`
 
 ## Fence Drawing Implementation
 
-Drawing currently uses the shared Mapbox map instance from:
+### Extracted Modules
 
-- `src/components/map/mapController.ts`
+Drawing logic was refactored from inline `CreateFenceWorkspace` code into dedicated modules:
+
+- `src/hooks/useFenceDraw.ts` -- custom hook encapsulating Mapbox click handlers, drawing state machine, map interaction snapshot/restore
+- `src/utils/fenceGeometry.ts` -- pure geometry utilities: `buildPolygonFeature`, `buildRectanglePoints`, `buildCirclePoints` (Haversine-based), `closeRing`, `getPolygonCentroid`, `isSameCoordinate`
+- `src/components/map/layers/fence.ts` -- Mapbox source/layer management: `ensureFenceLayers`, `updateFenceLayers`, `setDraftLayerData`, `removeFenceLayers`
 
 ### Supported Shapes
 
-- polygon
-- square
-- circle
-
-### Drawing Behavior
-
-Polygon:
-
-- click to add vertices
-- double-click to finish
-
-Square:
-
-- first click sets anchor corner
-- second click completes rectangle
-
-Circle:
-
-- first click sets center
-- second click completes circle
+- **Polygon:** click to add vertices, double-click to finish
+- **Square:** first click sets anchor corner, second click completes rectangle
+- **Circle:** first click sets center, second click sets radius (uses Haversine distance and destination-point for accurate rendering)
 
 ### Geometry Storage
 
-Current workspace state stores:
+`SavedFence` objects with full geometry live in `MissionSelector` state (`fenceItems`) and pass through to `CreateMissionForm` and `CreateFencePanel`. Shapes are stored as `GeoJSON.Polygon` features.
 
-- in-progress drawing state
-- draft polygon geometry
-- saved fence geometries for the current workspace session
+### Map Rendering (Fence Drawing)
 
-Shapes are stored as `GeoJSON.Polygon` features.
+Draft and saved fences are rendered through dedicated sources/layers:
 
-### Current Map Rendering
+- `create-fence-draft` (fill + outline)
+- `create-fence-saved` (fill + outline)
+- `create-fence-saved-label-src` (label layer)
 
-Draft and saved fences are rendered through dedicated sources/layers created by `CreateFenceWorkspace`:
+All fence layers use `*-emissive-strength: 1` for visibility in Mapbox Standard night mode.
 
-- `create-fence-draft`
-- `create-fence-saved`
-- `create-fence-saved-label`
+## Border Layer (Landing and Mission View)
 
-Tool-specific colors currently used:
+`src/components/map/layers/border.ts` renders mission border polygons on the map.
 
-- polygon: pink
-- square: purple
-- circle: green
+### Landing Overview
 
-## Validation Added
+All missions with `border_geojson` are displayed on initial map load via `useLandingBorders()` hook (in `src/hooks/useMissions.ts`). This hook extracts borders from the mission list query and converts them to `GeoJSON.Feature<GeoJSON.Polygon>[]` with `missionName` and `missionId` in properties.
 
-Fence metadata popover now includes:
+### Shape Color Inference
+
+The API stores raw `GeoJSON.Polygon` without color metadata. Colors are inferred from vertex count:
+
+- 5 vertices (4 unique + closing) = square = purple `#9E5CFF`
+- More than 50 vertices (circle has 64 segments) = circle = green `#00D68F`
+- Everything else = polygon = pink `#FF30C6`
+
+Colors are applied via data-driven paint expressions using `["coalesce", ["get", "outlineColor"], "#22d3ee"]` so explicit color properties take priority.
+
+### Fill and Outline
+
+- Fill: data-driven color at `opacity: 0.08` with `fill-emissive-strength: 1`
+- Outline: data-driven color, `line-width: 2`, dashed, `line-emissive-strength: 1`
+
+### Label Positioning
+
+Labels are placed at the top-center of each polygon (horizontal center, maximum latitude) with `text-anchor: "bottom"` so text sits above the shape edge. Label color matches the border outline color.
+
+### Mission Selection Behavior
+
+When a mission is selected, its border from `mapFeatures` is merged into the landing borders array (deduplicating by `missionId`). All mission borders remain visible regardless of which mission is selected.
+
+## Radar and Asset Visibility
+
+### Landing Assets
+
+`useLandingMissionAssets()` (in `src/hooks/useMissions.ts`) aggregates radar assets from all active/live missions. This hook is always enabled, not gated by mission selection.
+
+### Mission Selection
+
+When a mission is selected, `assetsForIntercept` merges landing assets with the selected mission's devices (deduplicating by ID, mission devices taking priority for fresher status). Other missions' radars remain visible on the map.
+
+## Camera Behavior
+
+### Initial Load
+
+Camera fits to all landing assets (radars from active missions) or falls back to India overview.
+
+### Mission Selection
+
+Camera fits to the selected mission's own devices. If the mission has no devices, falls back to the mission border bounding box. Does not jump to other missions' assets.
+
+### Deselection
+
+Camera returns to landing assets overview.
+
+## Zone API Integration
+
+### API Client
+
+`src/lib/api/zones.ts` provides typed functions for all Zone CRUD endpoints:
+
+- `createZone(missionId, payload)` -- POST
+- `listZones(missionId)` -- GET
+- `updateZone(missionId, zoneId, payload)` -- PATCH
+- `deleteZone(missionId, zoneId)` -- DELETE
+
+### TanStack Query Hooks
+
+`src/hooks/useZones.ts`:
+
+- `useCreateZone(missionId)` -- mutation, invalidates mission detail + map features
+- `useDeleteZone(missionId)` -- mutation, invalidates mission detail + map features
+
+### Zone Rendering
+
+`src/components/map/layers/zones.ts` renders zones from `cachedMission.zones` when a mission is loaded. Zone fills are controlled by `SHOW_MISSION_ZONE_FILLS` (currently `false`). Zone outlines and TL priority labels are always visible.
+
+## Map Dismiss Lock
+
+While the create fence workspace is active, background map clicks do not dismiss the mission overlay.
+
+Handled by:
+
+- `MissionSelector` reporting lock state upward
+- `src/app/dashboard/page.tsx` respecting `mapDismissLocked`
+
+## Validation
+
+Fence metadata popover includes:
 
 - placeholder text
 - required validation for fence name
@@ -192,145 +250,95 @@ Fence metadata popover now includes:
 Cancel behavior:
 
 - closes the popover
-- clears the draft fence from the map
-
-## Map Dismiss Lock
-
-While the create fence workspace is active, background map clicks should not dismiss the mission overlay.
-
-This is handled by:
-
-- `MissionSelector` reporting lock state upward
-- `src/app/dashboard/page.tsx` respecting `mapDismissLocked`
+- clears the draft fence from the map immediately via imperative `setDraftLayerData(map, null)`
 
 ## Current Known Limitations
 
-These are important for the next phase:
+1. **No fence editing** -- no vertex drag, resize handles, or shape re-drawing after save
 
-1. Fence geometries are only stored locally inside `CreateFenceWorkspace`
+2. **No explicit finish control** -- polygon drawing finishes on double-click only; no explicit "Complete" button
 
-- fence names are pushed back to the mission form list
-- fence geometry is not yet persisted outside the fence workspace
+3. **Style reload during drawing** -- if the Mapbox style reloads while the fence workspace is active, fence layers may need explicit reattachment (partially handled via `style.load` listener)
 
-2. `border_geojson` is not yet wired into mission creation
+4. **First fence is the border** -- only `fenceItems[0]` is sent as `border_geojson` in the mission creation payload; additional fences become zones only
 
-- geometry capture is available locally
-- mission create submit still sends only currently supported fields
+5. **Zone save failures are silent** -- `Promise.allSettled` results are not inspected in `handleCreate`; if zone POSTs fail, the user sees a successful mission creation with no warning about missing zones
 
-3. Fence drawing does not yet support editing
+6. **Touch rotation not restored** -- `applyMapDrawingMode` disables touch rotation but `restoreMapInteractions` does not re-enable it; pinch-rotate may stay disabled after drawing
 
-- no vertex drag/edit
-- no resize handles
-- no explicit finish control beyond the current click behavior
+## Resolved Issues
 
-4. Fence rendering is owned inside the workspace
+These issues from the original document have been fixed:
 
-- if the map style is reloaded while drawing is active, fence layers may need explicit reattachment handling in a future pass
+1. **Fence geometries only stored locally** -- RESOLVED: `SavedFence` objects with full geometry now live in `MissionSelector` state and pass through to form and panel components
+
+2. **`border_geojson` not wired** -- RESOLVED: `fenceItems[0].geometry.geometry` is submitted as `border_geojson` in `POST /missions`
+
+3. **Cancel not clearing draft from map** -- RESOLVED: refactored click handlers out of `setDrawingState` updaters to avoid nested state updates; added imperative `setDraftLayerData(map, null)` in `resetDrawing()`
+
+4. **Tool-specific colors not rendering** -- RESOLVED: added `fill-emissive-strength: 1`, `line-emissive-strength: 1`, and `text-emissive-strength: 1` to all fence layers for Mapbox Standard night mode compatibility
+
+5. **Map interaction restoration too broad** -- RESOLVED: `useFenceDraw` now uses a snapshot/restore pattern that only changes the interactions it touched
+
+6. **Borders disappearing on mission select** -- RESOLVED: active mission border is merged into landing borders instead of replacing them
+
+7. **Camera jumping to wrong mission** -- RESOLVED: camera fits to selected mission's devices only; falls back to border bbox if no devices
+
+## Production Readiness Notes
+
+### Critical -- Fix Before Production
+
+1. **Silent zone bulk-save failures**
+   - File: `src/components/missions/MissionSelector.tsx` (`handleCreate`)
+   - Issue: `Promise.allSettled` results are never inspected. If zone POSTs fail, the user sees a successful mission creation with no warning. Zones may be missing from the mission with no retry mechanism.
+   - Fix: inspect settled results, show a toast or inline warning for any rejected promises, consider a retry option.
+
+2. **Recursive setTimeout leak in map initialization**
+   - File: `src/components/map/MapContainer.tsx` (`tryInitialize`)
+   - Issue: recursive `setTimeout(tryInitialize, 100)` retries are not tracked or cleared on unmount. If the component unmounts while waiting for a non-zero container rect, a later retry can set state on an unmounted component.
+   - Fix: store the retry timeout ID in a ref and clear it in the cleanup function.
+
+3. **`apiJson` null body on 2xx**
+   - File: `src/lib/api/client.ts`
+   - Issue: on `res.ok`, returns `body as T` even when `body` stayed `null` (empty body or JSON parse skipped). Callers like `createZone` assume a real `Zone` object.
+   - Fix: add a null/undefined check on `body` before returning; throw or return a typed default.
+
+### Warnings -- Edge Cases
+
+1. **Touch rotation not restored after fence draw mode**
+   - File: `src/hooks/useFenceDraw.ts`
+   - `applyMapDrawingMode` disables touch rotation but `restoreMapInteractions` never re-enables it.
+
+2. **`assetsForIntercept` rebuilds on any device status change**
+   - File: `src/components/map/MapContainer.tsx`
+   - `useMemo` depends on `byDeviceId` (full store slice). Any WebSocket device status update triggers a full rebuild and `setAssetLayersData` call.
+
+3. **Zones not cleared on mission switch when mapFeatures is loading**
+   - File: `src/components/map/MapContainer.tsx`
+   - If `cachedMission.zones` is empty and `mapFeatures` is falsy (still loading), old zone features remain on the map until the landing cleanup effect fires.
+
+4. **Degenerate polygons from insufficient vertices**
+   - File: `src/utils/fenceGeometry.ts`
+   - `buildPolygonFeature` can produce invalid polygons with fewer than 3 vertices. Mapbox may misrender; server validation may reject.
+
+5. **Labels at [0, 0] for empty geometry rings**
+   - File: `src/components/map/layers/border.ts`
+   - `polygonTopCenter` returns `[0, 0]` for features with empty or invalid outer rings, placing a label at Null Island.
 
 ## Suggested Next Phase
 
-Recommended next implementation order:
+See `docs/api-integration-roadmap.md` for the prioritized list of future API integrations:
 
-1. persist selected fence geometry in mission creation state
-2. define how one or more fences map into mission `border_geojson`
-3. add shape editing / reset affordances
-4. add drawing hints and better completion UX
-5. harden behavior around map style reloads
+1. Device Assignment
+2. Features CRUD
+3. Device Configs Display
+4. Mission Update
+5. Admin Module
 
-## Review Findings
+Additional UX improvements to consider:
 
-Current code quality is in a workable state for iteration, but it is not yet production-ready.
-
-The main reasons are:
-
-1. Fence geometry persistence is incomplete
-
-- fence names are pushed back into mission form state
-- actual drawn geometry still lives only inside `CreateFenceWorkspace`
-- if we leave the fence workspace and come back, the UI list remains but geometry is not durably owned by the parent mission flow
-
-2. Map interaction restoration is too broad
-
-- exiting draw mode currently re-enables map interactions directly
-- that can conflict with the dashboard’s baseline map interaction settings
-- draw mode should restore only the interaction state it actually changed
-
-3. Fence layers are not hardened for map style reloads
-
-- if the basemap or style changes while the fence workspace is active, the temporary sources/layers may be dropped
-- the fence rendering path should reattach after style reload
-
-## Open Issues Observed In Current Flow
-
-These are still open and should be treated as active bugs:
-
-1. Cancel is still not always clearing the drawing from the map immediately
-
-- the draft fence preview should disappear as soon as the metadata popover is canceled
-- this is currently not behaving consistently
-
-2. Tool-specific colors are not showing consistently
-
-- polygon should render pink
-- square should render purple
-- circle should render green
-- current behavior is not consistently reflecting those per-tool colors on the map
-
-## Recommended Stabilization Tasks Before Next Phase
-
-Before moving deeper into the fence workflow, the best next technical pass is:
-
-1. lift saved fence geometry into parent mission state
-
-- store full fence objects in the mission creation flow, not just fence names
-- keep geometry available for later `border_geojson` wiring
-
-2. fix cancel behavior completely
-
-- ensure cancel clears draft geometry source and local draft state in one deterministic path
-
-3. fix tool-specific color rendering
-
-- verify Mapbox paint expressions are reading feature properties correctly
-- ensure both draft and saved sources preserve color properties
-
-4. restore map interactions safely
-
-- only restore interactions that draw mode disabled
-- do not override the dashboard’s intended default interaction settings
-
-5. reattach fence layers after style reload
-
-- listen for style reload and restore draft/saved fence sources and layers
-
-## Suggested Next Flows
-
-Once the stabilization tasks above are done, the next product flows should be implemented in this order:
-
-1. persist selected fence geometry into the create mission flow
-
-- parent state should own fence names plus geometry
-- mission form should be able to show which fence is currently selected for submission
-
-2. define how fence geometry maps into mission creation payload
-
-- decide whether mission creation will use one selected fence or a composed geometry
-- then wire valid polygon geometry into `border_geojson`
-
-3. add editing controls for saved fences
-
-- edit fence metadata
-- re-open a saved fence for geometry update
-- delete saved fence and geometry together
-
-4. improve drawing UX
-
-- add instructional text per tool
-- add explicit finish/reset controls where needed
-- consider snapping or vertex editing later if required
-
-5. harden create mission validation
-
-- date validation
-- start/end ordering
-- better API error display
+- fence shape editing (vertex drag, resize handles)
+- explicit "Complete Drawing" button for polygons
+- drawing hints and instructional text per tool
+- zone priority selection during fence creation
+- date validation and start/end ordering in mission form

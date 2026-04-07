@@ -25,6 +25,8 @@ import {
   resolveMissionCardStatus,
 } from "@/utils/missionListUi";
 import { ApiClientError } from "@/lib/api/client";
+import { createZone } from "@/lib/api/zones";
+import type { SavedFence } from "@/types/aeroshield";
 
 export type MissionSelectorProps = {
   variant?: "sidebar" | "overlay";
@@ -42,7 +44,6 @@ const COMMAND_UNITS = [
   "Eastern Command",
 ];
 const MISSION_TYPES: MissionType[] = ["Live Op", "Training Sim", "Maintenance"];
-const CREATE_FENCE_ITEMS = ["DGCA South Zone", "No-fly Zone", "Fence 001"];
 const DEFAULT_DATETIME = "17-03-2026,21:00";
 
 export function MissionSelector({
@@ -63,7 +64,7 @@ export function MissionSelector({
   const [startAt, setStartAt] = useState(DEFAULT_DATETIME);
   const [endAt, setEndAt] = useState(DEFAULT_DATETIME);
   const [fenceSearch, setFenceSearch] = useState("");
-  const [fenceItems, setFenceItems] = useState(CREATE_FENCE_ITEMS);
+  const [fenceItems, setFenceItems] = useState<SavedFence[]>([]);
   const [createError, setCreateError] = useState("");
 
   const {
@@ -88,7 +89,7 @@ export function MissionSelector({
     setStartAt(DEFAULT_DATETIME);
     setEndAt(DEFAULT_DATETIME);
     setFenceSearch("");
-    setFenceItems(CREATE_FENCE_ITEMS);
+    setFenceItems([]);
     setCreateError("");
   };
 
@@ -111,11 +112,36 @@ export function MissionSelector({
       return;
     }
 
+    const borderGeojson =
+      fenceItems.length > 0
+        ? fenceItems[0].geometry.geometry
+        : null;
+
     try {
       const m = await createMutation.mutateAsync({
         name,
         aop: null,
+        border_geojson: borderGeojson,
       });
+
+      // Bulk-POST all drawn fences as zones under the newly created mission.
+      // Uses Promise.allSettled so one failure doesn't block the rest.
+      if (fenceItems.length > 0) {
+        await Promise.allSettled(
+          fenceItems.map((fence) =>
+            createZone(m.id, {
+              label: fence.name,
+              priority: 1,
+              zone_geojson: fence.geometry.geometry,
+              action_plan: {
+                altitude_ceiling: fence.altitude,
+                draw_mode: fence.mode,
+              },
+            }),
+          ),
+        );
+      }
+
       resetCreateForm();
       setView("list");
       handleLoad(m.id);
@@ -156,7 +182,7 @@ export function MissionSelector({
   } as const;
 
   const filteredFenceItems = fenceItems.filter((item) =>
-    item.toLowerCase().includes(fenceSearch.trim().toLowerCase()),
+    item.name.toLowerCase().includes(fenceSearch.trim().toLowerCase()),
   );
 
   useEffect(() => {

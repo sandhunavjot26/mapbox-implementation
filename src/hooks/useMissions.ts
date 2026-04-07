@@ -5,6 +5,7 @@
  * GET /api/v1/missions/{id}/map/features — GeoJSON (poll 15–30s)
  */
 
+import { useMemo } from "react";
 import {
   useQuery,
   useMutation,
@@ -67,6 +68,28 @@ export function useMapFeatures(missionId: string | null, enabled = true) {
     refetchInterval: 20 * 1000, // 20s poll per AeroShield doc
     staleTime: 15 * 1000,
   });
+}
+
+/**
+ * Derive border features from the mission list for the landing overview map.
+ * Returns a GeoJSON Feature per mission that has a non-null border_geojson,
+ * with missionName / missionId in properties for labeling.
+ */
+export function useLandingBorders() {
+  const { data: missions } = useMissionsList(undefined);
+
+  return useMemo(() => {
+    if (!missions) return [];
+    return missions
+      .filter((m): m is typeof m & { border_geojson: GeoJSON.Polygon } =>
+        m.border_geojson != null,
+      )
+      .map((m) => ({
+        type: "Feature" as const,
+        properties: { missionName: m.name, missionId: m.id },
+        geometry: m.border_geojson,
+      }));
+  }, [missions]);
 }
 
 /** Aggregate radar assets from active/live missions for the landing overview map. */

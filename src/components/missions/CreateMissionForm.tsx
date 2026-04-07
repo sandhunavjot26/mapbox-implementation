@@ -6,6 +6,7 @@ import { Dropdown } from "@/components/ui/Dropdown";
 import { CustomDateTimeField } from "@/components/ui/CustomDateTimeField";
 import { COLOR, FONT } from "@/styles/driifTokens";
 import { CreateFenceWorkspace } from "@/components/missions/CreateFenceWorkspace";
+import type { SavedFence } from "@/types/aeroshield";
 
 export type MissionType = "Live Op" | "Training Sim" | "Maintenance";
 
@@ -20,8 +21,8 @@ export type CreateMissionFormProps = {
   isSubmitting: boolean;
   commandUnits: string[];
   missionTypes: MissionType[];
-  fenceItems: string[];
-  allFenceItems: string[];
+  fenceItems: SavedFence[];
+  allFenceItems: SavedFence[];
   onBack: () => void;
   onNameChange: (value: string) => void;
   onCommandUnitChange: (value: string) => void;
@@ -29,7 +30,7 @@ export type CreateMissionFormProps = {
   onStartAtChange: (value: string) => void;
   onEndAtChange: (value: string) => void;
   onFenceSearchChange: (value: string) => void;
-  onFenceItemsChange: (items: string[]) => void;
+  onFenceItemsChange: (items: SavedFence[]) => void;
   onSubmit: () => void;
   onModeChange?: (mode: "form" | "createFence") => void;
 };
@@ -275,14 +276,14 @@ export function CreateMissionForm({
               <div className="flex flex-col gap-1">
                 {fenceItems.map((item) => (
                   <div
-                    key={item}
+                    key={item.name}
                     className="rounded-[2px] px-[15px] py-[9px] text-[14px] leading-5"
                     style={{
                       background: COLOR.missionCreateFenceItemBg,
                       color: COLOR.missionsBodyText,
                     }}
                   >
-                    {item}
+                    {item.name}
                   </div>
                 ))}
               </div>
