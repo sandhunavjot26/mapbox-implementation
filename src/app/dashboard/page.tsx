@@ -16,7 +16,7 @@ import { logout } from "@/lib/api/auth";
 import { useMissionStore } from "@/stores/missionStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useWsStatusStore } from "@/stores/wsStatusStore";
-import { useMapFeatures } from "@/hooks/useMissions"; 
+import { useLandingMissionAssets, useMapFeatures } from "@/hooks/useMissions";
 import { COLOR, POSITION } from "@/styles/driifTokens";
 
 const MapContainer = dynamic(
@@ -82,6 +82,7 @@ export default function DashboardPage() {
     activeMissionId,
     !!activeMissionId,
   );
+  const { data: landingMissionAssets } = useLandingMissionAssets(!activeMissionId);
 
   useEffect(() => {
     return subscribeToIntercepts(() => {
@@ -168,6 +169,7 @@ export default function DashboardPage() {
           mapMode={mapMode}
           missionId={activeMissionId}
           mapFeatures={mapFeatures ?? undefined}
+          landingAssets={landingMissionAssets}
           basemapVariant={basemapVariant}
           mapLightPreset={mapLightPreset}
           onMapBackgroundClick={onMapBackgroundClick}
