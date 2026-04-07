@@ -48,6 +48,16 @@ export interface Zone {
   };
 }
 
+// --- Fences (create-mission workspace) ---
+export type FenceDrawTool = "polygon" | "square" | "circle";
+
+export interface SavedFence {
+  name: string;
+  altitude: string;
+  mode: FenceDrawTool;
+  geometry: GeoJSON.Feature<GeoJSON.Polygon>;
+}
+
 // --- Features (roads, markers, etc.) ---
 export interface MissionFeature {
   id: string;

@@ -210,6 +210,17 @@ export function notifyOverlayPositionUpdate() {
   overlaySubscribers.forEach((cb) => cb());
 }
 
+// Map instance subscribers — notified when setMap is called
+type MapInstanceSubscriber = (map: mapboxgl.Map | null) => void;
+const mapInstanceSubscribers = new Set<MapInstanceSubscriber>();
+
+/** Subscribe to map instance changes. Fires immediately with current value. */
+export function subscribeToMap(cb: MapInstanceSubscriber): () => void {
+  mapInstanceSubscribers.add(cb);
+  cb(mapInstance);
+  return () => mapInstanceSubscribers.delete(cb);
+}
+
 // Set map reference
 export function setMap(map: mapboxgl.Map | null) {
   mapInstance = map;
@@ -218,6 +229,7 @@ export function setMap(map: mapboxgl.Map | null) {
   selectedEntity = null;
   currentPopupState = null;
   notifyPopupSubscribers();
+  mapInstanceSubscribers.forEach((cb) => cb(mapInstance));
 }
 
 // Get map reference (for internal use)

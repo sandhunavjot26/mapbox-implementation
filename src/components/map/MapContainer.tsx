@@ -138,6 +138,8 @@ export interface MapContainerProps {
   missionId?: string | null;
   mapFeatures?: GeoJSON.FeatureCollection | null;
   landingAssets?: Asset[];
+  /** Border polygons from all missions for the landing overview. */
+  landingBorders?: GeoJSON.Feature<GeoJSON.Polygon>[];
   basemapVariant?: BasemapVariant;
   mapLightPreset?: MapLightPreset;
   /** Fired when the user clicks the map canvas but not on asset/target hit targets (e.g. dismiss shell overlays). */
@@ -154,6 +156,7 @@ export function MapContainer({
   missionId,
   mapFeatures,
   landingAssets = [],
+  landingBorders = [],
   basemapVariant = "standard",
   mapLightPreset = "night",
   onMapBackgroundClick,
@@ -173,6 +176,8 @@ export function MapContainer({
   mapFeaturesRef.current = mapFeatures;
   const landingAssetsRef = useRef(landingAssets);
   landingAssetsRef.current = landingAssets;
+  const landingBordersRef = useRef(landingBorders);
+  landingBordersRef.current = landingBorders;
 
   const appliedStyleUrlRef = useRef<string | null>(null);
   const appliedLightPresetRef = useRef<MapLightPreset | null>(null);
@@ -210,10 +215,6 @@ export function MapContainer({
   const useApiTargets = !!missionId;
 
   const assetsForIntercept = useMemo((): Asset[] => {
-    if (!missionId) {
-      return landingAssets;
-    }
-
     const statusOverride = (deviceId: string, fallback: string) => {
       const ws = byDeviceId[deviceId];
       if (!ws) return fallback;
@@ -221,14 +222,20 @@ export function MapContainer({
         ? "ACTIVE"
         : "INACTIVE";
     };
-    if (cachedMission?.devices?.length) {
-      return cachedMission.devices.map((d) => {
+
+    // Seed with all landing assets (radars from every active mission)
+    const byId = new Map<string, Asset>();
+    for (const a of landingAssets) byId.set(a.id, a);
+
+    // If a mission is selected, overlay its devices (fresher status wins)
+    if (missionId && cachedMission?.devices?.length) {
+      for (const d of cachedMission.devices) {
         const raw = d.status ?? "OFFLINE";
         const s = statusOverride(
           d.id,
           raw === "ONLINE" || raw === "WORKING" ? "ACTIVE" : "INACTIVE",
         );
-        return {
+        byId.set(d.id, {
           id: d.id,
           name: d.name ?? d.serial_number ?? d.id,
           coordinates: [d.longitude, d.latitude] as [number, number],
@@ -236,11 +243,11 @@ export function MapContainer({
           status: s as Asset["status"],
           altitude: 0,
           area: "",
-        };
-      });
+        });
+      }
     }
-    // No mock fallback — return empty until API data loads
-    return [];
+
+    return Array.from(byId.values());
   }, [missionId, landingAssets, cachedMission?.devices, byDeviceId]);
 
   const assetsForInterceptRef = useRef(assetsForIntercept);
@@ -444,7 +451,9 @@ export function MapContainer({
       }
       if (mf) {
         const border = mapFeaturesToBorderGeoJSON(mf);
-        if (border) setBorderLayer(map, border);
+        if (border) setBorderLayer(map, [border]);
+      } else if (landingBordersRef.current.length > 0) {
+        setBorderLayer(map, landingBordersRef.current);
       }
       await addTargetLayers(
         map,
@@ -890,63 +899,95 @@ export function MapContainer({
     };
   }, [mapReady, isIntroComplete]);
 
-  // Update assets from device data (primary source for radar icons)
+  // Update assets from merged landing + mission device data
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
-    if (assetsForIntercept.length > 0) {
-      setAssetLayersData(map, assetsToGeoJSON(assetsForIntercept));
-    }
+    setAssetLayersData(
+      map,
+      assetsForIntercept.length > 0
+        ? assetsToGeoJSON(assetsForIntercept)
+        : EMPTY_FC,
+    );
   }, [assetsForIntercept, mapReady, isIntroComplete]);
 
-  useEffect(() => {
-    const map = mapRef.current;
-    if (!map || !mapReady || !isIntroComplete || missionId) return;
-
-    if (landingAssets.length > 0) {
-      setAssetLayersData(map, assetsToGeoJSON(landingAssets));
-      return;
-    }
-
-    setAssetLayersData(map, EMPTY_FC);
-  }, [landingAssets, missionId, mapReady, isIntroComplete]);
-
-  // Update zones, border when mapFeatures or cachedMission changes
+  // Update zones and border when mapFeatures or cachedMission changes.
+  // Borders always show all missions; the active border merges into landing set.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
-    // Only update assets from mapFeatures if we have no device data
-    if (assetsForIntercept.length === 0 && mapFeatures) {
-      setAssetLayersData(map, mapFeaturesToAssetsGeoJSON(mapFeatures));
-    }
-    // Prefer mission zones (has priority for TL-1/TL-2 coloring)
+
+    // Zones (mission-specific)
     const missionZones = cachedMission?.zones;
     if (missionZones?.length) {
       setZonesLayerData(map, missionZonesToGeoJSON(missionZones));
     } else if (mapFeatures) {
       setZonesLayerData(map, mapFeaturesToZonesGeoJSON(mapFeatures));
     }
-    if (mapFeatures) {
-      const border = mapFeaturesToBorderGeoJSON(mapFeatures);
-      if (border) setBorderLayer(map, border);
+
+    // Merge active mission border into landing borders (deduplicate by missionId)
+    const activeBorder = mapFeatures
+      ? mapFeaturesToBorderGeoJSON(mapFeatures)
+      : null;
+    let allBorders = [...landingBorders];
+    if (activeBorder && missionId) {
+      allBorders = allBorders.filter(
+        (f) => f.properties?.missionId !== missionId,
+      );
+      allBorders.push({
+        ...activeBorder,
+        properties: { ...activeBorder.properties, missionId },
+      });
     }
+    setBorderLayer(map, allBorders);
   }, [
     mapFeatures,
+    landingBorders,
+    missionId,
     cachedMission?.zones,
     mapReady,
     isIntroComplete,
-    assetsForIntercept.length,
   ]);
 
-  // Re-center map when device data loads after initial map render
+  // Re-center map when device data loads after initial map render.
+  // When a mission is selected, fit only to that mission's devices;
+  // if no devices, fall back to the mission border bbox.
   const hasFittedRef = useRef(false);
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
-    if (hasFittedRef.current) return; // Only fit once
-    if (assetsForIntercept.length === 0) return;
+    if (hasFittedRef.current) return;
 
-    const coords = assetsForIntercept.map((a) => a.coordinates);
+    // Determine which coordinates to fit to
+    let coords: [number, number][] = [];
+
+    if (missionId) {
+      // Selected mission: use only its devices
+      const missionDevices = cachedMission?.devices ?? [];
+      coords = missionDevices.map(
+        (d) => [d.longitude, d.latitude] as [number, number],
+      );
+
+      // Fallback: if no devices, use the mission border ring
+      if (coords.length === 0) {
+        const border = mapFeatures
+          ? mapFeaturesToBorderGeoJSON(mapFeatures)
+          : null;
+        const borderFeature =
+          border ??
+          landingBorders.find((f) => f.properties?.missionId === missionId);
+        if (borderFeature) {
+          coords = (borderFeature.geometry.coordinates[0] ?? []).map(
+            (p) => [p[0], p[1]] as [number, number],
+          );
+        }
+      }
+    } else {
+      // Landing: fit to all assets
+      coords = assetsForIntercept.map((a) => a.coordinates);
+    }
+
+    if (coords.length === 0) return;
     const bounds = computeBounds(coords);
 
     if (bounds && coords.length >= 2) {
@@ -966,7 +1007,15 @@ export function MapContainer({
         duration: 2000,
       });
     }
-  }, [assetsForIntercept, mapReady, isIntroComplete]);
+  }, [
+    missionId,
+    assetsForIntercept,
+    cachedMission?.devices,
+    mapFeatures,
+    landingBorders,
+    mapReady,
+    isIntroComplete,
+  ]);
 
   const prevMissionIdRef = useRef<string | null>(null);
   const hasFittedLandingAssetsRef = useRef(false);
@@ -1018,18 +1067,14 @@ export function MapContainer({
     });
   }, [landingAssets, missionId, mapReady, isIntroComplete]);
 
+  // When returning to landing (no mission), clear zones and restore overview borders.
   useEffect(() => {
     const map = mapRef.current;
     if (!map || !mapReady || !isIntroComplete) return;
     if (missionId) return;
-    if (landingAssets.length > 0) {
-      setAssetLayersData(map, assetsToGeoJSON(landingAssets));
-    } else {
-      setAssetLayersData(map, EMPTY_FC);
-    }
     setZonesLayerData(map, EMPTY_FC);
-    setBorderLayer(map, null);
-  }, [missionId, landingAssets, mapReady, isIntroComplete]);
+    setBorderLayer(map, landingBorders);
+  }, [missionId, landingBorders, mapReady, isIntroComplete]);
 
   // 2D / 3D toggle (only after intro completes; terrain added in moveend)
   useEffect(() => {

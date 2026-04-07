@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { COLOR } from "@/styles/driifTokens";
+import { COLOR, POSITION } from "@/styles/driifTokens";
 
 export type FenceDrawMode = "line" | "polygon" | "square" | "circle";
 
@@ -26,8 +26,9 @@ export function FenceDrawToolbar({
 }: FenceDrawToolbarProps) {
   return (
     <div
-      className="absolute left-[410px] top-0 flex flex-col gap-2 border p-0"
+      className="absolute top-0 flex flex-col gap-2 border p-0"
       style={{
+        left: `calc(${POSITION.createFenceWorkspaceWidth} + 12px)`,
         background: COLOR.missionsPanelBg,
         borderColor: COLOR.missionsPanelBg,
       }}
