@@ -9,6 +9,7 @@ import { useAttackModeStore } from "@/stores/attackModeStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import { AssetPopupControls } from "@/components/commands/PopupControls";
 import { DroneOverlayCard } from "./DroneOverlayCard";
+import { RadarOverlayCard } from "./RadarOverlayCard";
 import { reclassifyTarget, confirmThreat } from "@/stores/mapActionsStore";
 import { useTargetsStore as useTargetsStoreActions } from "@/stores/targetsStore";
 
@@ -130,7 +131,7 @@ export function EntityHoverPopup() {
             }}
           >
             {/* Close button */}
-            <button
+            {/* <button
               type="button"
               onClick={clearSelection}
               style={{
@@ -149,7 +150,7 @@ export function EntityHoverPopup() {
               aria-label="Close"
             >
               ×
-            </button>
+            </button> */}
             <DroneOverlayCard
               target={liveTarget}
               style={{ maxHeight: `${cardMaxHeight}px` }}
@@ -158,11 +159,11 @@ export function EntityHoverPopup() {
                 reclassifyTarget(liveTarget.id, "FRIENDLY");
                 reclassifyTargetInStore(liveTarget.id, "FRIENDLY");
               }}
-              onEscalate={() => {}}
-              onReturnToBase={() => {}}
-              onHoverHold={() => {}}
-              onAbort={() => {}}
-              onEmergencyLand={() => {}}
+              onEscalate={() => { }}
+              onReturnToBase={() => { }}
+              onHoverHold={() => { }}
+              onAbort={() => { }}
+              onEmergencyLand={() => { }}
               onMarkEnemy={() => {
                 reclassifyTarget(liveTarget.id, "ENEMY");
                 reclassifyTargetInStore(liveTarget.id, "ENEMY");
@@ -184,31 +185,101 @@ export function EntityHoverPopup() {
     );
   }
 
-  // Asset popup
-  const popupClassName = isPinned
-    ? "bg-slate-900 border-2 border-cyan-500/80 backdrop-blur-sm px-3 py-2 min-w-[200px] shadow-lg shadow-cyan-500/10 relative"
-    : "bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]";
+  // Asset popup — pinned: full RadarOverlayCard with dynamic positioning
+  if (isPinned) {
+    const asset = data as Asset;
+    const deviceStatus = useDeviceStatusStore.getState().getDeviceStatus(asset.id);
 
-  return (
-    <div
-      className={`fixed z-50 ${isPinned ? "pointer-events-auto" : "pointer-events-none"}`}
-      style={{
-        left: screenPosition.x + offsetX,
-        top: screenPosition.y + offsetY,
-      }}
-    >
-      <div className={popupClassName}>
-        {isPinned && (
-          <button
+    const CARD_W = 316;
+    const CARD_GAP = 16;
+    const MIN_CARD_H = 280;
+
+    const placeRight = screenPosition.x + CARD_GAP + CARD_W < window.innerWidth - 8;
+    const cardLeft = placeRight
+      ? screenPosition.x + CARD_GAP
+      : screenPosition.x - CARD_GAP - CARD_W;
+    const cardTop = Math.max(
+      8,
+      Math.min(screenPosition.y - 40, window.innerHeight - MIN_CARD_H - 8),
+    );
+    const cardMaxHeight = window.innerHeight - cardTop - 8;
+    const lineEndX = placeRight ? cardLeft : cardLeft + CARD_W;
+    const lineEndY = cardTop + 24;
+
+    return (
+      <>
+        {/* ① Full-viewport SVG — dashed connector line */}
+        <svg
+          style={{
+            position: "fixed",
+            inset: 0,
+            width: "100vw",
+            height: "100vh",
+            pointerEvents: "none",
+            zIndex: 48,
+          }}
+        >
+          <line
+            x1={screenPosition.x}
+            y1={screenPosition.y}
+            x2={lineEndX}
+            y2={lineEndY}
+            stroke="#EEFF30"
+            strokeWidth="1.5"
+            strokeDasharray="5 3"
+          />
+          <circle cx={lineEndX} cy={lineEndY} r="3" fill="#EEFF30" />
+        </svg>
+
+        {/* ② Card */}
+        <div
+          style={{
+            position: "fixed",
+            left: cardLeft,
+            top: cardTop,
+            zIndex: 50,
+            pointerEvents: "auto",
+          }}
+        >
+          {/* Close button */}
+          {/* <button
             type="button"
             onClick={clearSelection}
-            className="absolute top-1 right-1 text-slate-400 hover:text-slate-200 text-sm leading-none p-0.5"
+            style={{
+              position: "absolute",
+              top: "8px",
+              right: "8px",
+              zIndex: 10,
+              background: "transparent",
+              border: "none",
+              color: "rgba(255,255,255,0.6)",
+              fontSize: "18px",
+              lineHeight: 1,
+              cursor: "pointer",
+              padding: "2px 4px",
+            }}
             aria-label="Close"
           >
             ×
-          </button>
-        )}
-        <AssetPopupContent data={data as Asset} isPinned={isPinned} />
+          </button> */}
+          <RadarOverlayCard
+            asset={asset}
+            deviceStatus={deviceStatus}
+            style={{ maxHeight: `${cardMaxHeight}px` }}
+          />
+        </div>
+      </>
+    );
+  }
+
+  // Asset popup — hover (not pinned): small tooltip
+  return (
+    <div
+      className="fixed z-50 pointer-events-none"
+      style={{ left: screenPosition.x + offsetX, top: screenPosition.y + offsetY }}
+    >
+      <div className="bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]">
+        <AssetPopupContent data={data as Asset} isPinned={false} />
       </div>
     </div>
   );
@@ -248,9 +319,8 @@ function AssetPopupContent({
         <div className="flex items-center gap-1.5 shrink-0">
           {attackMode && (
             <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 ${
-                attackMode.jamActive ? "text-red-400 bg-red-950/50" : "text-slate-500 bg-slate-800"
-              }`}
+              className={`text-[10px] font-mono px-1.5 py-0.5 ${attackMode.jamActive ? "text-red-400 bg-red-950/50" : "text-slate-500 bg-slate-800"
+                }`}
             >
               {attackMode.jamActive ? "Jam: ON" : "Idle"}
             </span>

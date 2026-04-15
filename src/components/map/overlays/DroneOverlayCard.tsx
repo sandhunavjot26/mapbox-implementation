@@ -1072,42 +1072,42 @@ const WP_ENTRIES: {
   status: WPStatus;
   rowBg: string;
 }[] = [
-  {
-    num: 1,
-    name: "Launch point",
-    detail: "28.6102°N 77.2045°E · 0 m AGL",
-    status: "Done",
-    rowBg: COLOR.missionsCardBg,
-  },
-  {
-    num: 2,
-    name: "Sector A — north perimeter",
-    detail: "28.6148°N 77.2072°E · 120 m · Hold 30s",
-    status: "Done",
-    rowBg: COLOR.missionsCardBg,
-  },
-  {
-    num: 3,
-    name: "Sector B — east boundary",
-    detail: "28.6174°N 77.2118°E · 120 m · EO recording",
-    status: "Active",
-    rowBg: "rgba(39,39,39,0.4)",
-  },
-  {
-    num: 4,
-    name: "Sector C — south-east sweep",
-    detail: "28.6131°N 77.2155°E · 100 m · 30 km/h",
-    status: "Pending",
-    rowBg: COLOR.missionsCardBg,
-  },
-  {
-    num: 5,
-    name: "Return to base",
-    detail: "28.6102°N 77.2045°E · Auto-descend & land",
-    status: "Pending",
-    rowBg: COLOR.missionsCardBg,
-  },
-];
+    {
+      num: 1,
+      name: "Launch point",
+      detail: "28.6102°N 77.2045°E · 0 m AGL",
+      status: "Done",
+      rowBg: COLOR.missionsCardBg,
+    },
+    {
+      num: 2,
+      name: "Sector A — north perimeter",
+      detail: "28.6148°N 77.2072°E · 120 m · Hold 30s",
+      status: "Done",
+      rowBg: COLOR.missionsCardBg,
+    },
+    {
+      num: 3,
+      name: "Sector B — east boundary",
+      detail: "28.6174°N 77.2118°E · 120 m · EO recording",
+      status: "Active",
+      rowBg: "rgba(39,39,39,0.4)",
+    },
+    {
+      num: 4,
+      name: "Sector C — south-east sweep",
+      detail: "28.6131°N 77.2155°E · 100 m · 30 km/h",
+      status: "Pending",
+      rowBg: COLOR.missionsCardBg,
+    },
+    {
+      num: 5,
+      name: "Return to base",
+      detail: "28.6102°N 77.2045°E · Auto-descend & land",
+      status: "Pending",
+      rowBg: COLOR.missionsCardBg,
+    },
+  ];
 
 const WP_STATUS_COLOR: Record<WPStatus, string> = {
   Done: TRACKING_TEXT,
@@ -1681,9 +1681,9 @@ export function DroneOverlayCard({
 
         {/* Action row */}
         <EnemyActions
-          onInitiateJam={onInitiateJam ?? (() => {})}
-          onMarkFriendly={onMarkFriendly ?? (() => {})}
-          onEscalate={onEscalate ?? (() => {})}
+          onInitiateJam={onInitiateJam ?? (() => { })}
+          onMarkFriendly={onMarkFriendly ?? (() => { })}
+          onEscalate={onEscalate ?? (() => { })}
         />
       </div>
     );
@@ -1842,10 +1842,10 @@ export function DroneOverlayCard({
 
       {/* Action row */}
       <FriendlyActions
-        onReturnToBase={onReturnToBase ?? (() => {})}
-        onHoverHold={onHoverHold ?? (() => {})}
-        onAbort={onAbort ?? (() => {})}
-        onEmergencyLand={onEmergencyLand ?? (() => {})}
+        onReturnToBase={onReturnToBase ?? (() => { })}
+        onHoverHold={onHoverHold ?? (() => { })}
+        onAbort={onAbort ?? (() => { })}
+        onEmergencyLand={onEmergencyLand ?? (() => { })}
       />
     </div>
   );
