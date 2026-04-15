@@ -11,6 +11,11 @@
   --font-sans: var(--font-space-grotesk);
   --font-mono: var(--font-space-grotesk);
   --font-space-grotesk: var(--font-space-grotesk);
+  /*
+   * Missions / Driif COP UI colors and spacing: single source is src/styles/driifTokens.ts.
+   * If you extend @theme with mission utilities, copy values from there only — do not
+   * introduce a second palette without syncing.
+   */
 }
 
 @media (prefers-color-scheme: dark) {
@@ -24,6 +29,33 @@ body {
   background: var(--background);
   color: var(--foreground);
   font-family: var(--font-space-grotesk), sans-serif;
+}
+
+/*
+ * Missions panels — custom scrollbar (matches driifTokens mission grays; no OS default chrome).
+ * Track #1A1A1A ≈ missionCreateFieldBg, thumb #535353 ≈ missionCreateFenceItemBg
+ */
+.driif-mission-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #535353 #1a1a1a;
+}
+
+.driif-mission-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.driif-mission-scrollbar::-webkit-scrollbar-track {
+  background: #1a1a1a;
+  border-radius: 2px;
+}
+
+.driif-mission-scrollbar::-webkit-scrollbar-thumb {
+  background: #535353;
+  border-radius: 2px;
+}
+
+.driif-mission-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #6b6b6b;
 }
 
 /* Mapbox controls — match COP glass stacks (CopShell settings / Figma zoom block) */

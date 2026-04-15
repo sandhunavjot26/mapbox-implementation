@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { CustomDateTimeField } from "@/components/ui/CustomDateTimeField";
@@ -8,8 +7,17 @@ import { COLOR, FONT, RADIUS, SPACING } from "@/styles/driifTokens";
 import { CreateFenceWorkspace } from "@/components/missions/CreateFenceWorkspace";
 import { SelectAssetsWorkspace } from "@/components/missions/SelectAssetsWorkspace";
 import type { Device, SavedFence } from "@/types/aeroshield";
+import type {
+  MissionReviewLaunchContent,
+  MissionType,
+} from "@/types/missionCreate";
+import { MissionReviewLaunchWorkspace } from "@/components/missions/MissionReviewLaunchWorkspace";
+import {
+  MissionWorkspaceHeader,
+  MissionWorkspacePanel,
+} from "@/components/missions/MissionWorkspaceShell";
 
-export type MissionType = "Live Op" | "Training Sim" | "Maintenance";
+export type { MissionType } from "@/types/missionCreate";
 
 export type CreateMissionFormProps = {
   name: string;
@@ -39,8 +47,12 @@ export type CreateMissionFormProps = {
   onFenceItemsChange: (items: SavedFence[]) => void;
   onAssetSearchChange: (value: string) => void;
   onSelectedDeviceIdsChange: (ids: string[]) => void;
-  onSubmit: () => void;
-  onModeChange?: (mode: "form" | "createFence" | "selectAssets") => void;
+  isDraftComplete: boolean;
+  reviewLaunchContent: MissionReviewLaunchContent;
+  onConfirmLaunch: () => void;
+  onModeChange?: (
+    mode: "form" | "createFence" | "selectAssets" | "reviewLaunch",
+  ) => void;
 };
 
 function deviceLabel(device: Device): string {
@@ -77,13 +89,19 @@ export function CreateMissionForm({
   onFenceItemsChange,
   onAssetSearchChange,
   onSelectedDeviceIdsChange,
-  onSubmit,
+  isDraftComplete,
+  reviewLaunchContent,
+  onConfirmLaunch,
   onModeChange,
 }: CreateMissionFormProps) {
-  const [view, setView] = useState<"form" | "createFence" | "selectAssets">("form");
+  const [view, setView] = useState<
+    "form" | "createFence" | "selectAssets" | "reviewLaunch"
+  >("form");
   const [sectionTab, setSectionTab] = useState<"fences" | "assets">("fences");
 
-  const changeView = (nextView: "form" | "createFence" | "selectAssets") => {
+  const changeView = (
+    nextView: "form" | "createFence" | "selectAssets" | "reviewLaunch",
+  ) => {
     setView(nextView);
     if (nextView === "form") {
       onModeChange?.("form");
@@ -91,11 +109,6 @@ export function CreateMissionForm({
       onModeChange?.(nextView);
     }
   };
-
-  const panelStyle = {
-    background: COLOR.missionsPanelBg,
-    fontFamily: `${FONT.family}, sans-serif`,
-  } as const;
 
   const fieldShellStyle = {
     background: COLOR.missionCreateFieldBg,
@@ -145,47 +158,28 @@ export function CreateMissionForm({
     );
   }
 
-  return (
-    <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3"
-      style={panelStyle}
-    >
-      <div
-        className="flex items-center"
-        style={{
-          gap: SPACING.missionCreateBlockGapMd,
-          paddingBottom: SPACING.missionCreateHeaderPadBottom,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex h-4 w-4 shrink-0 items-center justify-center transition-opacity hover:opacity-85"
-        >
-          <Image src="/icons/back-icon.svg" alt="Back" width={8} height={8} />
-        </button>
-        <p
-          style={{
-            color: COLOR.missionsTitleMuted,
-            fontFamily: `${FONT.family}, sans-serif`,
-            fontSize: FONT.sizeMd,
-            fontWeight: FONT.weightMedium,
-            lineHeight: "26px",
-          }}
-        >
-          Create Mission
-        </p>
-      </div>
+  if (view === "reviewLaunch") {
+    return (
+      <MissionReviewLaunchWorkspace
+        content={reviewLaunchContent}
+        createError={createError}
+        isSubmitting={isSubmitting}
+        onBack={() => changeView("form")}
+        onLaunch={onConfirmLaunch}
+      />
+    );
+  }
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+  return (
+    <MissionWorkspacePanel>
+      <MissionWorkspaceHeader title="Create Mission" onBack={onBack} />
+
+      <div className="driif-mission-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
         <div
           className="flex flex-col"
           style={{ gap: SPACING.missionCreateBlockGapMd }}
         >
-          <div
-            className="flex flex-col"
-            style={{ gap: SPACING.settingsGap }}
-          >
+          <div className="flex flex-col" style={{ gap: SPACING.settingsGap }}>
             <div
               className="flex flex-col"
               style={{ gap: SPACING.missionCreateStackGapMd }}
@@ -305,7 +299,7 @@ export function CreateMissionForm({
                 <p
                   style={{
                     width: SPACING.missionCreateDurationColWidth,
-                    color: COLOR.missionsSecondaryText,
+                    color: COLOR.missionsTitleMuted,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeSm,
                     lineHeight: "16px",
@@ -316,7 +310,7 @@ export function CreateMissionForm({
                 <p
                   style={{
                     width: SPACING.missionCreateDurationColWidth,
-                    color: COLOR.missionsSecondaryText,
+                    color: COLOR.missionsTitleMuted,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeSm,
                     lineHeight: "16px",
@@ -347,10 +341,7 @@ export function CreateMissionForm({
             </div>
           </div>
 
-          <div
-            className="flex flex-col"
-            style={{ gap: SPACING.settingsGap }}
-          >
+          <div className="flex flex-col" style={{ gap: SPACING.settingsGap }}>
             <div
               className="flex"
               style={{ gap: SPACING.missionCreateBlockGapMd }}
@@ -367,7 +358,10 @@ export function CreateMissionForm({
                   color: COLOR.missionsTitleMuted,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeMd,
-                  fontWeight: sectionTab === "fences" ? FONT.weightMedium : FONT.weightNormal,
+                  fontWeight:
+                    sectionTab === "fences"
+                      ? FONT.weightMedium
+                      : FONT.weightNormal,
                   lineHeight: "20px",
                 }}
               >
@@ -388,7 +382,10 @@ export function CreateMissionForm({
                       : COLOR.missionCreateTabInactiveText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeMd,
-                  fontWeight: sectionTab === "assets" ? FONT.weightMedium : FONT.weightNormal,
+                  fontWeight:
+                    sectionTab === "assets"
+                      ? FONT.weightMedium
+                      : FONT.weightNormal,
                   lineHeight: "20px",
                 }}
               >
@@ -452,7 +449,7 @@ export function CreateMissionForm({
                 </div>
 
                 <div
-                  className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+                  className="driif-mission-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"
                   style={{ gap: SPACING.missionCreateBlockGapSm }}
                 >
                   {fenceItems.map((item) => (
@@ -533,7 +530,7 @@ export function CreateMissionForm({
                 </div>
 
                 <div
-                  className="flex min-h-0 flex-1 flex-col overflow-y-auto"
+                  className="driif-mission-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"
                   style={{ gap: SPACING.missionCreateBlockGapSm }}
                 >
                   {filteredSelectedAssets.map((device) => (
@@ -554,7 +551,9 @@ export function CreateMissionForm({
                         gap: SPACING.missionCreateBlockGapMd,
                       }}
                     >
-                      <span className="min-w-0 truncate">{deviceLabel(device)}</span>
+                      <span className="min-w-0 truncate">
+                        {deviceLabel(device)}
+                      </span>
                       <button
                         type="button"
                         onClick={() =>
@@ -591,15 +590,34 @@ export function CreateMissionForm({
               </p>
             )}
 
+            {!isDraftComplete && (
+              <p
+                style={{
+                  color: COLOR.missionsSecondaryText,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeXs,
+                  lineHeight: "16px",
+                }}
+              >
+                Add a mission name, at least one fence, and one asset to
+                continue.
+              </p>
+            )}
             <button
               type="button"
-              onClick={onSubmit}
-              disabled={isSubmitting}
+              onClick={() => changeView("reviewLaunch")}
+              disabled={!isDraftComplete || isSubmitting}
               className="border disabled:opacity-60"
               style={{
-                background: COLOR.missionsCardBg,
-                borderColor: COLOR.missionCreateFooterBorder,
-                color: COLOR.missionsTitleMuted,
+                background: isDraftComplete
+                  ? COLOR.missionCreateSubmitReadyBg
+                  : COLOR.missionsCardBg,
+                borderColor: isDraftComplete
+                  ? COLOR.missionCreateSubmitReadyBorder
+                  : COLOR.missionCreateFooterBorder,
+                color: isDraftComplete
+                  ? COLOR.missionCreateSubmitReadyText
+                  : COLOR.missionsTitleMuted,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
                 lineHeight: "20px",
@@ -607,11 +625,11 @@ export function CreateMissionForm({
                 borderRadius: RADIUS.panel,
               }}
             >
-              {isSubmitting ? "Creating..." : "Create Mission"}
+              Create Mission
             </button>
           </div>
         </div>
       </div>
-    </div>
+    </MissionWorkspacePanel>
   );
 }

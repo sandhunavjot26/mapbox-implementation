@@ -7,16 +7,17 @@
  */
 
 import Image from "next/image";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useMissionsList, useCreateMission } from "@/hooks/useMissions";
 import { useDevicesList, useAssignDevices } from "@/hooks/useDevices";
 import { useMissionStore } from "@/stores/missionStore";
 import { useTargetsStore } from "@/stores/targetsStore";
-import { COLOR, FONT, POSITION } from "@/styles/driifTokens";
-import {
-  CreateMissionForm,
-  type MissionType,
-} from "@/components/missions/CreateMissionForm";
+import { COLOR, FONT, POSITION, SPACING } from "@/styles/driifTokens";
+import { missionWorkspaceTitleStyle } from "@/components/missions/MissionWorkspaceShell";
+import { CreateMissionForm } from "@/components/missions/CreateMissionForm";
+import type { MissionType } from "@/types/missionCreate";
+import { isCreateDraftComplete } from "@/utils/missionCreateDraft";
+import { buildMissionReviewLaunchContent } from "@/utils/missionReviewLaunchContent";
 import {
   formatMissionCreatedLine,
   formatMissionListCode,
@@ -56,7 +57,7 @@ export function MissionSelector({
 }: MissionSelectorProps) {
   const [view, setView] = useState<MissionSelectorView>("list");
   const [createDetailMode, setCreateDetailMode] = useState<
-    "form" | "createFence" | "selectAssets"
+    "form" | "createFence" | "selectAssets" | "reviewLaunch"
   >("form");
   const [search, setSearch] = useState("");
   const [createName, setCreateName] = useState("");
@@ -116,17 +117,50 @@ export function MissionSelector({
     setView("list");
   };
 
+  const draftComplete = isCreateDraftComplete({
+    name: createName,
+    fenceCount: fenceItems.length,
+    selectedDeviceCount: selectedDeviceIds.length,
+  });
+
+  const reviewLaunchContent = useMemo(
+    () =>
+      buildMissionReviewLaunchContent({
+        name: createName,
+        missionType,
+        commandUnit,
+        startAt,
+        endAt,
+        fences: fenceItems,
+        selectedDevices: devicesCatalog.filter((d) =>
+          selectedDeviceIds.includes(d.id),
+        ),
+      }),
+    [
+      createName,
+      missionType,
+      commandUnit,
+      startAt,
+      endAt,
+      fenceItems,
+      selectedDeviceIds,
+      devicesCatalog,
+    ],
+  );
+
   const handleCreate = async () => {
     const name = createName.trim();
     if (!name) {
       setCreateError("Mission name is required.");
       return;
     }
+    if (!draftComplete) {
+      setCreateError("Add at least one fence and one asset.");
+      return;
+    }
 
     const borderGeojson =
-      fenceItems.length > 0
-        ? fenceItems[0].geometry.geometry
-        : null;
+      fenceItems.length > 0 ? fenceItems[0].geometry.geometry : null;
 
     try {
       const m = await createMutation.mutateAsync({
@@ -144,10 +178,13 @@ export function MissionSelector({
         } catch (assignErr) {
           if (assignErr instanceof ApiClientError) {
             setCreateError(
-              assignErr.message || "Mission was created but devices could not be assigned.",
+              assignErr.message ||
+                "Mission was created but devices could not be assigned.",
             );
           } else {
-            setCreateError("Mission was created but devices could not be assigned.");
+            setCreateError(
+              "Mission was created but devices could not be assigned.",
+            );
           }
           return;
         }
@@ -190,7 +227,9 @@ export function MissionSelector({
           ? POSITION.createFenceWorkspaceWidth
           : createDetailMode === "selectAssets"
             ? POSITION.selectAssetWidth
-            : POSITION.createMissionWidth
+            : createDetailMode === "reviewLaunch"
+              ? POSITION.createMissionReviewWidth
+              : POSITION.createMissionWidth
         : POSITION.missionsWidth
       : undefined;
 
@@ -230,15 +269,17 @@ export function MissionSelector({
       {view === "list" ? (
         <>
           <div
-            className="flex shrink-0 flex-col gap-[14px] px-4 py-3"
-            style={panelStyle}
+            className="flex shrink-0 flex-col"
+            style={{
+              ...panelStyle,
+              gap: SPACING.missionListHeaderGap,
+              paddingLeft: SPACING.missionWorkspacePadX,
+              paddingRight: SPACING.missionWorkspacePadX,
+              paddingTop: SPACING.missionWorkspacePadY,
+              paddingBottom: SPACING.missionWorkspacePadY,
+            }}
           >
-            <h2
-              className="text-[18px] font-medium leading-[26px]"
-              style={{ color: COLOR.missionsTitleMuted }}
-            >
-              Missions
-            </h2>
+            <h2 style={missionWorkspaceTitleStyle()}>Missions</h2>
 
             <div className="flex gap-1 items-stretch">
               <label
@@ -254,10 +295,12 @@ export function MissionSelector({
                   placeholder="Search Mission...."
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
-                  className="min-w-0 flex-1 bg-transparent text-[14px] leading-5 outline-none placeholder:text-[#8A8A8A]"
+                  className="min-w-0 flex-1 bg-transparent outline-none placeholder:text-[#8A8A8A]"
                   style={{
                     color: COLOR.missionsBodyText,
                     fontFamily: `${FONT.family}, sans-serif`,
+                    fontSize: FONT.sizeMd,
+                    lineHeight: "20px",
                   }}
                 />
                 <Image
@@ -271,11 +314,13 @@ export function MissionSelector({
               <button
                 type="button"
                 onClick={showCreateView}
-                className="shrink-0 rounded-[2px] px-3 text-[14px] leading-5 whitespace-nowrap h-8 flex items-center justify-center"
+                className="flex h-8 shrink-0 items-center justify-center whitespace-nowrap rounded-[2px] px-3"
                 style={{
                   background: COLOR.missionsCreateBtnBg,
                   color: COLOR.missionsCreateBtnText,
                   fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeMd,
+                  lineHeight: "20px",
                 }}
               >
                 Create Mission
@@ -284,18 +329,37 @@ export function MissionSelector({
           </div>
 
           <div
-            className="min-h-0 flex-1 overflow-y-auto px-4 pb-3 flex flex-col gap-[10px]"
-            style={panelStyle}
+            className="driif-mission-scrollbar min-h-0 flex-1 overflow-y-auto flex flex-col"
+            style={{
+              ...panelStyle,
+              gap: SPACING.missionListCardStackGap,
+              paddingLeft: SPACING.missionWorkspacePadX,
+              paddingRight: SPACING.missionWorkspacePadX,
+              paddingBottom: SPACING.missionWorkspacePadY,
+            }}
           >
             {error && (
-              <p className="text-[12px] text-red-400 px-1">
+              <p
+                className="px-1"
+                style={{
+                  color: COLOR.statusDanger,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeSm,
+                  lineHeight: "16px",
+                }}
+              >
                 Failed to load missions
               </p>
             )}
             {isLoading && (
               <p
-                className="text-[12px] px-1"
-                style={{ color: COLOR.missionsSecondaryText }}
+                className="px-1"
+                style={{
+                  color: COLOR.missionsSecondaryText,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeSm,
+                  lineHeight: "16px",
+                }}
               >
                 Loading...
               </p>
@@ -321,32 +385,49 @@ export function MissionSelector({
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0 flex flex-col gap-1">
                       <p
-                        className="text-[14px] leading-5 line-clamp-2"
-                        style={{ color: COLOR.missionsBodyText }}
+                        className="line-clamp-2"
+                        style={{
+                          color: COLOR.missionsBodyText,
+                          fontFamily: `${FONT.family}, sans-serif`,
+                          fontSize: FONT.sizeMd,
+                          lineHeight: "20px",
+                        }}
                       >
                         {m.name}
                       </p>
                       <p
-                        className="text-[12px] leading-4 opacity-60"
-                        style={{ color: COLOR.missionsTitleMuted }}
+                        className="opacity-60"
+                        style={{
+                          color: COLOR.missionsTitleMuted,
+                          fontFamily: `${FONT.family}, sans-serif`,
+                          fontSize: FONT.sizeSm,
+                          lineHeight: "16px",
+                        }}
                       >
                         {formatMissionListCode(m.id)}
                       </p>
                       {createdLine && (
                         <p
-                          className="text-[12px] leading-4 opacity-60"
-                          style={{ color: COLOR.missionsTitleMuted }}
+                          className="opacity-60"
+                          style={{
+                            color: COLOR.missionsTitleMuted,
+                            fontFamily: `${FONT.family}, sans-serif`,
+                            fontSize: FONT.sizeSm,
+                            lineHeight: "16px",
+                          }}
                         >
                           {createdLine}
                         </p>
                       )}
                     </div>
                     <span
-                      className="shrink-0 rounded-[2px] px-2 py-1 text-[12px] leading-4 whitespace-nowrap"
+                      className="shrink-0 whitespace-nowrap rounded-[2px] px-2 py-1"
                       style={{
                         background: MISSION_TAG_PILL_BG,
                         color: tagColor,
                         fontFamily: `${FONT.family}, sans-serif`,
+                        fontSize: FONT.sizeSm,
+                        lineHeight: "16px",
                       }}
                     >
                       {missionStatusTagLabel(kind)}
@@ -357,8 +438,13 @@ export function MissionSelector({
             })}
             {missions?.length === 0 && !isLoading && (
               <p
-                className="text-[12px] px-1"
-                style={{ color: COLOR.missionsSecondaryText }}
+                className="px-1"
+                style={{
+                  color: COLOR.missionsSecondaryText,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeSm,
+                  lineHeight: "16px",
+                }}
               >
                 No missions. Create one to start.
               </p>
@@ -375,9 +461,7 @@ export function MissionSelector({
           fenceSearch={fenceSearch}
           assetSearch={assetSearch}
           createError={createError}
-          isSubmitting={
-            createMutation.isPending || assignMutation.isPending
-          }
+          isSubmitting={createMutation.isPending || assignMutation.isPending}
           commandUnits={COMMAND_UNITS}
           missionTypes={MISSION_TYPES}
           fenceItems={filteredFenceItems}
@@ -399,7 +483,9 @@ export function MissionSelector({
           onFenceItemsChange={setFenceItems}
           onAssetSearchChange={setAssetSearch}
           onSelectedDeviceIdsChange={setSelectedDeviceIds}
-          onSubmit={handleCreate}
+          isDraftComplete={draftComplete}
+          reviewLaunchContent={reviewLaunchContent}
+          onConfirmLaunch={handleCreate}
           onModeChange={setCreateDetailMode}
         />
       )}

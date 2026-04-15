@@ -1,9 +1,12 @@
 "use client";
 
-import Image from "next/image";
 import { useMemo, useState } from "react";
 import type { Device, DeviceType } from "@/types/aeroshield";
 import { COLOR, FONT, RADIUS, SPACING } from "@/styles/driifTokens";
+import {
+  MissionWorkspaceHeader,
+  MissionWorkspacePanel,
+} from "@/components/missions/MissionWorkspaceShell";
 
 function deviceTypeLabel(deviceType: DeviceType): string {
   switch (deviceType) {
@@ -80,11 +83,6 @@ export function SelectAssetsWorkspace({
     onSelectionChange([...next]);
   };
 
-  const panelStyle = {
-    background: COLOR.missionsPanelBg,
-    fontFamily: `${FONT.family}, sans-serif`,
-  } as const;
-
   const fieldShellStyle = {
     background: COLOR.missionCreateFieldBg,
     borderColor: COLOR.missionCreateFieldBorder,
@@ -100,41 +98,8 @@ export function SelectAssetsWorkspace({
   } as const;
 
   return (
-    <div
-      className="flex min-h-0 flex-1 flex-col overflow-hidden px-4 py-3"
-      style={panelStyle}
-    >
-      <div
-        className="flex items-center"
-        style={{
-          gap: SPACING.missionCreateBlockGapMd,
-          paddingBottom: SPACING.missionCreateHeaderPadBottom,
-        }}
-      >
-        <button
-          type="button"
-          onClick={onBack}
-          className="flex shrink-0 items-center justify-center transition-opacity hover:opacity-85"
-          style={{
-            width: SPACING.iconButtonSize,
-            height: SPACING.iconButtonSize,
-          }}
-          aria-label="Back"
-        >
-          <Image src="/icons/back-icon.svg" alt="" width={8} height={8} />
-        </button>
-        <p
-          style={{
-            color: COLOR.missionsTitleMuted,
-            fontFamily: `${FONT.family}, sans-serif`,
-            fontSize: FONT.sizeMd,
-            fontWeight: FONT.weightMedium,
-            lineHeight: "20px",
-          }}
-        >
-          Select Assets
-        </p>
-      </div>
+    <MissionWorkspacePanel>
+      <MissionWorkspaceHeader title="Select Assets" onBack={onBack} />
 
       <label
         className="flex shrink-0 items-center overflow-hidden border px-3"
@@ -160,7 +125,7 @@ export function SelectAssetsWorkspace({
         />
       </label>
 
-      <div className="min-h-0 flex-1 overflow-y-auto pr-1">
+      <div className="driif-mission-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
         {error && (
           <p
             style={{
@@ -258,10 +223,11 @@ export function SelectAssetsWorkspace({
                       className="block"
                       style={{
                         marginTop: SPACING.missionCreateBlockGapSm,
-                        color: COLOR.missionsSecondaryText,
+                        color: COLOR.missionReviewChecklistDetail,
                         fontFamily: `${FONT.family}, sans-serif`,
-                        fontSize: FONT.sizeSm,
-                        lineHeight: "16px",
+                        fontSize: FONT.missionReviewDetail10Size,
+                        fontWeight: FONT.weightNormal,
+                        lineHeight: FONT.missionReviewDetail10LineHeight,
                       }}
                     >
                       {formatDeviceSubtitle(device)}
@@ -273,6 +239,6 @@ export function SelectAssetsWorkspace({
           })}
         </ul>
       </div>
-    </div>
+    </MissionWorkspacePanel>
   );
 }

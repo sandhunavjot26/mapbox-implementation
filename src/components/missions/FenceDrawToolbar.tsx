@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { COLOR, POSITION } from "@/styles/driifTokens";
+import { COLOR, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 
 export type FenceDrawMode = "line" | "polygon" | "square" | "circle";
 
@@ -24,13 +24,17 @@ export function FenceDrawToolbar({
   activeMode,
   onModeSelect,
 }: FenceDrawToolbarProps) {
+  const toolSize = parseInt(SPACING.missionFenceToolIconSize, 10);
+
   return (
     <div
-      className="absolute top-0 flex flex-col gap-2 border p-0"
+      className="absolute top-0 flex flex-col border p-0"
       style={{
-        left: `calc(${POSITION.createFenceWorkspaceWidth} + 12px)`,
+        left: `calc(${POSITION.createFenceWorkspaceWidth} + ${SPACING.missionFenceToolbarGapFromPanel})`,
+        gap: SPACING.missionCreateBlockGapMd,
         background: COLOR.missionsPanelBg,
         borderColor: COLOR.missionsPanelBg,
+        borderRadius: RADIUS.panel,
       }}
     >
       {TOOL_OPTIONS.map((tool) => {
@@ -41,14 +45,21 @@ export function FenceDrawToolbar({
             key={tool.mode}
             type="button"
             onClick={() => onModeSelect(tool.mode)}
-            className="flex h-8 w-8 items-center justify-center transition-opacity hover:opacity-85"
+            className="flex items-center justify-center transition-opacity hover:opacity-85"
             style={{
+              width: SPACING.missionFenceToolbarButtonSize,
+              height: SPACING.missionFenceToolbarButtonSize,
               background: active
                 ? COLOR.missionCreateFieldBg
                 : COLOR.missionsPanelBg,
             }}
           >
-            <Image src={tool.icon} alt={tool.alt} width={18} height={18} />
+            <Image
+              src={tool.icon}
+              alt={tool.alt}
+              width={toolSize}
+              height={toolSize}
+            />
           </button>
         );
       })}
