@@ -1,0 +1,5 @@
+- Use TypeScript strictly (no any)
+- Follow functional components only
+- Prefer hooks over class components
+- Keep code modular and reusable
+- Avoid unnecessary re-renders

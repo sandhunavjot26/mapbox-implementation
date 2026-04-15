@@ -118,6 +118,37 @@ export const COLOR = {
   missionCreateDatePickerSelection: "#2C74E3",
   missionCreateDatePickerSelectionText: "#FAFAFA",
   missionCreateDatePickerAction: "#D3D3D3",
+
+  /**
+   * Create Mission footer — completed draft / ready to open summary (Figma 853:9629).
+   * Default incomplete state uses missionsCardBg + missionCreateFooterBorder + missionsTitleMuted.
+   */
+  missionCreateSubmitReadyBg: "#E7FF25",
+  missionCreateSubmitReadyText: "#171717",
+  missionCreateSubmitReadyBorder: "#C6D600",
+
+  /** Mission create summary modal surface (Figma 853:10163 — panel on map) */
+  missionCreateSummaryModalBg: "#272727",
+  missionCreateSummaryModalBorder: "#535353",
+
+  /** Review & Launch checklist — success icon halo (was inline rgba) */
+  missionReviewChecklistSuccessHalo: "rgba(34, 197, 94, 0.2)",
+  /** Review & Launch checklist — warning icon halo */
+  missionReviewChecklistWarningHalo: "rgba(245, 158, 11, 0.2)",
+
+  /**
+   * Review & Launch typography (Figma 853:10163 — Frame 1707480942 / summary rows)
+   */
+  missionReviewChecklistHeading: "#FFFFFF",
+  missionReviewChecklistDetail: "#D3D3D3",
+  missionReviewSummaryValue: "#FFFFFF",
+  missionReviewSummaryLabel: "#D3D3D3",
+
+  /** Selected radar row — status pill (Figma 853:9683–9686, “All Systems OK”) */
+  missionCreateRadarStatusPillText: "#67E09C",
+  missionCreateRadarStatusPillBg: "rgba(12, 187, 88, 0.2)",
+  missionCreateRadarStatusOfflinePillText: "#F59E0B",
+  missionCreateRadarStatusOfflinePillBg: "rgba(245, 158, 11, 0.2)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -151,6 +182,87 @@ export const SPACING = {
 
   /** Zoom +/- spacing: 10px */
   zoomGap: "10px",
+
+  /** Create Mission — fence/asset section min height (Figma 853:9629) */
+  missionCreateSectionMinHeight: "281px",
+
+  /** Create Mission — list row padding (fence items, asset cards) */
+  missionCreateListItemPadX: "15px",
+  missionCreateListItemPadY: "9px",
+
+  /** Status indicator dot — device online/offline */
+  deviceStatusDotSize: "8px",
+
+  /** Create Mission / Select Assets — header stack spacing */
+  missionCreateHeaderPadBottom: "16px",
+  missionCreateBlockGapSm: "4px",
+  missionCreateBlockGapMd: "8px",
+  missionCreateSearchFieldMarginBottom: "12px",
+
+  /** Mission type chips row gap (Figma ~5px) */
+  missionCreateChipGap: "5px",
+
+  /** Create Mission — duration column label width */
+  missionCreateDurationColWidth: "196px",
+
+  /** Create Mission — primary footer button height */
+  missionCreateFooterBtnMinHeight: "40px",
+
+  /** Fence/asset section inner vertical padding (Figma 10px) */
+  missionCreateSectionVerticalPad: "10px",
+
+  /** Form stack gap (12px) */
+  missionCreateStackGapMd: "12px",
+
+  /** Create Mission — vertical gap between major form blocks (Figma 853:9640 Frame 106 itemSpacing 14) */
+  missionCreateFormSectionGap: "14px",
+  /**
+   * Create Mission — single-line field height: name, command, search row, date triggers
+   * (Figma 853:9644 / 853:9671; search toolbar 853:9669)
+   */
+  missionCreateFieldRowHeight: "32px",
+  /** Alias — embedded search row (853:9669) uses same 32px as missionCreateFieldRowHeight */
+  missionCreateSearchRowHeight: "32px",
+
+  // --- Mission workspace shell (Create Mission / Fence / Assets / Review) ---
+  /** Panel horizontal padding — was `px-4` everywhere */
+  missionWorkspacePadX: "16px",
+  /** Panel vertical padding — was `py-3` */
+  missionWorkspacePadY: "12px",
+  /** Back row: gap between back hit and title (8px, same as missionCreateBlockGapMd) */
+  missionWorkspaceHeaderGap: "8px",
+  /** Back control hit area — matches icon row affordance (Select Assets) */
+  missionWorkspaceBackHitSize: "36px",
+  /** Back arrow glyph in 8×8 SVG */
+  missionWorkspaceBackIconSize: "8px",
+  /** Review checklist / summary card inner vertical padding */
+  missionReviewChecklistCardPadY: "12px",
+  missionReviewSummaryRowPadY: "10px",
+  missionReviewSummaryRowMinHeight: "50px",
+  /** Status pill in review checklist (20×20) */
+  missionReviewStatusIconSize: "20px",
+  /** Figma 853:10163 — vertical gap between checklist title + subtitle (itemSpacing 4) */
+  missionReviewChecklistStackGap: "4px",
+  /** Vertical stack gap below workspace header (Create Fence list block) */
+  missionWorkspaceContentGap: "16px",
+  /** Missions list view — header block vertical rhythm */
+  missionListHeaderGap: "14px",
+  /** Missions list — gap between mission cards */
+  missionListCardStackGap: "10px",
+  /** Fence draw toolbar — horizontal gap after fence panel */
+  missionFenceToolbarGapFromPanel: "12px",
+  /** Fence tool button (32×32) */
+  missionFenceToolbarButtonSize: "32px",
+  missionFenceToolIconSize: "18px",
+  /** Fence metadata popover — horizontal offset from panel inner edge */
+  missionFenceMetadataPopoverLeftOffset: "56px",
+  /** Between popover field groups + footer */
+  missionFencePopoverOuterGap: "14px",
+  missionFencePopoverInnerGap: "16px",
+  missionFencePopoverFieldStackGap: "8px",
+  missionFencePopoverFooterGap: "10px",
+  missionFencePopoverButtonHeight: "28px",
+  missionFencePopoverButtonWidth: "64px",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -163,6 +275,9 @@ export const RADIUS = {
 
   /** Logo frame: 2px */
   logo: "2px",
+
+  /** Fence metadata popover corners */
+  fencePopover: "8px",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -213,8 +328,16 @@ export const POSITION = {
   createMissionLeft: "79px",
   createMissionTop: "76px",
   createMissionWidth: "448px",
+  /** Configure radar step — Figma 853:10443 outer panel ~534px (avoids horizontal scroll with tabs + Direction row) */
+  configureRadarWidth: "534px",
+  /** Review & Launch step — panel Frame 1707481060 (Figma 853:10163): 430px */
+  createMissionReviewWidth: "430px",
   createMissionHeight: "auto",
   createFenceWorkspaceWidth: "398px",
+
+  /** Fence metadata popover — absolute from workspace (Create Fence flow) */
+  missionFenceMetadataPopoverTop: "195px",
+  missionFenceMetadataPopoverWidth: "240px",
 
   /** Select Asset panel (Figma node 235:5039): left=79, top=76, 712×649 */
   selectAssetLeft: "79px",
@@ -233,6 +356,28 @@ export const FONT = {
   sizeXs: "10px",
   sizeSm: "12px",
   sizeMd: "14px",
+  /**
+   * Step titles: Create Mission, Create Fence, Select Assets, Review & Launch
+   * (aligns Mission list heading — was 14px in some screens, 18px in others)
+   */
+  missionWorkspaceTitleSize: "18px",
+  missionWorkspaceTitleLineHeight: "26px",
+  /** Uppercase section labels (Pre-launch checklist, Mission summary) */
+  missionWorkspaceSectionLabelSize: "10px",
+  missionWorkspaceSectionLabelLineHeight: "16px",
+  missionWorkspaceSectionLabelLetterSpacing: "0.06em",
+  /** Summary row uppercase label (MISSION, RADAR, …) */
+  missionWorkspaceSummaryLabelLetterSpacing: "0.04em",
+  /** Create Fence empty-state hint */
+  missionWorkspaceEmptyHintSize: "13px",
+  /** Inline validation under fence fields */
+  missionFormFieldErrorTextSize: "11px",
+  /** Figma 853:10163 — checklist row title + mission summary value (12px / 16px, w400) */
+  missionReviewLine12Size: "12px",
+  missionReviewLine12LineHeight: "16px",
+  /** Figma 853:10163 — checklist subtitle detail (10px / 12px, w400) */
+  missionReviewDetail10Size: "10px",
+  missionReviewDetail10LineHeight: "12px",
   weightNormal: "400",
   weightMedium: "500",
   weightBold: "700",
@@ -245,4 +390,6 @@ export const FONT = {
 export const Z = {
   map: 0,
   overlay: 10,
+  /** Modals above dashboard panels (e.g. missions z-[12]) */
+  modal: 100,
 } as const;

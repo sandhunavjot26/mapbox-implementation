@@ -1,6 +1,6 @@
 "use client";
 
-import { COLOR, FONT, POSITION } from "@/styles/driifTokens";
+import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 
 export type FenceMetadataPopoverProps = {
   name: string;
@@ -31,62 +31,99 @@ export function FenceMetadataPopover({
     fontFamily: `${FONT.family}, sans-serif`,
   } as const;
 
+  const errorBorder = COLOR.statusDanger;
+
   return (
     <div
-      className="absolute top-[195px] flex w-[240px] flex-col gap-[14px] rounded-[8px] border p-3"
+      className="absolute flex flex-col border p-3"
       style={{
-        left: `calc(${POSITION.createFenceWorkspaceWidth} + 56px)`,
+        top: POSITION.missionFenceMetadataPopoverTop,
+        left: `calc(${POSITION.createFenceWorkspaceWidth} + ${SPACING.missionFenceMetadataPopoverLeftOffset})`,
+        width: POSITION.missionFenceMetadataPopoverWidth,
+        gap: SPACING.missionFencePopoverOuterGap,
+        borderRadius: RADIUS.fencePopover,
         background: COLOR.missionCreateSectionBg,
         borderColor: COLOR.missionCreateFieldBorder,
         fontFamily: `${FONT.family}, sans-serif`,
       }}
     >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-2">
+      <div
+        className="flex flex-col"
+        style={{ gap: SPACING.missionFencePopoverInnerGap }}
+      >
+        <div
+          className="flex flex-col"
+          style={{ gap: SPACING.missionFencePopoverFieldStackGap }}
+        >
           <p
-            className="text-[12px] leading-4"
-            style={{ color: COLOR.missionsSecondaryText }}
+            style={{
+              color: COLOR.missionsSecondaryText,
+              fontFamily: `${FONT.family}, sans-serif`,
+              fontSize: FONT.sizeSm,
+              lineHeight: "16px",
+            }}
           >
             Fence Name
           </p>
           <label
-            className="flex h-8 items-center justify-between overflow-hidden rounded-[2px] border px-3"
+            className="flex items-center justify-between overflow-hidden border px-3"
             style={{
               ...fieldStyle,
-              borderColor: nameError
-                ? "#FF6B6B"
-                : COLOR.missionCreateFieldBorder,
+              minHeight: SPACING.iconRowHeight,
+              borderRadius: RADIUS.panel,
+              borderColor: nameError ? errorBorder : COLOR.missionCreateFieldBorder,
             }}
           >
             <input
               type="text"
               value={name}
               onChange={(e) => onNameChange(e.target.value)}
-              className="w-full bg-transparent text-[14px] leading-5 outline-none"
-              style={{ color: COLOR.missionsBodyText }}
+              className="w-full bg-transparent outline-none"
+              style={{
+                color: COLOR.missionsBodyText,
+                fontFamily: `${FONT.family}, sans-serif`,
+                fontSize: FONT.sizeMd,
+                lineHeight: "20px",
+              }}
               placeholder="Enter fence name"
             />
           </label>
           {nameError ? (
-            <p className="text-[11px] leading-4" style={{ color: "#FF8A8A" }}>
+            <p
+              style={{
+                color: COLOR.statusDanger,
+                fontFamily: `${FONT.family}, sans-serif`,
+                fontSize: FONT.missionFormFieldErrorTextSize,
+                lineHeight: "16px",
+              }}
+            >
               {nameError}
             </p>
           ) : null}
         </div>
 
-        <div className="flex flex-col gap-2">
+        <div
+          className="flex flex-col"
+          style={{ gap: SPACING.missionFencePopoverFieldStackGap }}
+        >
           <p
-            className="text-[12px] leading-4"
-            style={{ color: COLOR.missionsSecondaryText }}
+            style={{
+              color: COLOR.missionsSecondaryText,
+              fontFamily: `${FONT.family}, sans-serif`,
+              fontSize: FONT.sizeSm,
+              lineHeight: "16px",
+            }}
           >
             Altitude Ceiling
           </p>
           <label
-            className="flex h-8 items-center justify-between overflow-hidden rounded-[2px] border px-3"
+            className="flex items-center justify-between overflow-hidden border px-3"
             style={{
               ...fieldStyle,
+              minHeight: SPACING.iconRowHeight,
+              borderRadius: RADIUS.panel,
               borderColor: altitudeError
-                ? "#FF6B6B"
+                ? errorBorder
                 : COLOR.missionCreateFieldBorder,
             }}
           >
@@ -94,34 +131,60 @@ export function FenceMetadataPopover({
               type="text"
               value={altitude}
               onChange={(e) => onAltitudeChange(e.target.value)}
-              className="w-full bg-transparent text-[14px] leading-5 outline-none"
-              style={{ color: COLOR.missionsBodyText }}
+              className="w-full bg-transparent outline-none"
+              style={{
+                color: COLOR.missionsBodyText,
+                fontFamily: `${FONT.family}, sans-serif`,
+                fontSize: FONT.sizeMd,
+                lineHeight: "20px",
+              }}
               placeholder="Enter altitude ceiling"
             />
             <span
-              className="shrink-0 text-[14px] leading-5 opacity-50"
-              style={{ color: COLOR.missionsBodyText }}
+              className="shrink-0 opacity-50"
+              style={{
+                color: COLOR.missionsBodyText,
+                fontFamily: `${FONT.family}, sans-serif`,
+                fontSize: FONT.sizeMd,
+                lineHeight: "20px",
+              }}
             >
               m AGL
             </span>
           </label>
           {altitudeError ? (
-            <p className="text-[11px] leading-4" style={{ color: "#FF8A8A" }}>
+            <p
+              style={{
+                color: COLOR.statusDanger,
+                fontFamily: `${FONT.family}, sans-serif`,
+                fontSize: FONT.missionFormFieldErrorTextSize,
+                lineHeight: "16px",
+              }}
+            >
               {altitudeError}
             </p>
           ) : null}
         </div>
       </div>
 
-      <div className="flex items-center justify-end gap-[10px]">
+      <div
+        className="flex items-center justify-end"
+        style={{ gap: SPACING.missionFencePopoverFooterGap }}
+      >
         <button
           type="button"
           onClick={onCancel}
-          className="flex h-7 w-16 items-center justify-center rounded-[2px] border text-[14px] leading-5"
+          className="flex items-center justify-center border"
           style={{
+            height: SPACING.missionFencePopoverButtonHeight,
+            width: SPACING.missionFencePopoverButtonWidth,
+            borderRadius: RADIUS.panel,
             background: COLOR.missionsCardBg,
             borderColor: COLOR.missionCreateFooterBorder,
             color: COLOR.missionsTitleMuted,
+            fontFamily: `${FONT.family}, sans-serif`,
+            fontSize: FONT.sizeMd,
+            lineHeight: "20px",
           }}
         >
           Cancel
@@ -129,13 +192,22 @@ export function FenceMetadataPopover({
         <button
           type="button"
           onClick={onSave}
-          className="flex h-7 w-16 items-center justify-center rounded-[2px] text-[14px] font-medium leading-5"
+          className="flex items-center justify-center"
           style={{
-            background: canSave ? "#F5F5F5" : COLOR.missionsCardBg,
+            height: SPACING.missionFencePopoverButtonHeight,
+            width: SPACING.missionFencePopoverButtonWidth,
+            borderRadius: RADIUS.panel,
+            background: canSave
+              ? COLOR.missionCreatePrimaryChipBg
+              : COLOR.missionsCardBg,
             color: canSave
               ? COLOR.missionCreateFieldBorder
               : COLOR.missionsSecondaryText,
             opacity: canSave ? 1 : 0.7,
+            fontFamily: `${FONT.family}, sans-serif`,
+            fontSize: FONT.sizeMd,
+            fontWeight: FONT.weightMedium,
+            lineHeight: "20px",
           }}
         >
           Save

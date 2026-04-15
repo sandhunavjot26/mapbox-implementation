@@ -5,7 +5,7 @@
  * GET /api/v1/devices/configs/by-mission/{id} — device config snapshots
  */
 
-import { apiJson } from "./client";
+import { apiFetch, apiJson, ApiClientError } from "./client";
 import type { Device } from "@/types/aeroshield";
 
 export interface DeviceState {
@@ -34,6 +34,27 @@ export async function listDevices(params?: {
   const search = params ? new URLSearchParams(params as Record<string, string>) : "";
   const qs = search.toString() ? `?${search}` : "";
   return apiJson<Device[]>("device", `/api/v1/devices${qs}`);
+}
+
+/** POST /api/v1/missions/{id}/devices/assign — assign devices (radars) to a mission */
+export async function assignDevices(missionId: string, deviceIds: string[]): Promise<void> {
+  const res = await apiFetch("device", `/api/v1/missions/${missionId}/devices/assign`, {
+    method: "POST",
+    body: JSON.stringify({ device_ids: deviceIds }),
+  });
+  if (!res.ok) {
+    let detail: string | undefined;
+    const ct = res.headers.get("content-type");
+    if (ct?.includes("application/json")) {
+      try {
+        const body = (await res.json()) as { detail?: string; message?: string };
+        detail = body.detail ?? body.message;
+      } catch {
+        /* empty or invalid JSON body */
+      }
+    }
+    throw new ApiClientError(res.status, detail ?? res.statusText, detail);
+  }
 }
 
 /** GET /api/v1/devices/states/by-mission/{id} — device state per mission */

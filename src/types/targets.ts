@@ -4,6 +4,7 @@
  * Classification: default UNKNOWN; client-side reclassification only (no backend support).
  */
 
+// UI renders FRIENDLY/ENEMY only; UNKNOWN kept for API compat and treated as ENEMY in the overlay (PRD §12.4)
 export type TargetClassification = "FRIENDLY" | "ENEMY" | "UNKNOWN";
 
 export interface Target {

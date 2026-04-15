@@ -12,10 +12,10 @@ import { useCommandsStore } from "@/stores/commandsStore";
 import { TurntableControls } from "@/components/commands/TurntableControls";
 import { BandRangeEditor } from "@/components/commands/BandRangeEditor";
 
+// UI omits UNKNOWN per current product scope (PRD §12.4 includes it, but operator sees Friendly/Enemy only)
 const CLASSIFY_OPTIONS: { id: TargetClassification; label: string }[] = [
   { id: "FRIENDLY", label: "Friendly" },
   { id: "ENEMY", label: "Enemy" },
-  { id: "UNKNOWN", label: "Unknown" },
 ];
 
 /** Commands shown as simple buttons (excludes Turntable, Band Range — those have dedicated UIs) */
@@ -180,7 +180,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
         <button
           type="button"
           onClick={handleEngage}
-          disabled={!["ENEMY", "UNKNOWN"].includes(target.classification) || commandPending}
+          disabled={target.classification !== "ENEMY" || commandPending}
           className="flex-1 px-2 py-1 text-[10px] font-mono border border-red-500/60 text-red-400 hover:border-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Engage

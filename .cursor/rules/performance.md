@@ -1,0 +1,5 @@
+- Minimize bundle size
+- Avoid unnecessary API calls
+- Use dynamic imports where possible
+- Memoize components when needed
+- Avoid large dependencies
