@@ -1,0 +1,2 @@
+- Styling: Tailwind CSS
+- Avoid inline styles

@@ -9,6 +9,7 @@
 import Image from "next/image";
 import { useEffect, useState } from "react";
 import { useMissionsList, useCreateMission } from "@/hooks/useMissions";
+import { useDevicesList, useAssignDevices } from "@/hooks/useDevices";
 import { useMissionStore } from "@/stores/missionStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { COLOR, FONT, POSITION } from "@/styles/driifTokens";
@@ -54,9 +55,9 @@ export function MissionSelector({
   onMapDismissLockChange,
 }: MissionSelectorProps) {
   const [view, setView] = useState<MissionSelectorView>("list");
-  const [createDetailMode, setCreateDetailMode] = useState<"form" | "createFence">(
-    "form",
-  );
+  const [createDetailMode, setCreateDetailMode] = useState<
+    "form" | "createFence" | "selectAssets"
+  >("form");
   const [search, setSearch] = useState("");
   const [createName, setCreateName] = useState("");
   const [commandUnit, setCommandUnit] = useState(COMMAND_UNITS[0]);
@@ -64,7 +65,9 @@ export function MissionSelector({
   const [startAt, setStartAt] = useState(DEFAULT_DATETIME);
   const [endAt, setEndAt] = useState(DEFAULT_DATETIME);
   const [fenceSearch, setFenceSearch] = useState("");
+  const [assetSearch, setAssetSearch] = useState("");
   const [fenceItems, setFenceItems] = useState<SavedFence[]>([]);
+  const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
   const [createError, setCreateError] = useState("");
 
   const {
@@ -73,6 +76,12 @@ export function MissionSelector({
     error,
   } = useMissionsList(search || undefined);
   const createMutation = useCreateMission();
+  const assignMutation = useAssignDevices();
+  const {
+    data: devicesCatalog = [],
+    isLoading: devicesLoading,
+    error: devicesError,
+  } = useDevicesList(undefined, view === "create");
   const setActiveMission = useMissionStore((s) => s.setActiveMission);
   const clearTargets = useTargetsStore((s) => s.clearTargets);
 
@@ -89,7 +98,9 @@ export function MissionSelector({
     setStartAt(DEFAULT_DATETIME);
     setEndAt(DEFAULT_DATETIME);
     setFenceSearch("");
+    setAssetSearch("");
     setFenceItems([]);
+    setSelectedDeviceIds([]);
     setCreateError("");
   };
 
@@ -123,6 +134,24 @@ export function MissionSelector({
         aop: null,
         border_geojson: borderGeojson,
       });
+
+      if (selectedDeviceIds.length > 0) {
+        try {
+          await assignMutation.mutateAsync({
+            missionId: m.id,
+            deviceIds: selectedDeviceIds,
+          });
+        } catch (assignErr) {
+          if (assignErr instanceof ApiClientError) {
+            setCreateError(
+              assignErr.message || "Mission was created but devices could not be assigned.",
+            );
+          } else {
+            setCreateError("Mission was created but devices could not be assigned.");
+          }
+          return;
+        }
+      }
 
       // Bulk-POST all drawn fences as zones under the newly created mission.
       // Uses Promise.allSettled so one failure doesn't block the rest.
@@ -159,7 +188,9 @@ export function MissionSelector({
       ? view === "create"
         ? createDetailMode === "createFence"
           ? POSITION.createFenceWorkspaceWidth
-          : POSITION.createMissionWidth
+          : createDetailMode === "selectAssets"
+            ? POSITION.selectAssetWidth
+            : POSITION.createMissionWidth
         : POSITION.missionsWidth
       : undefined;
 
@@ -342,12 +373,19 @@ export function MissionSelector({
           startAt={startAt}
           endAt={endAt}
           fenceSearch={fenceSearch}
+          assetSearch={assetSearch}
           createError={createError}
-          isSubmitting={createMutation.isPending}
+          isSubmitting={
+            createMutation.isPending || assignMutation.isPending
+          }
           commandUnits={COMMAND_UNITS}
           missionTypes={MISSION_TYPES}
           fenceItems={filteredFenceItems}
           allFenceItems={fenceItems}
+          devicesCatalog={devicesCatalog}
+          devicesLoading={devicesLoading}
+          devicesError={devicesError}
+          selectedDeviceIds={selectedDeviceIds}
           onBack={showListView}
           onNameChange={(value) => {
             setCreateName(value);
@@ -359,6 +397,8 @@ export function MissionSelector({
           onEndAtChange={setEndAt}
           onFenceSearchChange={setFenceSearch}
           onFenceItemsChange={setFenceItems}
+          onAssetSearchChange={setAssetSearch}
+          onSelectedDeviceIdsChange={setSelectedDeviceIds}
           onSubmit={handleCreate}
           onModeChange={setCreateDetailMode}
         />

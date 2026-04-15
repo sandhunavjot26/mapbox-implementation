@@ -151,6 +151,37 @@ export const SPACING = {
 
   /** Zoom +/- spacing: 10px */
   zoomGap: "10px",
+
+  /** Create Mission — fence/asset section min height (Figma 853:9629) */
+  missionCreateSectionMinHeight: "281px",
+
+  /** Create Mission — list row padding (fence items, asset cards) */
+  missionCreateListItemPadX: "15px",
+  missionCreateListItemPadY: "9px",
+
+  /** Status indicator dot — device online/offline */
+  deviceStatusDotSize: "8px",
+
+  /** Create Mission / Select Assets — header stack spacing */
+  missionCreateHeaderPadBottom: "16px",
+  missionCreateBlockGapSm: "4px",
+  missionCreateBlockGapMd: "8px",
+  missionCreateSearchFieldMarginBottom: "12px",
+
+  /** Mission type chips row gap (Figma ~5px) */
+  missionCreateChipGap: "5px",
+
+  /** Create Mission — duration column label width */
+  missionCreateDurationColWidth: "196px",
+
+  /** Create Mission — primary footer button height */
+  missionCreateFooterBtnMinHeight: "40px",
+
+  /** Fence/asset section inner vertical padding (Figma 10px) */
+  missionCreateSectionVerticalPad: "10px",
+
+  /** Form stack gap (12px) */
+  missionCreateStackGapMd: "12px",
 } as const;
 
 // ---------------------------------------------------------------------------
