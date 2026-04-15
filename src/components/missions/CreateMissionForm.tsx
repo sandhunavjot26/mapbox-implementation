@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Dropdown } from "@/components/ui/Dropdown";
 import { CustomDateTimeField } from "@/components/ui/CustomDateTimeField";
 import { COLOR, FONT, RADIUS, SPACING } from "@/styles/driifTokens";
@@ -8,10 +8,14 @@ import { CreateFenceWorkspace } from "@/components/missions/CreateFenceWorkspace
 import { SelectAssetsWorkspace } from "@/components/missions/SelectAssetsWorkspace";
 import type { Device, DeviceStatus, SavedFence } from "@/types/aeroshield";
 import type {
+  MissionCreateDetailMode,
   MissionReviewLaunchContent,
   MissionType,
 } from "@/types/missionCreate";
+import type { RadarConfigureDraft } from "@/types/radarMissionDraft";
 import { MissionReviewLaunchWorkspace } from "@/components/missions/MissionReviewLaunchWorkspace";
+import { ConfigureRadarWorkspace } from "@/components/missions/ConfigureRadarWorkspace";
+import { defaultRadarConfigureDraft } from "@/lib/mock/radarConfigureDefaults";
 import {
   MissionWorkspaceHeader,
   MissionWorkspacePanel,
@@ -52,12 +56,16 @@ export type CreateMissionFormProps = {
   onFenceItemsChange: (items: SavedFence[]) => void;
   onAssetSearchChange: (value: string) => void;
   onSelectedDeviceIdsChange: (ids: string[]) => void;
+  radarConfigureDrafts: Record<string, RadarConfigureDraft>;
+  onRadarConfigureDraftChange: (
+    deviceId: string,
+    draft: RadarConfigureDraft,
+  ) => void;
+  ensureRadarDraftForDevice: (deviceId: string) => void;
   isDraftComplete: boolean;
   reviewLaunchContent: MissionReviewLaunchContent;
   onConfirmLaunch: () => void;
-  onModeChange?: (
-    mode: "form" | "createFence" | "selectAssets" | "reviewLaunch",
-  ) => void;
+  onModeChange?: (mode: MissionCreateDetailMode) => void;
 };
 
 function radarStatusPillColors(status: DeviceStatus): {
@@ -111,19 +119,21 @@ export function CreateMissionForm({
   onFenceItemsChange,
   onAssetSearchChange,
   onSelectedDeviceIdsChange,
+  radarConfigureDrafts,
+  onRadarConfigureDraftChange,
+  ensureRadarDraftForDevice,
   isDraftComplete,
   reviewLaunchContent,
   onConfirmLaunch,
   onModeChange,
 }: CreateMissionFormProps) {
-  const [view, setView] = useState<
-    "form" | "createFence" | "selectAssets" | "reviewLaunch"
-  >("form");
+  const [view, setView] = useState<MissionCreateDetailMode>("form");
+  const [configuringDeviceId, setConfiguringDeviceId] = useState<string | null>(
+    null,
+  );
   const [sectionTab, setSectionTab] = useState<"fences" | "assets">("fences");
 
-  const changeView = (
-    nextView: "form" | "createFence" | "selectAssets" | "reviewLaunch",
-  ) => {
+  const changeView = (nextView: MissionCreateDetailMode) => {
     setView(nextView);
     if (nextView === "form") {
       onModeChange?.("form");
@@ -157,6 +167,27 @@ export function CreateMissionForm({
     );
   }, [selectedDevices, assetSearch]);
 
+  useEffect(() => {
+    if (view !== "configureRadar" || !configuringDeviceId) return;
+    const dev = devicesCatalog.find((d) => d.id === configuringDeviceId);
+    if (!dev) {
+      setConfiguringDeviceId(null);
+      setView("form");
+      onModeChange?.("form");
+      return;
+    }
+    if (!radarConfigureDrafts[configuringDeviceId]) {
+      ensureRadarDraftForDevice(configuringDeviceId);
+    }
+  }, [
+    view,
+    configuringDeviceId,
+    devicesCatalog,
+    radarConfigureDrafts,
+    ensureRadarDraftForDevice,
+    onModeChange,
+  ]);
+
   if (view === "createFence") {
     return (
       <CreateFenceWorkspace
@@ -178,6 +209,35 @@ export function CreateMissionForm({
         onBack={() => changeView("form")}
       />
     );
+  }
+
+  if (view === "configureRadar" && configuringDeviceId) {
+    const configureDevice = devicesCatalog.find(
+      (d) => d.id === configuringDeviceId,
+    );
+    if (configureDevice) {
+      const configureDraft = {
+        ...defaultRadarConfigureDraft(configuringDeviceId),
+        ...(radarConfigureDrafts[configuringDeviceId] ?? {}),
+      };
+      return (
+        <ConfigureRadarWorkspace
+          device={configureDevice}
+          draft={configureDraft}
+          onDraftChange={(next) =>
+            onRadarConfigureDraftChange(configuringDeviceId, next)
+          }
+          onBack={() => {
+            setConfiguringDeviceId(null);
+            changeView("form");
+          }}
+          onRequestAddRadar={() => {
+            setConfiguringDeviceId(null);
+            changeView("selectAssets");
+          }}
+        />
+      );
+    }
   }
 
   if (view === "reviewLaunch") {
@@ -644,7 +704,12 @@ export function CreateMissionForm({
                           </div>
                           <button
                             type="button"
-                            className="flex cursor-default items-center border-0 bg-transparent p-0"
+                            onClick={() => {
+                              ensureRadarDraftForDevice(device.id);
+                              setConfiguringDeviceId(device.id);
+                              changeView("configureRadar");
+                            }}
+                            className="flex cursor-pointer items-center border-0 bg-transparent p-0 transition-opacity hover:opacity-80"
                             style={{
                               gap: "2px",
                               alignSelf: "flex-start",
@@ -656,7 +721,7 @@ export function CreateMissionForm({
                               lineHeight: "13px",
                               textTransform: "uppercase",
                             }}
-                            aria-label="Configure (coming soon)"
+                            aria-label={`Configure ${deviceDisplayName(device)}`}
                           >
                             <svg
                               width={10}

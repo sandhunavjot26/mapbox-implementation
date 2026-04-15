@@ -1,5 +1,13 @@
 export type MissionType = "Live Op" | "Training Sim" | "Maintenance";
 
+/** Create Mission overlay sub-step (MissionSelector panel width + map lock). */
+export type MissionCreateDetailMode =
+  | "form"
+  | "createFence"
+  | "selectAssets"
+  | "reviewLaunch"
+  | "configureRadar";
+
 /** Pre-launch checklist row (Figma 853:10163 — Frame 42). */
 export type MissionReviewChecklistItem = {
   id: string;

@@ -54,3 +54,39 @@ FIGMA DESIGN RULES (STRICT)
    - Keep styles consistent
 
 14. Follow dark tactical UI theme (command center style)
+
+--------------------------------------------------
+DESIGN TOKEN RULES (CRITICAL)
+--------------------------------------------------
+
+1. Always use tokens from `driifTokens.ts`.
+
+2. Never create new tokens unless explicitly asked.
+
+3. Before adding any style:
+   - Check if a matching token already exists
+   - Reuse it
+
+4. Do not create duplicate tokens for:
+   - same color
+   - same font size
+   - same spacing
+
+5. If a close token exists:
+   - Use the closest token
+   - Do NOT create a new one for minor differences
+
+6. If no token exists:
+   - Use inline Tailwind value
+   - Add comment: // TODO: token
+
+7. Maintain consistency:
+   - Same heading → same token
+   - Same text color → same token
+   - Same spacing → same token
+
+8. Never hardcode values if token exists.
+
+9. Tokens take priority over Tailwind defaults.
+
+10. Do not modify existing tokens unless instructed.

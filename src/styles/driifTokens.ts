@@ -328,6 +328,8 @@ export const POSITION = {
   createMissionLeft: "79px",
   createMissionTop: "76px",
   createMissionWidth: "448px",
+  /** Configure radar step — Figma 853:10443 outer panel ~534px (avoids horizontal scroll with tabs + Direction row) */
+  configureRadarWidth: "534px",
   /** Review & Launch step — panel Frame 1707481060 (Figma 853:10163): 430px */
   createMissionReviewWidth: "430px",
   createMissionHeight: "auto",

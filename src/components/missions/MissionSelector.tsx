@@ -7,7 +7,7 @@
  */
 
 import Image from "next/image";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import { useMissionsList, useCreateMission } from "@/hooks/useMissions";
 import { useDevicesList, useAssignDevices } from "@/hooks/useDevices";
 import { useMissionStore } from "@/stores/missionStore";
@@ -15,7 +15,9 @@ import { useTargetsStore } from "@/stores/targetsStore";
 import { COLOR, FONT, POSITION, SPACING } from "@/styles/driifTokens";
 import { missionWorkspaceTitleStyle } from "@/components/missions/MissionWorkspaceShell";
 import { CreateMissionForm } from "@/components/missions/CreateMissionForm";
-import type { MissionType } from "@/types/missionCreate";
+import type { MissionCreateDetailMode, MissionType } from "@/types/missionCreate";
+import type { RadarConfigureDraft } from "@/types/radarMissionDraft";
+import { defaultRadarConfigureDraft } from "@/lib/mock/radarConfigureDefaults";
 import { isCreateDraftComplete } from "@/utils/missionCreateDraft";
 import { buildMissionReviewLaunchContent } from "@/utils/missionReviewLaunchContent";
 import {
@@ -56,9 +58,8 @@ export function MissionSelector({
   onMapDismissLockChange,
 }: MissionSelectorProps) {
   const [view, setView] = useState<MissionSelectorView>("list");
-  const [createDetailMode, setCreateDetailMode] = useState<
-    "form" | "createFence" | "selectAssets" | "reviewLaunch"
-  >("form");
+  const [createDetailMode, setCreateDetailMode] =
+    useState<MissionCreateDetailMode>("form");
   const [search, setSearch] = useState("");
   const [createName, setCreateName] = useState("");
   const [commandUnit, setCommandUnit] = useState(COMMAND_UNITS[0]);
@@ -69,6 +70,9 @@ export function MissionSelector({
   const [assetSearch, setAssetSearch] = useState("");
   const [fenceItems, setFenceItems] = useState<SavedFence[]>([]);
   const [selectedDeviceIds, setSelectedDeviceIds] = useState<string[]>([]);
+  const [radarConfigureDrafts, setRadarConfigureDrafts] = useState<
+    Record<string, RadarConfigureDraft>
+  >({});
   const [createError, setCreateError] = useState("");
 
   const {
@@ -102,7 +106,41 @@ export function MissionSelector({
     setAssetSearch("");
     setFenceItems([]);
     setSelectedDeviceIds([]);
+    setRadarConfigureDrafts({});
     setCreateError("");
+  };
+
+  const ensureRadarDraftForDevice = useCallback((deviceId: string) => {
+    setRadarConfigureDrafts((prev) => {
+      const defaults = defaultRadarConfigureDraft(deviceId);
+      const existing = prev[deviceId];
+      if (!existing) {
+        return { ...prev, [deviceId]: defaults };
+      }
+      if (typeof existing.mountHeightM !== "number") {
+        return { ...prev, [deviceId]: { ...defaults, ...existing } };
+      }
+      return prev;
+    });
+  }, []);
+
+  const handleRadarConfigureDraftChange = useCallback(
+    (deviceId: string, draft: RadarConfigureDraft) => {
+      setRadarConfigureDrafts((prev) => ({ ...prev, [deviceId]: draft }));
+    },
+    [],
+  );
+
+  const handleSelectedDeviceIdsChange = (ids: string[]) => {
+    setSelectedDeviceIds(ids);
+    setRadarConfigureDrafts((prev) => {
+      const idSet = new Set(ids);
+      const next: Record<string, RadarConfigureDraft> = {};
+      for (const id of idSet) {
+        if (prev[id]) next[id] = prev[id];
+      }
+      return next;
+    });
   };
 
   const showCreateView = () => {
@@ -229,7 +267,9 @@ export function MissionSelector({
             ? POSITION.selectAssetWidth
             : createDetailMode === "reviewLaunch"
               ? POSITION.createMissionReviewWidth
-              : POSITION.createMissionWidth
+              : createDetailMode === "configureRadar"
+                ? POSITION.configureRadarWidth
+                : POSITION.createMissionWidth
         : POSITION.missionsWidth
       : undefined;
 
@@ -482,7 +522,10 @@ export function MissionSelector({
           onFenceSearchChange={setFenceSearch}
           onFenceItemsChange={setFenceItems}
           onAssetSearchChange={setAssetSearch}
-          onSelectedDeviceIdsChange={setSelectedDeviceIds}
+          onSelectedDeviceIdsChange={handleSelectedDeviceIdsChange}
+          radarConfigureDrafts={radarConfigureDrafts}
+          onRadarConfigureDraftChange={handleRadarConfigureDraftChange}
+          ensureRadarDraftForDevice={ensureRadarDraftForDevice}
           isDraftComplete={draftComplete}
           reviewLaunchContent={reviewLaunchContent}
           onConfirmLaunch={handleCreate}
