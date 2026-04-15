@@ -7,18 +7,13 @@ import { subscribeToPopup, PopupState, clearSelection } from "../mapController";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useAttackModeStore } from "@/stores/attackModeStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
-import { TargetPopupControls } from "@/components/commands/PopupControls";
 import { AssetPopupControls } from "@/components/commands/PopupControls";
+import { DroneOverlayCard } from "./DroneOverlayCard";
+import { reclassifyTarget, confirmThreat } from "@/stores/mapActionsStore";
+import { useTargetsStore as useTargetsStoreActions } from "@/stores/targetsStore";
 
 /** Staleness threshold: no update for this many seconds → show stale */
 const STALE_SECONDS = 30;
-
-// Classification color mapping
-const classificationColors: Record<string, string> = {
-  ENEMY: "text-red-400",
-  FRIENDLY: "text-green-400",
-  UNKNOWN: "text-amber-400",
-};
 
 // Status color mapping
 const statusColors: Record<string, string> = {
@@ -29,27 +24,167 @@ const statusColors: Record<string, string> = {
 export function EntityHoverPopup() {
   const [popupState, setPopupState] = useState<PopupState | null>(null);
   const targets = useTargetsStore((s) => s.targets);
+  const reclassifyTargetInStore = useTargetsStoreActions((s) => s.reclassifyTarget);
 
   useEffect(() => {
-    // Subscribe to popup state changes
     const unsubscribe = subscribeToPopup((state) => {
       setPopupState(state);
     });
-
     return unsubscribe;
   }, []);
 
-  // Don't render if no popup state or not visible
   if (!popupState || !popupState.visible) {
     return null;
   }
 
   const { entityType, data, screenPosition, isPinned } = popupState;
 
-  // Offset from cursor
+  // Offset from cursor for non-target popups
   const offsetX = 12;
   const offsetY = 12;
 
+  // For target entities render the new DroneOverlayCard (pinned only; hover shows asset-style mini card)
+  if (entityType === "target") {
+    const target = data as Target;
+    // Use live target from store (reflects reclassifications)
+    const liveTarget = targets.find((t) => t.id === target.id) ?? target;
+
+    if (isPinned) {
+      const CARD_W = 381;
+      const CARD_GAP = 16;    // px gap between drone marker edge and nearest card edge
+      const MIN_CARD_H = 280; // minimum card height before clamping kicks in
+
+      // ── Horizontal placement ─────────────────────────────────────────────
+      // Prefer right (matches Figma); flip left when card would overflow viewport.
+      const placeRight =
+        screenPosition.x + CARD_GAP + CARD_W < window.innerWidth - 8;
+      const cardLeft = placeRight
+        ? screenPosition.x + CARD_GAP
+        : screenPosition.x - CARD_GAP - CARD_W;
+
+      // ── Vertical placement ───────────────────────────────────────────────
+      // Align card top ~40px above drone centre; clamp so card stays on screen.
+      const cardTop = Math.max(
+        8,
+        Math.min(
+          screenPosition.y - 40,
+          window.innerHeight - MIN_CARD_H - 8,
+        ),
+      );
+      const cardMaxHeight = window.innerHeight - cardTop - 8;
+
+      // ── Connector line endpoint on the card side ─────────────────────────
+      // Connect to the corner of the card that is nearest to the drone.
+      const lineEndX = placeRight ? cardLeft : cardLeft + CARD_W;
+      const lineEndY = cardTop + 24; // slightly below card top corner
+
+      return (
+        <>
+          {/* ① Full-viewport SVG — dashed connector line (pointer-events: none) */}
+          <svg
+            style={{
+              position: "fixed",
+              inset: 0,
+              width: "100vw",
+              height: "100vh",
+              pointerEvents: "none",
+              zIndex: 48,
+            }}
+          >
+            <line
+              x1={screenPosition.x}
+              y1={screenPosition.y}
+              x2={lineEndX}
+              y2={lineEndY}
+              stroke="#EEFF30"
+              strokeWidth="1.5"
+              strokeDasharray="5 3"
+            />
+            {/* Dot at the card-corner end of the line */}
+            <circle cx={lineEndX} cy={lineEndY} r="3" fill="#EEFF30" />
+          </svg>
+
+          {/* ② Dashed-rectangle selection indicator centred on drone icon */}
+          <div
+            style={{
+              position: "fixed",
+              left: screenPosition.x - 14,
+              top: screenPosition.y - 14,
+              width: 28,
+              height: 28,
+              border: "1.5px dashed #EEFF30",
+              borderRadius: "2px",
+              pointerEvents: "none",
+              zIndex: 49,
+            }}
+          />
+
+          {/* ③ Card */}
+          <div
+            style={{
+              position: "fixed",
+              left: cardLeft,
+              top: cardTop,
+              zIndex: 50,
+              pointerEvents: "auto",
+            }}
+          >
+            {/* Close button */}
+            <button
+              type="button"
+              onClick={clearSelection}
+              style={{
+                position: "absolute",
+                top: "8px",
+                right: "8px",
+                zIndex: 10,
+                background: "transparent",
+                border: "none",
+                color: "rgba(255,255,255,0.6)",
+                fontSize: "18px",
+                lineHeight: 1,
+                cursor: "pointer",
+                padding: "2px 4px",
+              }}
+              aria-label="Close"
+            >
+              ×
+            </button>
+            <DroneOverlayCard
+              target={liveTarget}
+              style={{ maxHeight: `${cardMaxHeight}px` }}
+              onInitiateJam={() => confirmThreat(liveTarget.id)}
+              onMarkFriendly={() => {
+                reclassifyTarget(liveTarget.id, "FRIENDLY");
+                reclassifyTargetInStore(liveTarget.id, "FRIENDLY");
+              }}
+              onEscalate={() => {}}
+              onReturnToBase={() => {}}
+              onHoverHold={() => {}}
+              onAbort={() => {}}
+              onEmergencyLand={() => {}}
+              onMarkEnemy={() => {
+                reclassifyTarget(liveTarget.id, "ENEMY");
+                reclassifyTargetInStore(liveTarget.id, "ENEMY");
+              }}
+            />
+          </div>
+        </>
+      );
+    }
+
+    // Hover (not pinned): small tooltip
+    return (
+      <div
+        className="fixed z-50 pointer-events-none"
+        style={{ left: screenPosition.x + 12, top: screenPosition.y + 12 }}
+      >
+        <TargetHoverTooltip target={liveTarget} />
+      </div>
+    );
+  }
+
+  // Asset popup
   const popupClassName = isPinned
     ? "bg-slate-900 border-2 border-cyan-500/80 backdrop-blur-sm px-3 py-2 min-w-[200px] shadow-lg shadow-cyan-500/10 relative"
     : "bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]";
@@ -73,15 +208,7 @@ export function EntityHoverPopup() {
             ×
           </button>
         )}
-        {entityType === "asset" ? (
-          <AssetPopupContent data={data as Asset} isPinned={isPinned} />
-        ) : (
-          <TargetPopupContent
-            data={data as Target}
-            isPinned={isPinned}
-            targets={targets}
-          />
-        )}
+        <AssetPopupContent data={data as Asset} isPinned={isPinned} />
       </div>
     </div>
   );
@@ -173,26 +300,20 @@ function AssetPopupContent({
   );
 }
 
-function TargetPopupContent({
-  data,
-  isPinned,
-  targets,
-}: {
-  data: Target;
-  isPinned: boolean;
-  targets: Target[];
-}) {
-  // Use live target from store when available (e.g. after reclassification)
-  const liveTarget = targets.find((t) => t.id === data.id);
-  const target = liveTarget ?? data;
+/** Lightweight hover tooltip shown before user clicks/pins a target */
+function TargetHoverTooltip({ target }: { target: Target }) {
+  const isStale =
+    target.lastSeenAt != null &&
+    (Date.now() - target.lastSeenAt) / 1000 > STALE_SECONDS;
 
-  const isStale = target.lastSeenAt != null && (Date.now() - target.lastSeenAt) / 1000 > STALE_SECONDS;
-  const isLowConfidence = target.confidence != null && target.confidence < 60;
+  const classLabel =
+    target.classification === "UNKNOWN" ? "ENEMY" : target.classification;
+  const classColor =
+    classLabel === "ENEMY" ? "text-red-400" : "text-green-400";
 
   return (
-    <div className="space-y-1">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50 pr-5">
+    <div className="bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px] space-y-1">
+      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50">
         <span className="text-slate-200 text-xs font-mono font-semibold truncate max-w-[140px]">
           {target.targetName ?? target.id}
         </span>
@@ -202,73 +323,26 @@ function TargetPopupContent({
               Stale
             </span>
           )}
-          {isLowConfidence && (
-            <span className="text-[10px] font-mono text-amber-400 bg-amber-950/50 px-1 py-0.5 whitespace-nowrap">
-              Low conf
-            </span>
-          )}
-          <span
-            className={`text-[10px] font-mono ${classificationColors[target.classification]}`}
-          >
-            {target.classification}
+          <span className={`text-[10px] font-mono ${classColor}`}>
+            {classLabel}
           </span>
         </div>
       </div>
-
-      {/* Details */}
       <div className="space-y-0.5 text-[10px] font-mono">
         <div className="flex justify-between gap-6">
           <span className="text-slate-500">Distance</span>
-          <span className="text-slate-400">
-            {target.distanceKm.toFixed(1)} KM
-          </span>
+          <span className="text-slate-400">{target.distanceKm.toFixed(1)} km</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Altitude</span>
-          <span className="text-slate-400">{target.altitude} FT</span>
+          <span className="text-slate-400">{target.altitude} ft</span>
         </div>
         <div className="flex justify-between">
           <span className="text-slate-500">Heading</span>
           <span className="text-slate-400">{target.heading}°</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Frequency</span>
-          <span className="text-slate-400">{target.frequencyMHz} MHz</span>
-        </div>
-        {target.speedKmH != null && (
-          <div className="flex justify-between">
-            <span className="text-slate-500">Speed</span>
-            <span className="text-slate-400">
-              {target.speedKmH.toFixed(1)} km/h
-            </span>
-          </div>
-        )}
-        <div className="flex justify-between gap-4 min-w-0">
-          <span className="text-slate-500 shrink-0">RSSI</span>
-          <span className="text-slate-400 whitespace-nowrap overflow-x-auto text-right flex-1 min-w-0">
-            {typeof target.rssi === "number"
-              ? target.rssi
-              : Number(target.rssi ?? 0)}{" "}
-            dBm
-          </span>
-        </div>
-        {target.confidence != null && (
-          <div className="flex justify-between">
-            <span className="text-slate-500">Confidence</span>
-            <span className="text-slate-400">{target.confidence}%</span>
-          </div>
-        )}
-        {target.rcCoords && (
-          <div className="flex justify-between gap-4 min-w-0">
-            <span className="text-slate-500 shrink-0">RC/GCS</span>
-            <span className="text-slate-400 truncate">
-              {target.rcCoords[0].toFixed(5)}, {target.rcCoords[1].toFixed(5)}
-            </span>
-          </div>
-        )}
+        <p className="text-slate-600 pt-0.5">Click to open full panel</p>
       </div>
-
-      {isPinned && <TargetPopupControls target={target} />}
     </div>
   );
 }
