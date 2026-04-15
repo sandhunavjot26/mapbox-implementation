@@ -143,6 +143,12 @@ export const COLOR = {
   missionReviewChecklistDetail: "#D3D3D3",
   missionReviewSummaryValue: "#FFFFFF",
   missionReviewSummaryLabel: "#D3D3D3",
+
+  /** Selected radar row — status pill (Figma 853:9683–9686, “All Systems OK”) */
+  missionCreateRadarStatusPillText: "#67E09C",
+  missionCreateRadarStatusPillBg: "rgba(12, 187, 88, 0.2)",
+  missionCreateRadarStatusOfflinePillText: "#F59E0B",
+  missionCreateRadarStatusOfflinePillBg: "rgba(245, 158, 11, 0.2)",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -207,6 +213,16 @@ export const SPACING = {
 
   /** Form stack gap (12px) */
   missionCreateStackGapMd: "12px",
+
+  /** Create Mission — vertical gap between major form blocks (Figma 853:9640 Frame 106 itemSpacing 14) */
+  missionCreateFormSectionGap: "14px",
+  /**
+   * Create Mission — single-line field height: name, command, search row, date triggers
+   * (Figma 853:9644 / 853:9671; search toolbar 853:9669)
+   */
+  missionCreateFieldRowHeight: "32px",
+  /** Alias — embedded search row (853:9669) uses same 32px as missionCreateFieldRowHeight */
+  missionCreateSearchRowHeight: "32px",
 
   // --- Mission workspace shell (Create Mission / Fence / Assets / Review) ---
   /** Panel horizontal padding — was `px-4` everywhere */

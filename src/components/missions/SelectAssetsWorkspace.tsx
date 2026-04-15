@@ -1,50 +1,16 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { Device, DeviceType } from "@/types/aeroshield";
+import type { Device } from "@/types/aeroshield";
 import { COLOR, FONT, RADIUS, SPACING } from "@/styles/driifTokens";
 import {
   MissionWorkspaceHeader,
   MissionWorkspacePanel,
 } from "@/components/missions/MissionWorkspaceShell";
-
-function deviceTypeLabel(deviceType: DeviceType): string {
-  switch (deviceType) {
-    case "DETECTION":
-      return "Detection";
-    case "JAMMER":
-      return "Jammer";
-    case "DETECTION_JAMMER":
-      return "Detection + Jammer";
-    default:
-      return deviceType;
-  }
-}
-
-function formatRangeKm(detectionRadiusM: number | null): string | null {
-  if (detectionRadiusM == null) return null;
-  const km = detectionRadiusM / 1000;
-  if (km >= 1) {
-    const rounded = km >= 10 ? Math.round(km) : Math.round(km * 10) / 10;
-    return `${rounded}km range`;
-  }
-  return `${Math.round(detectionRadiusM)}m range`;
-}
-
-function formatDeviceSubtitle(device: Device): string {
-  const parts: string[] = [];
-  const range = formatRangeKm(device.detection_radius_m);
-  if (range) parts.push(range);
-  parts.push(deviceTypeLabel(device.device_type));
-  if (device.mission_id) parts.push("On another mission");
-  return parts.join(" • ");
-}
-
-function deviceDisplayName(device: Device): string {
-  const name = device.name?.trim();
-  if (name) return name;
-  return device.serial_number || device.id.slice(0, 8);
-}
+import {
+  deviceDisplayName,
+  formatDeviceSubtitle,
+} from "@/utils/deviceDisplay";
 
 export type SelectAssetsWorkspaceProps = {
   devices: Device[];

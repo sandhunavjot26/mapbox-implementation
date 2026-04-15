@@ -6,7 +6,7 @@ import { CustomDateTimeField } from "@/components/ui/CustomDateTimeField";
 import { COLOR, FONT, RADIUS, SPACING } from "@/styles/driifTokens";
 import { CreateFenceWorkspace } from "@/components/missions/CreateFenceWorkspace";
 import { SelectAssetsWorkspace } from "@/components/missions/SelectAssetsWorkspace";
-import type { Device, SavedFence } from "@/types/aeroshield";
+import type { Device, DeviceStatus, SavedFence } from "@/types/aeroshield";
 import type {
   MissionReviewLaunchContent,
   MissionType,
@@ -16,6 +16,11 @@ import {
   MissionWorkspaceHeader,
   MissionWorkspacePanel,
 } from "@/components/missions/MissionWorkspaceShell";
+import {
+  deviceDisplayName,
+  formatSelectedRadarMetaLine,
+  getDeviceStatusPresentation,
+} from "@/utils/deviceDisplay";
 
 export type { MissionType } from "@/types/missionCreate";
 
@@ -55,10 +60,27 @@ export type CreateMissionFormProps = {
   ) => void;
 };
 
-function deviceLabel(device: Device): string {
-  const name = device.name?.trim();
-  if (name) return name;
-  return device.serial_number || device.id.slice(0, 8);
+function radarStatusPillColors(status: DeviceStatus): {
+  text: string;
+  background: string;
+} {
+  const { variant } = getDeviceStatusPresentation(status);
+  if (variant === "ok") {
+    return {
+      text: COLOR.missionCreateRadarStatusPillText,
+      background: COLOR.missionCreateRadarStatusPillBg,
+    };
+  }
+  if (variant === "offline") {
+    return {
+      text: COLOR.missionCreateRadarStatusOfflinePillText,
+      background: COLOR.missionCreateRadarStatusOfflinePillBg,
+    };
+  }
+  return {
+    text: COLOR.missionsSecondaryText,
+    background: "rgba(255, 255, 255, 0.08)",
+  };
 }
 
 export function CreateMissionForm({
@@ -131,7 +153,7 @@ export function CreateMissionForm({
     const q = assetSearch.trim().toLowerCase();
     if (!q) return selectedDevices;
     return selectedDevices.filter((d) =>
-      `${deviceLabel(d)} ${d.serial_number}`.toLowerCase().includes(q),
+      `${deviceDisplayName(d)} ${d.serial_number}`.toLowerCase().includes(q),
     );
   }, [selectedDevices, assetSearch]);
 
@@ -177,9 +199,12 @@ export function CreateMissionForm({
       <div className="driif-mission-scrollbar min-h-0 flex-1 overflow-y-auto pr-1">
         <div
           className="flex flex-col"
-          style={{ gap: SPACING.missionCreateBlockGapMd }}
+          style={{ gap: SPACING.missionCreateFormSectionGap }}
         >
-          <div className="flex flex-col" style={{ gap: SPACING.settingsGap }}>
+          <div
+            className="flex flex-col"
+            style={{ gap: SPACING.missionCreateFormSectionGap }}
+          >
             <div
               className="flex flex-col"
               style={{ gap: SPACING.missionCreateStackGapMd }}
@@ -188,7 +213,7 @@ export function CreateMissionForm({
                 className="flex items-center overflow-hidden border px-3"
                 style={{
                   ...fieldShellStyle,
-                  minHeight: SPACING.iconRowHeight,
+                  minHeight: SPACING.missionCreateFieldRowHeight,
                   borderRadius: RADIUS.panel,
                 }}
               >
@@ -231,7 +256,7 @@ export function CreateMissionForm({
             </div>
 
             <div
-              className="flex flex-col py-1"
+              className="flex flex-col"
               style={{ gap: SPACING.missionCreateBlockGapSm }}
             >
               <p
@@ -266,7 +291,8 @@ export function CreateMissionForm({
                           ? COLOR.missionCreatePrimaryChipText
                           : COLOR.missionCreateSecondaryChipText,
                         fontFamily: `${FONT.family}, sans-serif`,
-                        fontSize: FONT.sizeXs,
+                        fontSize: FONT.sizeSm,
+                        fontWeight: FONT.weightNormal,
                         lineHeight: "16px",
                       }}
                     >
@@ -341,7 +367,10 @@ export function CreateMissionForm({
             </div>
           </div>
 
-          <div className="flex flex-col" style={{ gap: SPACING.settingsGap }}>
+          <div
+            className="flex flex-col"
+            style={{ gap: SPACING.missionCreateStackGapMd }}
+          >
             <div
               className="flex"
               style={{ gap: SPACING.missionCreateBlockGapMd }}
@@ -355,7 +384,10 @@ export function CreateMissionForm({
                     sectionTab === "fences"
                       ? COLOR.missionCreateTabActiveBorder
                       : "transparent",
-                  color: COLOR.missionsTitleMuted,
+                  color:
+                    sectionTab === "fences"
+                      ? COLOR.missionsTitleMuted
+                      : COLOR.missionCreateTabInactiveText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeMd,
                   fontWeight:
@@ -399,7 +431,7 @@ export function CreateMissionForm({
                 style={{
                   background: COLOR.missionCreateSectionBg,
                   minHeight: SPACING.missionCreateSectionMinHeight,
-                  gap: SPACING.missionCreateBlockGapSm,
+                  gap: SPACING.missionCreateBlockGapMd,
                   borderRadius: RADIUS.panel,
                   paddingTop: SPACING.missionCreateSectionVerticalPad,
                   paddingBottom: SPACING.missionCreateSectionVerticalPad,
@@ -413,7 +445,7 @@ export function CreateMissionForm({
                     className="flex flex-1 items-center overflow-hidden border px-3"
                     style={{
                       ...fieldShellStyle,
-                      minHeight: SPACING.iconRowHeight,
+                      minHeight: SPACING.missionCreateFieldRowHeight,
                       borderRadius: RADIUS.panel,
                     }}
                   >
@@ -440,7 +472,7 @@ export function CreateMissionForm({
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeMd,
                       lineHeight: "20px",
-                      minHeight: SPACING.iconRowHeight,
+                      minHeight: SPACING.missionCreateFieldRowHeight,
                       borderRadius: RADIUS.panel,
                     }}
                   >
@@ -452,23 +484,49 @@ export function CreateMissionForm({
                   className="driif-mission-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"
                   style={{ gap: SPACING.missionCreateBlockGapSm }}
                 >
-                  {fenceItems.map((item) => (
+                  {fenceItems.map((item, index) => (
                     <div
-                      key={item.name}
+                      key={`${item.name}-${index}`}
+                      className="flex items-center justify-between"
                       style={{
                         background: COLOR.missionCreateFenceItemBg,
-                        color: COLOR.missionsBodyText,
-                        fontFamily: `${FONT.family}, sans-serif`,
-                        fontSize: FONT.sizeMd,
-                        lineHeight: "20px",
                         borderRadius: RADIUS.panel,
                         paddingLeft: SPACING.missionCreateListItemPadX,
                         paddingRight: SPACING.missionCreateListItemPadX,
                         paddingTop: SPACING.missionCreateListItemPadY,
                         paddingBottom: SPACING.missionCreateListItemPadY,
+                        gap: SPACING.missionCreateBlockGapMd,
                       }}
                     >
-                      {item.name}
+                      <span
+                        className="min-w-0 truncate"
+                        style={{
+                          color: COLOR.missionsBodyText,
+                          fontFamily: `${FONT.family}, sans-serif`,
+                          fontSize: FONT.sizeMd,
+                          lineHeight: "20px",
+                        }}
+                      >
+                        {item.name}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onFenceItemsChange(
+                            fenceItems.filter((_, i) => i !== index),
+                          )
+                        }
+                        className="shrink-0 border-0 bg-transparent p-0 transition-opacity hover:opacity-80"
+                        style={{
+                          color: COLOR.missionsTitleMuted,
+                          fontFamily: `${FONT.family}, sans-serif`,
+                          fontSize: FONT.sizeSm,
+                          lineHeight: "16px",
+                          cursor: "pointer",
+                        }}
+                      >
+                        Remove
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -479,7 +537,7 @@ export function CreateMissionForm({
                 style={{
                   background: COLOR.missionCreateSectionBg,
                   minHeight: SPACING.missionCreateSectionMinHeight,
-                  gap: SPACING.missionCreateBlockGapSm,
+                  gap: SPACING.missionCreateBlockGapMd,
                   borderRadius: RADIUS.panel,
                   paddingTop: SPACING.missionCreateSectionVerticalPad,
                   paddingBottom: SPACING.missionCreateSectionVerticalPad,
@@ -493,7 +551,7 @@ export function CreateMissionForm({
                     className="flex flex-1 items-center overflow-hidden border px-3"
                     style={{
                       ...fieldShellStyle,
-                      minHeight: SPACING.iconRowHeight,
+                      minHeight: SPACING.missionCreateFieldRowHeight,
                       borderRadius: RADIUS.panel,
                     }}
                   >
@@ -515,13 +573,12 @@ export function CreateMissionForm({
                     onClick={() => changeView("selectAssets")}
                     className="shrink-0 px-3"
                     style={{
-                      // Figma 853:9629 — add asset CTA uses primary lime/olive treatment
                       background: COLOR.missionsCreateBtnBg,
                       color: COLOR.missionsCreateBtnText,
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeMd,
                       lineHeight: "20px",
-                      minHeight: SPACING.iconRowHeight,
+                      minHeight: SPACING.missionCreateFieldRowHeight,
                       borderRadius: RADIUS.panel,
                     }}
                   >
@@ -533,46 +590,151 @@ export function CreateMissionForm({
                   className="driif-mission-scrollbar flex min-h-0 flex-1 flex-col overflow-y-auto"
                   style={{ gap: SPACING.missionCreateBlockGapSm }}
                 >
-                  {filteredSelectedAssets.map((device) => (
-                    <div
-                      key={device.id}
-                      className="flex items-center justify-between"
-                      style={{
-                        background: COLOR.missionsCardBg,
-                        color: COLOR.missionsBodyText,
-                        fontFamily: `${FONT.family}, sans-serif`,
-                        fontSize: FONT.sizeMd,
-                        lineHeight: "20px",
-                        borderRadius: RADIUS.panel,
-                        paddingLeft: SPACING.missionCreateListItemPadX,
-                        paddingRight: SPACING.missionCreateListItemPadX,
-                        paddingTop: SPACING.missionCreateListItemPadY,
-                        paddingBottom: SPACING.missionCreateListItemPadY,
-                        gap: SPACING.missionCreateBlockGapMd,
-                      }}
-                    >
-                      <span className="min-w-0 truncate">
-                        {deviceLabel(device)}
-                      </span>
-                      <button
-                        type="button"
-                        onClick={() =>
-                          onSelectedDeviceIdsChange(
-                            selectedDeviceIds.filter((id) => id !== device.id),
-                          )
-                        }
+                  {filteredSelectedAssets.map((device) => {
+                    const statusUi = getDeviceStatusPresentation(device.status);
+                    const pillColors = radarStatusPillColors(device.status);
+                    return (
+                      <div
+                        key={device.id}
+                        className="flex items-center justify-between"
                         style={{
-                          color: COLOR.missionsSecondaryText,
-                          fontFamily: `${FONT.family}, sans-serif`,
-                          fontSize: FONT.sizeXs,
-                          lineHeight: "16px",
-                          flexShrink: 0,
+                          background: COLOR.missionCreateFenceItemBg,
+                          borderRadius: RADIUS.panel,
+                          paddingLeft: SPACING.missionCreateListItemPadX,
+                          paddingRight: SPACING.missionCreateListItemPadX,
+                          paddingTop: SPACING.missionCreateListItemPadY,
+                          paddingBottom: SPACING.missionCreateListItemPadY,
+                          gap: SPACING.missionCreateBlockGapMd,
                         }}
                       >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                        <div
+                          className="flex min-w-0 flex-1 flex-col"
+                          style={{ gap: SPACING.missionCreateBlockGapMd }}
+                        >
+                          <div
+                            className="flex flex-col"
+                            style={{
+                              gap: SPACING.missionReviewChecklistStackGap,
+                            }}
+                          >
+                            <p
+                              className="m-0 truncate"
+                              style={{
+                                color: COLOR.missionsBodyText,
+                                fontFamily: `${FONT.family}, sans-serif`,
+                                fontSize: FONT.sizeMd,
+                                fontWeight: FONT.weightNormal,
+                                lineHeight: "20px",
+                              }}
+                            >
+                              {deviceDisplayName(device)}
+                            </p>
+                            <p
+                              className="m-0"
+                              style={{
+                                color: COLOR.missionsTitleMuted,
+                                fontFamily: `${FONT.family}, sans-serif`,
+                                fontSize: FONT.sizeSm,
+                                fontWeight: FONT.weightNormal,
+                                lineHeight: "16px",
+                              }}
+                            >
+                              {formatSelectedRadarMetaLine(device)}
+                            </p>
+                          </div>
+                          <button
+                            type="button"
+                            className="flex cursor-default items-center border-0 bg-transparent p-0"
+                            style={{
+                              gap: "2px",
+                              alignSelf: "flex-start",
+                              color: COLOR.missionsCreateBtnText,
+                              fontFamily: `${FONT.family}, sans-serif`,
+                              fontSize: FONT.sizeXs,
+                              fontWeight: FONT.weightMedium,
+                              letterSpacing: "0.06em",
+                              lineHeight: "13px",
+                              textTransform: "uppercase",
+                            }}
+                            aria-label="Configure (coming soon)"
+                          >
+                            <svg
+                              width={10}
+                              height={10}
+                              viewBox="0 0 10 10"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path
+                                d="M5 1.25a.55.55 0 0 1 .54.47l.04.35a2.8 2.8 0 0 1 .8.32l.3-.2a.55.55 0 0 1 .7.1l.24.24a.55.55 0 0 1 .1.7l-.2.3c.15.25.26.52.33.8l.35.04a.55.55 0 0 1 .47.54v.32a.55.55 0 0 1-.47.54l-.35.04a2.8 2.8 0 0 1-.33.8l.2.3a.55.55 0 0 1-.1.7l-.24.24a.55.55 0 0 1-.7.1l-.3-.2a2.8 2.8 0 0 1-.8.33l-.04.35a.55.55 0 0 1-.54.47h-.32a.55.55 0 0 1-.54-.47l-.04-.35a2.8 2.8 0 0 1-.8-.33l-.3.2a.55.55 0 0 1-.7-.1l-.24-.24a.55.55 0 0 1-.1-.7l.2-.3a2.8 2.8 0 0 1-.33-.8l-.35-.04A.55.55 0 0 1 1.25 5v-.32c0-.25.17-.46.47-.54l.35-.04c.07-.28.18-.55.33-.8l-.2-.3a.55.55 0 0 1 .1-.7l.24-.24a.55.55 0 0 1 .7-.1l.3.2c.25-.15.52-.26.8-.33l.04-.35A.55.55 0 0 1 4.68 1.25h.32zM5 3.4A1.6 1.6 0 1 0 5 6.6a1.6 1.6 0 0 0 0-3.2z"
+                                fill="currentColor"
+                              />
+                            </svg>
+                            Configure
+                          </button>
+                        </div>
+                        <div
+                          className="flex shrink-0 flex-col items-end"
+                          style={{ gap: SPACING.missionCreateBlockGapSm }}
+                        >
+                          <span
+                            className="inline-flex items-center"
+                            style={{
+                              gap: SPACING.missionReviewChecklistStackGap,
+                              paddingLeft: "4px",
+                              paddingRight: "4px",
+                              paddingTop: "2px",
+                              paddingBottom: "2px",
+                              borderRadius: "9999px",
+                              background: pillColors.background,
+                              color: pillColors.text,
+                              fontFamily: `${FONT.family}, sans-serif`,
+                              fontSize: FONT.sizeSm,
+                              fontWeight: FONT.weightNormal,
+                              lineHeight: "16px",
+                            }}
+                          >
+                            <svg
+                              width={12}
+                              height={12}
+                              viewBox="0 0 12 12"
+                              fill="none"
+                              xmlns="http://www.w3.org/2000/svg"
+                              aria-hidden
+                            >
+                              <path
+                                d="M10 3L4.5 8.5L2 6"
+                                stroke="currentColor"
+                                strokeWidth="1.5"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              />
+                            </svg>
+                            {statusUi.label}
+                          </span>
+                          <button
+                            type="button"
+                            onClick={() =>
+                              onSelectedDeviceIdsChange(
+                                selectedDeviceIds.filter((id) => id !== device.id),
+                              )
+                            }
+                            className="shrink-0 border-0 bg-transparent p-0 transition-opacity hover:opacity-80"
+                            style={{
+                              color: COLOR.missionsTitleMuted,
+                              fontFamily: `${FONT.family}, sans-serif`,
+                              fontSize: FONT.sizeSm,
+                              lineHeight: "16px",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
               </div>
             )}
