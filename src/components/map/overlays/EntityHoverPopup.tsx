@@ -1,31 +1,72 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
 import type { Asset } from "@/types/assets";
 import type { Target } from "@/types/targets";
 import { subscribeToPopup, PopupState, clearSelection } from "../mapController";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useAttackModeStore } from "@/stores/attackModeStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
+import { useMissionStore } from "@/stores/missionStore";
 import { AssetPopupControls } from "@/components/commands/PopupControls";
 import { DroneOverlayCard } from "./DroneOverlayCard";
 import { RadarOverlayCard } from "./RadarOverlayCard";
 import { reclassifyTarget, confirmThreat } from "@/stores/mapActionsStore";
 import { useTargetsStore as useTargetsStoreActions } from "@/stores/targetsStore";
+import { executeEngageJam } from "@/lib/engageJamCommand";
+import { COLOR, FONT, RADIUS } from "@/styles/driifTokens";
 
 /** Staleness threshold: no update for this many seconds → show stale */
 const STALE_SECONDS = 30;
 
-// Status color mapping
-const statusColors: Record<string, string> = {
-  ACTIVE: "text-green-400",
-  INACTIVE: "text-slate-500",
+/** Mini hover card — matches DroneOverlayCard / RadarOverlayCard panel surface */
+const HOVER_TOOLTIP_SHELL: CSSProperties = {
+  background: COLOR.missionsPanelBg,
+  border: "1px solid rgba(255, 255, 255, 0.2)",
+  borderRadius: RADIUS.panel,
+  padding: "10px 14px",
+  minWidth: "200px",
+  fontFamily: `${FONT.family}, sans-serif`,
 };
+
+const rowStyle: CSSProperties = {
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "baseline",
+  gap: "12px",
+  fontSize: FONT.sizeSm,
+  lineHeight: "16px",
+};
+
+const labelStyle: CSSProperties = {
+  color: COLOR.missionsSecondaryText,
+  flexShrink: 0,
+};
+
+const valueStyle: CSSProperties = {
+  color: COLOR.missionCreateFieldText,
+  textAlign: "right" as const,
+  minWidth: 0,
+};
+
+function assetStatusColor(status: string): string {
+  if (status === "ACTIVE") return COLOR.statusOnline;
+  return COLOR.missionsSecondaryText;
+}
 
 export function EntityHoverPopup() {
   const [popupState, setPopupState] = useState<PopupState | null>(null);
+  const [engageError, setEngageError] = useState<string | null>(null);
+  const [engagePending, setEngagePending] = useState(false);
   const targets = useTargetsStore((s) => s.targets);
   const reclassifyTargetInStore = useTargetsStoreActions((s) => s.reclassifyTarget);
+  const activeMissionId = useMissionStore((s) => s.activeMissionId);
+
+  const popupTargetId =
+    popupState?.entityType === "target"
+      ? (popupState.data as Target).id
+      : null;
 
   useEffect(() => {
     const unsubscribe = subscribeToPopup((state) => {
@@ -33,6 +74,25 @@ export function EntityHoverPopup() {
     });
     return unsubscribe;
   }, []);
+
+  useEffect(() => {
+    setEngageError(null);
+    setEngagePending(false);
+  }, [popupTargetId]);
+
+  const handleEngageTarget = useCallback(
+    async (t: Target) => {
+      setEngagePending(true);
+      setEngageError(null);
+      try {
+        const result = await executeEngageJam(t, activeMissionId);
+        if (!result.ok) setEngageError(result.error);
+      } finally {
+        setEngagePending(false);
+      }
+    },
+    [activeMissionId],
+  );
 
   if (!popupState || !popupState.visible) {
     return null;
@@ -159,7 +219,10 @@ export function EntityHoverPopup() {
                 reclassifyTarget(liveTarget.id, "FRIENDLY");
                 reclassifyTargetInStore(liveTarget.id, "FRIENDLY");
               }}
-              onEscalate={() => { }}
+              onEngage={() => handleEngageTarget(liveTarget)}
+              engagePending={engagePending}
+              engageError={engageError}
+              onDismissEngageError={() => setEngageError(null)}
               onReturnToBase={() => { }}
               onHoverHold={() => { }}
               onAbort={() => { }}
@@ -278,7 +341,7 @@ export function EntityHoverPopup() {
       className="fixed z-50 pointer-events-none"
       style={{ left: screenPosition.x + offsetX, top: screenPosition.y + offsetY }}
     >
-      <div className="bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px]">
+      <div style={HOVER_TOOLTIP_SHELL}>
         <AssetPopupContent data={data as Asset} isPinned={false} />
       </div>
     </div>
@@ -309,56 +372,111 @@ function AssetPopupContent({
   const attackMode = useAttackModeStore((s) => s.getAttackMode(data.id));
   const deviceStatus = useDeviceStatusStore((s) => s.getDeviceStatus(data.id));
 
+  const headerRow: CSSProperties = {
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: "12px",
+    paddingBottom: "8px",
+    marginBottom: "6px",
+    borderBottom: `1px solid ${COLOR.borderMedium}`,
+  };
+
+  const titleStyle: CSSProperties = {
+    color: COLOR.missionsBodyText,
+    fontSize: FONT.sizeMd,
+    lineHeight: "20px",
+    fontWeight: FONT.weightBold,
+    fontFamily: `${FONT.mono}, monospace`,
+    overflow: "hidden",
+    textOverflow: "ellipsis",
+    whiteSpace: "nowrap",
+    minWidth: 0,
+  };
+
+  const badgeBase: CSSProperties = {
+    fontSize: FONT.sizeXs,
+    lineHeight: "14px",
+    fontFamily: `${FONT.mono}, monospace`,
+    padding: "2px 6px",
+    borderRadius: RADIUS.panel,
+    flexShrink: 0,
+  };
+
+  const detailStack: CSSProperties = {
+    display: "flex",
+    flexDirection: "column",
+    gap: "4px",
+    fontFamily: `${FONT.mono}, monospace`,
+  };
+
+  const detailRowFont: CSSProperties = {
+    fontSize: FONT.sizeXs,
+    lineHeight: "14px",
+  };
+
+  const detailRow: CSSProperties = { ...rowStyle, ...detailRowFont };
+
   return (
-    <div className="space-y-1">
-      {/* Header */}
-      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50 pr-5">
-        <span className="text-slate-200 text-xs font-mono font-semibold">
-          {data.name}
-        </span>
-        <div className="flex items-center gap-1.5 shrink-0">
+    <div>
+      <div style={headerRow}>
+        <span style={titleStyle}>{data.name}</span>
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
           {attackMode && (
             <span
-              className={`text-[10px] font-mono px-1.5 py-0.5 ${attackMode.jamActive ? "text-red-400 bg-red-950/50" : "text-slate-500 bg-slate-800"
-                }`}
+              style={{
+                ...badgeBase,
+                color: attackMode.jamActive ? COLOR.statusDanger : COLOR.missionsSecondaryText,
+                background: attackMode.jamActive
+                  ? "rgba(239, 68, 68, 0.18)"
+                  : COLOR.missionCreateFieldBg,
+              }}
             >
               {attackMode.jamActive ? "Jam: ON" : "Idle"}
             </span>
           )}
-          <span className={`text-[10px] font-mono ${statusColors[data.status]}`}>
+          <span
+            style={{
+              ...badgeBase,
+              color: assetStatusColor(data.status),
+            }}
+          >
             {data.status}
           </span>
         </div>
       </div>
 
-      {/* Details */}
-      <div className="space-y-0.5 text-[10px] font-mono">
-        <div className="flex justify-between">
-          <span className="text-slate-500">ID</span>
-          <span className="text-slate-400 truncate max-w-[120px]">{data.id}</span>
+      <div style={{ ...detailStack, ...detailRowFont }}>
+        <div style={detailRow}>
+          <span style={{ ...labelStyle, ...detailRowFont }}>ID</span>
+          <span style={{ ...valueStyle, ...detailRowFont, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis" }}>
+            {data.id}
+          </span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Area</span>
-          <span className="text-slate-400">{data.area}</span>
+        <div style={detailRow}>
+          <span style={{ ...labelStyle, ...detailRowFont }}>Area</span>
+          <span style={{ ...valueStyle, ...detailRowFont }}>{data.area}</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Altitude</span>
-          <span className="text-slate-400">{data.altitude} FT</span>
+        <div style={detailRow}>
+          <span style={{ ...labelStyle, ...detailRowFont }}>Altitude</span>
+          <span style={{ ...valueStyle, ...detailRowFont }}>{data.altitude} FT</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Coverage</span>
-          <span className="text-slate-400">{data.coverageRadiusKm} KM</span>
+        <div style={detailRow}>
+          <span style={{ ...labelStyle, ...detailRowFont }}>Coverage</span>
+          <span style={{ ...valueStyle, ...detailRowFont }}>{data.coverageRadiusKm} KM</span>
         </div>
         {deviceStatus && (
           <>
-            <div className="flex justify-between">
-              <span className="text-slate-500">Last seen</span>
-              <span className="text-slate-400 truncate max-w-[120px]">{formatLastSeen(deviceStatus.last_seen)}</span>
+            <div style={detailRow}>
+              <span style={{ ...labelStyle, ...detailRowFont }}>Last seen</span>
+              <span style={{ ...valueStyle, ...detailRowFont, maxWidth: "140px", overflow: "hidden", textOverflow: "ellipsis" }}>
+                {formatLastSeen(deviceStatus.last_seen)}
+              </span>
             </div>
             {deviceStatus.op_status != null && (
-              <div className="flex justify-between">
-                <span className="text-slate-500">Op status</span>
-                <span className="text-slate-400">{String(deviceStatus.op_status)}</span>
+              <div style={detailRow}>
+                <span style={{ ...labelStyle, ...detailRowFont }}>Op status</span>
+                <span style={{ ...valueStyle, ...detailRowFont }}>{String(deviceStatus.op_status)}</span>
               </div>
             )}
           </>
@@ -379,39 +497,86 @@ function TargetHoverTooltip({ target }: { target: Target }) {
   const classLabel =
     target.classification === "UNKNOWN" ? "ENEMY" : target.classification;
   const classColor =
-    classLabel === "ENEMY" ? "text-red-400" : "text-green-400";
+    classLabel === "ENEMY" ? COLOR.droneEnemy : COLOR.droneFriendly;
+
+  const mono: CSSProperties = { fontFamily: `${FONT.mono}, monospace` };
 
   return (
-    <div className="bg-slate-900/95 border border-slate-700 backdrop-blur-sm px-3 py-2 min-w-[180px] space-y-1">
-      <div className="flex items-center justify-between gap-4 pb-1 border-b border-slate-700/50">
-        <span className="text-slate-200 text-xs font-mono font-semibold truncate max-w-[140px]">
+    <div style={{ ...HOVER_TOOLTIP_SHELL, display: "flex", flexDirection: "column", gap: "8px" }}>
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          gap: "12px",
+          paddingBottom: "8px",
+          borderBottom: `1px solid ${COLOR.borderMedium}`,
+        }}
+      >
+        <span
+          style={{
+            color: COLOR.missionsBodyText,
+            fontSize: FONT.sizeMd,
+            lineHeight: "20px",
+            fontWeight: FONT.weightBold,
+            ...mono,
+            overflow: "hidden",
+            textOverflow: "ellipsis",
+            whiteSpace: "nowrap",
+            minWidth: 0,
+            maxWidth: "160px",
+          }}
+        >
           {target.targetName ?? target.id}
         </span>
-        <div className="flex items-center gap-1 shrink-0">
+        <div style={{ display: "flex", alignItems: "center", gap: "6px", flexShrink: 0 }}>
           {isStale && (
-            <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-1 py-0.5 animate-pulse whitespace-nowrap">
+            <span
+              style={{
+                fontSize: FONT.sizeXs,
+                lineHeight: "14px",
+                ...mono,
+                color: COLOR.missionsSecondaryText,
+                background: COLOR.missionCreateFieldBg,
+                padding: "2px 6px",
+                borderRadius: RADIUS.panel,
+                whiteSpace: "nowrap",
+              }}
+            >
               Stale
             </span>
           )}
-          <span className={`text-[10px] font-mono ${classColor}`}>
+          <span style={{ fontSize: FONT.sizeXs, lineHeight: "14px", ...mono, color: classColor }}>
             {classLabel}
           </span>
         </div>
       </div>
-      <div className="space-y-0.5 text-[10px] font-mono">
-        <div className="flex justify-between gap-6">
-          <span className="text-slate-500">Distance</span>
-          <span className="text-slate-400">{target.distanceKm.toFixed(1)} km</span>
+      <div style={{ display: "flex", flexDirection: "column", gap: "4px", ...mono }}>
+        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "14px" }}>
+          <span style={{ ...labelStyle, fontSize: FONT.sizeXs }}>Distance</span>
+          <span style={{ ...valueStyle, fontSize: FONT.sizeXs }}>{target.distanceKm.toFixed(1)} km</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Altitude</span>
-          <span className="text-slate-400">{target.altitude} ft</span>
+        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "14px" }}>
+          <span style={{ ...labelStyle, fontSize: FONT.sizeXs }}>Altitude</span>
+          <span style={{ ...valueStyle, fontSize: FONT.sizeXs }}>{target.altitude} ft</span>
         </div>
-        <div className="flex justify-between">
-          <span className="text-slate-500">Heading</span>
-          <span className="text-slate-400">{target.heading}°</span>
+        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "14px" }}>
+          <span style={{ ...labelStyle, fontSize: FONT.sizeXs }}>Heading</span>
+          <span style={{ ...valueStyle, fontSize: FONT.sizeXs }}>{target.heading}°</span>
         </div>
-        <p className="text-slate-600 pt-0.5">Click to open full panel</p>
+        <p
+          style={{
+            margin: 0,
+            paddingTop: "4px",
+            fontSize: FONT.sizeXs,
+            lineHeight: "14px",
+            color: COLOR.missionsSecondaryText,
+            ...mono,
+            opacity: 0.85,
+          }}
+        >
+          Click to open full panel
+        </p>
       </div>
     </div>
   );

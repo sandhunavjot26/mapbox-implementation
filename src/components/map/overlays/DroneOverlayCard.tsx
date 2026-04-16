@@ -1427,11 +1427,18 @@ const FRIENDLY_LOGS: LogEntry[] = [
 interface EnemyActionsProps {
   onInitiateJam: () => void;
   onMarkFriendly: () => void;
-  onEscalate: () => void;
+  onEngage: () => void;
+  engagePending?: boolean;
   disabled?: boolean;
 }
 
-function EnemyActions({ onInitiateJam, onMarkFriendly, onEscalate, disabled }: EnemyActionsProps) {
+function EnemyActions({
+  onInitiateJam,
+  onMarkFriendly,
+  onEngage,
+  engagePending,
+  disabled,
+}: EnemyActionsProps) {
   const btnBase: React.CSSProperties = {
     height: "30px",
     display: "flex",
@@ -1475,18 +1482,11 @@ function EnemyActions({ onInitiateJam, onMarkFriendly, onEscalate, disabled }: E
       </button>
       <button
         type="button"
-        onClick={onEscalate}
-        disabled={disabled}
-        style={{
-          ...btnBase,
-          flex: "1 0 0",
-          minWidth: 0,
-          background: COLOR.missionsCardBg,
-          border: `1px solid ${COLOR.missionCreateFooterBorder}`,
-          color: COLOR.missionCreateFieldText,
-        }}
+        onClick={onEngage}
+        disabled={disabled || engagePending}
+        style={{ ...btnBase, flexShrink: 0, background: RED_THREAT_BG, color: RED_THREAT }}
       >
-        Escalate
+        Engage
       </button>
     </div>
   );
@@ -1583,7 +1583,10 @@ export interface DroneOverlayCardProps {
   // Enemy actions
   onInitiateJam?: () => void;
   onMarkFriendly?: () => void;
-  onEscalate?: () => void;
+  onEngage?: () => void;
+  engagePending?: boolean;
+  engageError?: string | null;
+  onDismissEngageError?: () => void;
   // Friendly actions
   onReturnToBase?: () => void;
   onHoverHold?: () => void;
@@ -1598,7 +1601,10 @@ export function DroneOverlayCard({
   style: styleProp,
   onInitiateJam,
   onMarkFriendly,
-  onEscalate,
+  onEngage,
+  engagePending,
+  engageError,
+  onDismissEngageError,
   onReturnToBase,
   onHoverHold,
   onAbort,
@@ -1679,11 +1685,50 @@ export function DroneOverlayCard({
         {enemyTab === "threat" && <EnemyThreatTab />}
         {enemyTab === "logs" && <LogsTab entries={ENEMY_LOGS} />}
 
+        {engageError ? (
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: "8px",
+              padding: "6px 8px",
+              border: `1px solid ${RED_THREAT}`,
+              background: RED_THREAT_BG,
+              borderRadius: "2px",
+              fontSize: FONT.sizeSm,
+              lineHeight: "16px",
+              color: RED_THREAT,
+            }}
+          >
+            <span style={{ flex: "1 1 auto", minWidth: 0 }}>{engageError}</span>
+            {onDismissEngageError && (
+              <button
+                type="button"
+                onClick={onDismissEngageError}
+                style={{
+                  flexShrink: 0,
+                  background: "transparent",
+                  border: "none",
+                  color: COLOR.missionCreateFieldText,
+                  cursor: "pointer",
+                  fontSize: FONT.sizeSm,
+                  lineHeight: 1,
+                  padding: "0 4px",
+                }}
+                aria-label="Dismiss"
+              >
+                ×
+              </button>
+            )}
+          </div>
+        ) : null}
+
         {/* Action row */}
         <EnemyActions
           onInitiateJam={onInitiateJam ?? (() => { })}
           onMarkFriendly={onMarkFriendly ?? (() => { })}
-          onEscalate={onEscalate ?? (() => { })}
+          onEngage={onEngage ?? (() => { })}
+          engagePending={engagePending}
         />
       </div>
     );

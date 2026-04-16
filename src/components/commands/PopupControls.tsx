@@ -3,12 +3,13 @@
 import { useState } from "react";
 import type { Asset } from "@/types/assets";
 import type { Target, TargetClassification } from "@/types/targets";
-import { reclassifyTarget, confirmThreat } from "@/stores/mapActionsStore";
+import { reclassifyTarget } from "@/stores/mapActionsStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useMissionStore } from "@/stores/missionStore";
 import { createCommand } from "@/lib/api/commands";
-import { ApiClientError } from "@/lib/api/client";
 import { useCommandsStore } from "@/stores/commandsStore";
+import { formatCommandError } from "@/lib/formatCommandError";
+import { executeEngageJam } from "@/lib/engageJamCommand";
 import { TurntableControls } from "@/components/commands/TurntableControls";
 import { BandRangeEditor } from "@/components/commands/BandRangeEditor";
 
@@ -22,21 +23,6 @@ const CLASSIFY_OPTIONS: { id: TargetClassification; label: string }[] = [
 const ASSET_QUERY_COMMANDS = [
   { id: "ATTACK_MODE_QUERY", label: "Attack Mode Query" },
 ];
-
-/** Convert API error to a string — detail can be object/array (e.g. Pydantic validation errors) */
-function formatCommandError(err: unknown): string {
-  if (err instanceof ApiClientError) {
-    const d: unknown = (err as ApiClientError & { detail?: unknown }).detail;
-    if (typeof d === "string") return d;
-    if (Array.isArray(d)) {
-      const msgs = (d as Array<{ msg?: string }>).map((e) => e?.msg ?? JSON.stringify(e));
-      return msgs.join("; ") || err.message;
-    }
-    if (d && typeof d === "object") return JSON.stringify(d);
-    return err.message ?? "Command failed";
-  }
-  return "Command failed. Check network.";
-}
 
 interface TargetPopupControlsProps {
   target: Target;
@@ -91,39 +77,12 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
   };
 
   const handleEngage = async () => {
-    confirmThreat(target.id);
-    if (!activeMissionId) return;
-    const t = target as Target & { deviceId?: string | null };
-    const deviceId = t?.deviceId;
-    if (!deviceId) return;
-
+    if (target.classification !== "ENEMY") return;
     setCommandPending(true);
     setCommandError(null);
     try {
-      // Per GUI Developer Guide: ATTACK_MODE_SET payload { mode, switch }
-      // mode: 0=Expulsion (Jam), 1=ForcedLanding; switch: 0=Off, 1=On
-      const out = await createCommand({
-        mission_id: activeMissionId,
-        device_id: deviceId,
-        command_type: "ATTACK_MODE_SET",
-        payload: { mode: 0, switch: 1 },
-      });
-      // Store command with full fields for RecentCommands (packet_no, created_at)
-      useCommandsStore.getState().addOrUpdateCommand({
-        id: out.id,
-        mission_id: out.mission_id,
-        device_id: out.device_id,
-        command_type: out.command_type,
-        status: out.status,
-        approved_count: out.approved_count,
-        required_approvals: out.required_approvals,
-        last_error: out.last_error,
-        engaged_target_id: target.id,
-        packet_no: out.packet_no ?? undefined,
-        created_at: new Date().toISOString(),
-      });
-    } catch (err) {
-      setCommandError(formatCommandError(err));
+      const result = await executeEngageJam(target, activeMissionId);
+      if (!result.ok) setCommandError(result.error);
     } finally {
       setCommandPending(false);
     }
