@@ -4,6 +4,7 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CopShell } from "@/components/cop-shell/CopShell";
+import { DetectionsPanel } from "@/components/detections/DetectionsPanel";
 import { CopTopBar } from "@/components/cop-shell/CopTopBar";
 import { MissionSelector } from "@/components/missions/MissionSelector";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
@@ -60,6 +61,7 @@ export default function DashboardPage() {
     "night",
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
+  const [detectionsOpen, setDetectionsOpen] = useState(false);
   const [activeNavKey, setActiveNavKey] = useState<string | null>(null);
   const [mapDismissLocked, setMapDismissLocked] = useState(false);
   const [interceptStats, setInterceptStats] = useState({
@@ -204,7 +206,20 @@ export default function DashboardPage() {
         onNav={onShellNav}
         hasMission={!!activeMissionId}
         onBell={onShellClose}
+        onDetection={() => setDetectionsOpen((v) => !v)}
       />
+
+      {detectionsOpen && (
+        <div
+          className="pointer-events-auto absolute z-[12]"
+          style={{
+            right: POSITION.bellRight,
+            top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
+          }}
+        >
+          <DetectionsPanel />
+        </div>
+      )}
 
       {missionsOpen && (
         <div
