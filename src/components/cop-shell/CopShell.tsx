@@ -28,6 +28,8 @@ export type CopShellProps = {
   hasMission: boolean;
   /** Top-right bell: exit mission or close overlays */
   onBell: () => void;
+  /** Top-right detection control (left of notifications) */
+  onDetection?: () => void;
 };
 
 export function CopShell({
@@ -35,6 +37,7 @@ export function CopShell({
   onNav,
   hasMission,
   onBell,
+  onDetection,
 }: CopShellProps) {
   return (
     <div className="pointer-events-none absolute inset-0 z-11">
@@ -128,32 +131,62 @@ export function CopShell({
         ))}
       </div>
 
-      <button
-        type="button"
-        title={hasMission ? "Exit mission" : "Notifications"}
-        aria-label={hasMission ? "Exit mission" : "Notifications"}
-        className="pointer-events-auto absolute flex items-center justify-center p-2"
+      <div
+        className="pointer-events-auto absolute flex items-center gap-1"
         style={{
           right: POSITION.bellRight,
           top: POSITION.bellTop,
-          width: POSITION.bellSize,
-          height: POSITION.bellSize,
-          background: COP_GLASS_PANEL.background,
-          border: COP_GLASS_PANEL.border,
-          borderRadius: RADIUS.panel,
-          boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-          backdropFilter: COP_GLASS_PANEL.backdropFilter,
         }}
-        onClick={onBell}
       >
-        <Image
-          src="/icons/notifications.svg"
-          alt=""
-          width={20}
-          height={20}
-          className="opacity-90"
-        />
-      </button>
+        <button
+          type="button"
+          title="Detection"
+          aria-label="Detection"
+          className="flex shrink-0 items-center justify-center p-2"
+          style={{
+            width: POSITION.bellSize,
+            height: POSITION.bellSize,
+            background: COP_GLASS_PANEL.background,
+            border: COP_GLASS_PANEL.border,
+            borderRadius: RADIUS.panel,
+            boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
+            backdropFilter: COP_GLASS_PANEL.backdropFilter,
+          }}
+          onClick={() => onDetection?.()}
+        >
+          <Image
+            src="/icons/detection.svg"
+            alt=""
+            width={20}
+            height={20}
+            className="opacity-90"
+          />
+        </button>
+        <button
+          type="button"
+          title={hasMission ? "Exit mission" : "Notifications"}
+          aria-label={hasMission ? "Exit mission" : "Notifications"}
+          className="flex shrink-0 items-center justify-center p-2"
+          style={{
+            width: POSITION.bellSize,
+            height: POSITION.bellSize,
+            background: COP_GLASS_PANEL.background,
+            border: COP_GLASS_PANEL.border,
+            borderRadius: RADIUS.panel,
+            boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
+            backdropFilter: COP_GLASS_PANEL.backdropFilter,
+          }}
+          onClick={onBell}
+        >
+          <Image
+            src="/icons/notifications.svg"
+            alt=""
+            width={20}
+            height={20}
+            className="opacity-90"
+          />
+        </button>
+      </div>
     </div>
   );
 }
