@@ -869,31 +869,31 @@ function FrequencyChip({
 }) {
   const style: React.CSSProperties = selected
     ? {
-        fontSize: FONT.sizeSm,
-        lineHeight: "16px",
-        fontFamily: `${FONT.family}, sans-serif`,
-        padding: "4px 8px",
-        borderRadius: "2px",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        flexShrink: 0,
-        border: `1px solid ${FREQ_PRIMARY}`,
-        color: FREQ_PRIMARY,
-        background: "transparent",
-      }
+      fontSize: FONT.sizeSm,
+      lineHeight: "16px",
+      fontFamily: `${FONT.family}, sans-serif`,
+      padding: "4px 8px",
+      borderRadius: "2px",
+      cursor: "pointer",
+      whiteSpace: "nowrap",
+      flexShrink: 0,
+      border: `1px solid ${FREQ_PRIMARY}`,
+      color: FREQ_PRIMARY,
+      background: "transparent",
+    }
     : {
-        fontSize: FONT.sizeSm,
-        lineHeight: "16px",
-        fontFamily: `${FONT.family}, sans-serif`,
-        padding: "4px 8px",
-        borderRadius: "2px",
-        cursor: "pointer",
-        whiteSpace: "nowrap",
-        flexShrink: 0,
-        border: "1px solid transparent",
-        background: COLOR.missionCreateFieldBg,
-        color: COLOR.missionsSecondaryText,
-      };
+      fontSize: FONT.sizeSm,
+      lineHeight: "16px",
+      fontFamily: `${FONT.family}, sans-serif`,
+      padding: "4px 8px",
+      borderRadius: "2px",
+      cursor: "pointer",
+      whiteSpace: "nowrap",
+      flexShrink: 0,
+      border: "1px solid transparent",
+      background: COLOR.missionCreateFieldBg,
+      color: COLOR.missionsSecondaryText,
+    };
 
   return (
     <button
@@ -1393,6 +1393,43 @@ function InfoRow({ label, value }: { label: string; value: string }) {
   );
 }
 
+function MissionDetailsFooter() {
+  const btnStyle: React.CSSProperties = {
+    width: "100%",
+    height: "32px",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: "2px",
+    fontSize: FONT.sizeSm,
+    lineHeight: "16px",
+    cursor: "pointer",
+    border: `1px solid ${COLOR.missionCreateFooterBorder}`,
+    padding: "4px 8px",
+    background: COLOR.missionsCardBg,
+    color: COLOR.missionCreateFieldText,
+  };
+
+  return (
+    <div
+      style={{
+        paddingTop: "4px",
+        flexShrink: 0,
+      }}
+    >
+      <button
+        type="button"
+        style={btnStyle}
+        onClick={() => {
+          /* Mission details action — wire when flow is ready */
+        }}
+      >
+        Mission details
+      </button>
+    </div>
+  );
+}
+
 // ---------------------------------------------------------------------------
 // DEV: Hard-code the first radar that is opened as degraded for UI testing.
 // Remove this block (and the check below) when real WS status is available.
@@ -1454,6 +1491,9 @@ export function RadarOverlayCard({ asset, deviceStatus, style }: RadarOverlayCar
       {activeTab === "overview" && <OverviewTab asset={asset} isDegraded={isDegraded} />}
       {activeTab === "hardware" && <HardwareTab />}
       {activeTab === "logs" && <LogsTab />}
+
+      {/* 6. Mission assignment (from active workspace mission) */}
+      <MissionDetailsFooter />
     </div>
   );
 }
