@@ -1395,7 +1395,8 @@ function InfoRow({ label, value }: { label: string; value: string }) {
 
 function MissionDetailsFooter() {
   const btnStyle: React.CSSProperties = {
-    width: "100%",
+    flex: 1,
+    minWidth: 0,
     height: "32px",
     display: "flex",
     alignItems: "center",
@@ -1415,16 +1416,28 @@ function MissionDetailsFooter() {
       style={{
         paddingTop: "4px",
         flexShrink: 0,
+        display: "flex",
+        gap: "4px",
+        width: "100%",
       }}
     >
       <button
         type="button"
         style={btnStyle}
         onClick={() => {
-          /* Mission details action — wire when flow is ready */
+          /* Mission action — wire when flow is ready */
         }}
       >
-        Mission details
+        Mission
+      </button>
+      <button
+        type="button"
+        style={btnStyle}
+        onClick={() => {
+          /* Send Command action — wire when flow is ready */
+        }}
+      >
+        Send Command
       </button>
     </div>
   );
