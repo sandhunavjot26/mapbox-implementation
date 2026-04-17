@@ -51,10 +51,10 @@ export function CopShell({
         }}
       >
         <Image
-          src="/driif-logo-small.png"
+          src="/vectorwings.jpeg"
           alt="Driif"
-          width={33}
-          height={26}
+          width={50}
+          height={50}
           priority
         />
       </div>

@@ -250,6 +250,17 @@ export default function DashboardPage() {
           />
         </div>
       )}
+
+      <footer
+        className="pointer-events-none absolute bottom-0 left-0 right-0 z-[13]"
+        aria-label="Product attribution"
+      >
+        <div className="flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-3 pt-10">
+          <p className="text-center text-[11px] font-mono tracking-wide text-slate-400">
+            VectorWings · Precision in motion | Powered by DRIIF
+          </p>
+        </div>
+      </footer>
     </div>
   );
 }
