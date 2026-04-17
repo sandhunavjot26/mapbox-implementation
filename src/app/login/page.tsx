@@ -73,10 +73,10 @@ export default function LoginPage() {
           {/* Logo & subtitle */}
           <div className="flex flex-col gap-6">
             <Image
-              src="/driif-logo.png"
+              src="/vector-wings-full.png"
               alt="DRIIF"
-              width={96}
-              height={32}
+              width={130}
+              height={60}
               priority
             />
             <p className="text-base text-slate-300 leading-5">

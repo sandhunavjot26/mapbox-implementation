@@ -51,7 +51,7 @@ export function CopShell({
         }}
       >
         <Image
-          src="/vectorwings.jpeg"
+          src="/vectorwings.png"
           alt="Driif"
           width={50}
           height={50}
