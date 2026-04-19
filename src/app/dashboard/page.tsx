@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
+import Image from "next/image";
 import { CopShell } from "@/components/cop-shell/CopShell";
 import { DetectionsPanel } from "@/components/detections/DetectionsPanel";
 import { CopTopBar } from "@/components/cop-shell/CopTopBar";
@@ -256,9 +257,16 @@ export default function DashboardPage() {
         aria-label="Product attribution"
       >
         <div className="flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-3 pt-10">
-          <p className="text-center text-[11px] font-mono tracking-wide text-slate-400">
-            VectorWings · Precision in motion | Powered by DRIIF
-          </p>
+          <div className="flex items-center justify-center gap-1.5 text-center text-[11px] font-mono tracking-wide text-slate-400">
+            <span>VectorWings · Precision in motion | Powered by DRIIF</span>
+            <Image
+              src="/driif-logo-small.png"
+              alt=""
+              width={48}
+              height={18}
+              className="h-4 w-auto shrink-0"
+            />
+          </div>
         </div>
       </footer>
     </div>
