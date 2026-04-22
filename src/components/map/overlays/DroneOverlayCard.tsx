@@ -66,7 +66,7 @@ const CHIP_STYLE = (bg: string, text: string): React.CSSProperties => ({
   background: bg,
   color: text,
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
   padding: "4px 8px",
   borderRadius: "2px",
   whiteSpace: "nowrap",
@@ -82,7 +82,7 @@ const TAB_ACTIVE: React.CSSProperties = {
   background: COLOR.missionCreatePrimaryChipBg,
   color: COLOR.missionCreatePrimaryChipText,
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
   borderRadius: "2px",
   cursor: "default",
   border: "none",
@@ -100,7 +100,7 @@ const TAB_INACTIVE: React.CSSProperties = {
   background: COLOR.missionCreateFieldBg,
   color: COLOR.missionsSecondaryText,
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
   borderRadius: "2px",
   cursor: "pointer",
   border: "none",
@@ -159,7 +159,7 @@ function AccordionSection({
           borderRadius: isOpen ? "2px 2px 0 0" : "2px",
         }}
       >
-        <span style={{ color: COLOR.missionsBodyText, fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+        <span style={{ color: COLOR.missionsBodyText, fontSize: FONT.sizeSm, lineHeight: "17px" }}>
           {label}
         </span>
         <img
@@ -195,13 +195,13 @@ function DataCell({
 }) {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "8px 4px 8px 8px" }}>
-      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
         {label}
       </span>
-      <span style={{ color: valueColor ?? "#FFFFFF", fontSize: FONT.sizeMd, lineHeight: "20px" }}>
+      <span style={{ color: valueColor ?? "#FFFFFF", fontSize: FONT.sizeMd, lineHeight: "21px" }}>
         {value}
         {valueSuffix && (
-          <span style={{ color: suffixColor ?? "#FFFFFF", fontSize: FONT.sizeXs, lineHeight: "12px", marginLeft: "2px" }}>
+          <span style={{ color: suffixColor ?? "#FFFFFF", fontSize: FONT.sizeXs, lineHeight: "13px", marginLeft: "2px" }}>
             {valueSuffix}
           </span>
         )}
@@ -227,13 +227,13 @@ function StatTile({ label, value, unit }: { label: string; value: string; unit?:
         gap: "4px",
       }}
     >
-      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+      <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
         {label}
       </span>
-      <span style={{ color: "#FFFFFF", fontSize: FONT.sizeMd, lineHeight: "20px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+      <span style={{ color: "#FFFFFF", fontSize: FONT.sizeMd, lineHeight: "21px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
         {value}
         {unit && (
-          <span style={{ fontSize: FONT.sizeXs, lineHeight: "12px", marginLeft: "2px" }}>
+          <span style={{ fontSize: FONT.sizeXs, lineHeight: "13px", marginLeft: "2px" }}>
             {unit}
           </span>
         )}
@@ -304,7 +304,7 @@ function RFAnalysisContent({ target }: { target: Target }) {
     <div style={{ display: "flex", flexDirection: "column", gap: "0" }}>
       {/* Detected frequencies chips */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px", padding: "0 4px 8px 4px" }}>
-        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
           Detected frequencies
         </span>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "6px" }}>
@@ -315,7 +315,7 @@ function RFAnalysisContent({ target }: { target: Target }) {
                 border: `1px solid ${TRACKING_TEXT}`,
                 color: TRACKING_TEXT,
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
                 padding: "4px 8px",
                 borderRadius: "2px",
                 whiteSpace: "nowrap",
@@ -445,7 +445,7 @@ function EnemyThreatTab() {
           style={{
             color: SWARM_WARN_TEXT,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
             flex: 1,
             minWidth: 0,
           }}
@@ -473,7 +473,7 @@ function EnemyThreatTab() {
               style={{
                 color: "rgba(255,255,255,0.6)",
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               {m.label}
@@ -482,7 +482,7 @@ function EnemyThreatTab() {
               style={{
                 color: m.color,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
             >
               {m.value}
@@ -541,7 +541,7 @@ function LogsTab({ entries }: { entries: LogEntry[] }) {
                   justifyContent: "space-between",
                   alignItems: "center",
                   fontSize: FONT.sizeSm,
-                  lineHeight: "20px",
+                  lineHeight: "21px",
                 }}
               >
                 <span style={{ color: "#FAFAFA" }}>{entry.message}</span>
@@ -559,7 +559,7 @@ function LogsTab({ entries }: { entries: LogEntry[] }) {
                 style={{
                   color: "rgba(255,255,255,0.6)",
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 {entry.category}
@@ -593,7 +593,7 @@ function DPad({ label1, label2 }: { label1: string; label2: string }) {
     justifyContent: "center",
     cursor: "pointer",
     color: "#fff",
-    fontSize: "16px",
+    fontSize: "17px",
     flexShrink: 0,
   };
   return (
@@ -615,8 +615,8 @@ function DPad({ label1, label2 }: { label1: string; label2: string }) {
           cursor: "default",
           flexDirection: "column",
           gap: "1.5px",
-          fontSize: "7.7px",
-          lineHeight: "9.2px",
+          fontSize: "8.7px",
+          lineHeight: "10.2px",
         }}
       >
         <span>{label1}</span>
@@ -656,7 +656,7 @@ function SliderRow({
           justifyContent: "space-between",
           color: "#fff",
           fontSize: FONT.sizeSm,
-          lineHeight: "16px",
+          lineHeight: "17px",
         }}
       >
         <span style={{ opacity: 0.6 }}>{label}</span>
@@ -754,8 +754,8 @@ function PayloadFeedsContent() {
             top: "8px",
             left: "8px",
             color: "#fff",
-            fontSize: "10px",
-            lineHeight: "14px",
+            fontSize: "11px",
+            lineHeight: "15px",
           }}
         >
           <div>ALT 122 SPD 38km/h</div>
@@ -781,7 +781,7 @@ function PayloadFeedsContent() {
               flexShrink: 0,
             }}
           />
-          <span style={{ color: THREAT_HIGH, fontSize: "10px", lineHeight: "14px" }}>REC 00:11:24</span>
+          <span style={{ color: THREAT_HIGH, fontSize: "11px", lineHeight: "15px" }}>REC 00:11:24</span>
         </div>
         {/* Expand button */}
         <button
@@ -817,8 +817,8 @@ function PayloadFeedsContent() {
             bottom: "8px",
             right: "8px",
             color: "rgba(255,255,255,0.2)",
-            fontSize: "14px",
-            lineHeight: "20px",
+            fontSize: "15px",
+            lineHeight: "21px",
           }}
         >
           Sensor Feed
@@ -836,8 +836,8 @@ function PayloadFeedsContent() {
               background:
                 i === activeSensor ? COLOR.missionCreateFooterBorder : COLOR.missionCreateFieldBorder,
               color: "#fff",
-              fontSize: "10px",
-              lineHeight: "12px",
+              fontSize: "11px",
+              lineHeight: "13px",
               padding: "4px 6px",
               borderRadius: "4px",
               border: "none",
@@ -863,7 +863,7 @@ function PayloadFeedsContent() {
               border: `1px solid ${COLOR.missionCreateFooterBorder}`,
               color: COLOR.missionCreateFieldText,
               fontSize: FONT.sizeSm,
-              lineHeight: "20px",
+              lineHeight: "21px",
               padding: "5px 9px",
               borderRadius: "2px",
               cursor: "pointer",
@@ -899,7 +899,7 @@ function FlyControlContent() {
     borderRadius: "2px",
     cursor: "pointer",
     fontSize: FONT.sizeSm,
-    lineHeight: "20px",
+    lineHeight: "21px",
     padding: "5px 9px",
   };
 
@@ -927,7 +927,7 @@ function FlyControlContent() {
           <line x1="7" y1="5.5" x2="7" y2="8.5" stroke="#F4A30C" strokeWidth="1.2" strokeLinecap="round" />
           <circle cx="7" cy="10.25" r="0.65" fill="#F4A30C" />
         </svg>
-        <span style={{ color: HOVER_HOLD_TEXT, fontSize: FONT.sizeSm, lineHeight: "16px", flex: 1 }}>
+        <span style={{ color: HOVER_HOLD_TEXT, fontSize: FONT.sizeSm, lineHeight: "17px", flex: 1 }}>
           Manual override active — autopilot paused. Tap for nudge, hold for continuous movement.
         </span>
       </div>
@@ -986,13 +986,13 @@ function FlyControlContent() {
           gap: "4px",
         }}
       >
-        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>Standby</span>
-        <span style={{ color: "#fff", fontSize: FONT.sizeMd, lineHeight: "20px" }}>Awaiting input</span>
+        <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>Standby</span>
+        <span style={{ color: "#fff", fontSize: FONT.sizeMd, lineHeight: "21px" }}>Awaiting input</span>
       </div>
 
       {/* Flight mode */}
       <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-        <span style={{ color: COLOR.missionsBodyText, fontSize: FONT.sizeMd, lineHeight: "20px" }}>
+        <span style={{ color: COLOR.missionsBodyText, fontSize: FONT.sizeMd, lineHeight: "21px" }}>
           Flight Mode
         </span>
         <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
@@ -1128,7 +1128,7 @@ function WayPointsContent() {
         }}
       >
         <span
-          style={{ color: "rgba(255,255,255,0.7)", fontSize: FONT.sizeSm, lineHeight: "16px" }}
+          style={{ color: "rgba(255,255,255,0.7)", fontSize: FONT.sizeSm, lineHeight: "17px" }}
         >
           3/5 Way Points active
         </span>
@@ -1145,10 +1145,10 @@ function WayPointsContent() {
             cursor: "pointer",
             color: COLOR.missionsCreateBtnText,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
-          <span style={{ fontSize: "14px", lineHeight: "14px" }}>+</span>
+          <span style={{ fontSize: "15px", lineHeight: "15px" }}>+</span>
           Add Waypoint
         </button>
       </div>
@@ -1183,7 +1183,7 @@ function WayPointsContent() {
                   style={{
                     color: wp.status === "Active" ? RTB_TEXT : GREY_40,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "14.4px",
+                    lineHeight: "15.4px",
                   }}
                 >
                   {wp.num}
@@ -1194,7 +1194,7 @@ function WayPointsContent() {
                   style={{
                     color: COLOR.missionsBodyText,
                     fontSize: FONT.sizeMd,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                   }}
                 >
                   {wp.name}
@@ -1203,7 +1203,7 @@ function WayPointsContent() {
                   style={{
                     color: GREY_40,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "16px",
+                    lineHeight: "17px",
                     opacity: 0.6,
                   }}
                 >
@@ -1226,8 +1226,8 @@ function WayPointsContent() {
               <span
                 style={{
                   color: WP_STATUS_COLOR[wp.status],
-                  fontSize: "10px",
-                  lineHeight: "12px",
+                  fontSize: "11px",
+                  lineHeight: "13px",
                 }}
               >
                 {wp.status}
@@ -1247,7 +1247,7 @@ function WayPointsContent() {
             border: `1px solid ${COLOR.missionCreateFooterBorder}`,
             color: COLOR.missionCreateFieldText,
             fontSize: FONT.sizeSm,
-            lineHeight: "20px",
+            lineHeight: "21px",
             padding: "5px 9px",
             borderRadius: "2px",
             cursor: "pointer",
@@ -1263,7 +1263,7 @@ function WayPointsContent() {
             border: `1px solid ${COLOR.missionCreateFieldBorder}`,
             color: COLOR.missionCreateFieldText,
             fontSize: FONT.sizeSm,
-            lineHeight: "20px",
+            lineHeight: "21px",
             padding: "5px 9px",
             borderRadius: "2px",
             cursor: "pointer",
@@ -1279,7 +1279,7 @@ function WayPointsContent() {
             border: `1px solid ${AMBER_BORDER}`,
             color: HOVER_HOLD_TEXT,
             fontSize: FONT.sizeSm,
-            lineHeight: "20px",
+            lineHeight: "21px",
             padding: "5px 9px",
             borderRadius: "2px",
             cursor: "pointer",
@@ -1382,7 +1382,7 @@ function FriendlyHealthTab() {
               style={{
                 color: COLOR.missionsBodyText,
                 fontSize: FONT.sizeSm,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
             >
               {item.name}
@@ -1391,8 +1391,8 @@ function FriendlyHealthTab() {
               style={{
                 background: item.statusBg,
                 color: item.statusText,
-                fontSize: "10px",
-                lineHeight: "12px",
+                fontSize: "11px",
+                lineHeight: "13px",
                 padding: "2px 6px",
                 borderRadius: "2px",
                 fontWeight: FONT.weightMedium,
@@ -1446,7 +1446,7 @@ function EnemyActions({
     justifyContent: "center",
     borderRadius: "2px",
     fontSize: FONT.sizeSm,
-    lineHeight: "20px",
+    lineHeight: "21px",
     cursor: disabled ? "not-allowed" : "pointer",
     border: "none",
     padding: "4px 8px",
@@ -1507,7 +1507,7 @@ function FriendlyActions({ onReturnToBase, onHoverHold, onAbort, onEmergencyLand
     justifyContent: "center",
     borderRadius: "2px",
     fontSize: FONT.sizeSm,
-    lineHeight: "20px",
+    lineHeight: "21px",
     cursor: disabled ? "not-allowed" : "pointer",
     border: "none",
     padding: "4px 8px",
@@ -1631,13 +1631,13 @@ export function DroneOverlayCard({
               style={{
                 color: "#FFFFFF",
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 whiteSpace: "nowrap",
               }}
             >
               {displayName}
             </span>
-            <span style={{ color: RED_THREAT, fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+            <span style={{ color: RED_THREAT, fontSize: FONT.sizeSm, lineHeight: "17px" }}>
               THREAT: {target.confidence != null ? `${target.confidence}%` : "—"}
             </span>
           </div>
@@ -1696,7 +1696,7 @@ export function DroneOverlayCard({
               background: RED_THREAT_BG,
               borderRadius: "2px",
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
               color: RED_THREAT,
             }}
           >
@@ -1744,7 +1744,7 @@ export function DroneOverlayCard({
             style={{
               color: "#FFFFFF",
               fontSize: FONT.sizeMd,
-              lineHeight: "20px",
+              lineHeight: "21px",
               whiteSpace: "nowrap",
             }}
           >
@@ -1760,7 +1760,7 @@ export function DroneOverlayCard({
               padding: "4px 12px",
               borderRadius: "2px",
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
               flexShrink: 0,
             }}
           >
@@ -1781,15 +1781,15 @@ export function DroneOverlayCard({
           }}
         >
           <img src="/icons/BatteryMedium.svg" alt="" width={16} height={16} />
-          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
             {target.confidence != null ? `${target.confidence}%` : "—"}
           </span>
           <img src="/icons/MapPin.svg" alt="" width={12} height={12} />
-          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
             On Mission
           </span>
           <img src="/icons/ArrowsVertical.svg" alt="" width={12} height={12} />
-          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
             {target.deviceId ? target.deviceId.slice(0, 6) : "RAD-??"}
           </span>
           <span
@@ -1801,7 +1801,7 @@ export function DroneOverlayCard({
               display: "inline-block",
             }}
           />
-          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "16px", whiteSpace: "nowrap" }}>
+          <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "17px", whiteSpace: "nowrap" }}>
             On Mission
           </span>
         </div>
@@ -1819,36 +1819,36 @@ export function DroneOverlayCard({
       >
         <div style={{ display: "flex", gap: "14px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "8px", minWidth: 0 }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
               Altitude
             </span>
-            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "20px" }}>
+            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "21px" }}>
               {target.altitude} ft
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", minWidth: 0 }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
               Heading
             </span>
-            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "20px" }}>
+            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "21px" }}>
               {target.heading}°
             </span>
           </div>
         </div>
         <div style={{ display: "flex", gap: "14px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", paddingLeft: "8px", minWidth: 0 }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
               Distance
             </span>
-            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "20px" }}>
+            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "21px" }}>
               {target.distanceKm.toFixed(1)} km
             </span>
           </div>
           <div style={{ display: "flex", flexDirection: "column", gap: "5px", minWidth: 0 }}>
-            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "16px" }}>
+            <span style={{ color: "rgba(255,255,255,0.6)", fontSize: FONT.sizeSm, lineHeight: "17px" }}>
               Frequency
             </span>
-            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "20px" }}>
+            <span style={{ color: "#FFFFFF", fontSize: FONT.sizeSm, lineHeight: "21px" }}>
               {target.frequencyMHz} MHz
             </span>
           </div>

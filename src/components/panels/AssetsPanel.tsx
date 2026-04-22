@@ -96,18 +96,18 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
               <div className="flex items-center gap-1">
                 {attackMode && (
                   <span
-                    className={`text-[10px] font-mono px-1.5 py-0.5 ${
+                    className={`text-[11px] font-mono px-1.5 py-0.5 ${
                       attackMode.jamActive ? "text-red-400 bg-red-950" : "text-slate-500 bg-slate-800"
                     }`}
                   >
                     {attackMode.jamActive ? "Jam: ON" : "Idle"}
                   </span>
                 )}
-                <span className="text-[10px] font-mono text-slate-500 bg-slate-800 px-1.5 py-0.5 whitespace-nowrap">
+                <span className="text-[11px] font-mono text-slate-500 bg-slate-800 px-1.5 py-0.5 whitespace-nowrap">
                   ALT {asset.altitude} FT
                 </span>
                 <span
-                  className={`text-[10px] font-mono px-1.5 py-0.5 ${
+                  className={`text-[11px] font-mono px-1.5 py-0.5 ${
                     asset.status === "ACTIVE"
                       ? "text-green-400 bg-green-950"
                       : "text-slate-500 bg-slate-800"
@@ -117,7 +117,7 @@ export function AssetsPanel({ assets, collapsed, onToggle }: AssetsPanelProps) {
                 </span>
               </div>
             </div>
-            <div className="space-y-1 text-[10px] font-mono text-slate-500">
+            <div className="space-y-1 text-[11px] font-mono text-slate-500">
               <div className="flex">
                 <span className="w-20">ID:</span>
                 <span className="text-slate-400">{asset.id}</span>

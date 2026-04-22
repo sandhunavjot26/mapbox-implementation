@@ -234,7 +234,7 @@ export function ConfigureRadarDirectionTabContent({
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Fine-tune bearing (0°–360°)
@@ -261,7 +261,7 @@ export function ConfigureRadarDirectionTabContent({
               style={{
                 ...fieldTextStyle,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
               aria-label="Fine-tune bearing in degrees"
             />
@@ -274,7 +274,7 @@ export function ConfigureRadarDirectionTabContent({
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Mount height (m)
@@ -300,7 +300,7 @@ export function ConfigureRadarDirectionTabContent({
               style={{
                 ...fieldTextStyle,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
               aria-label="Mount height in metres"
             />
@@ -356,7 +356,7 @@ export function ConfigureRadarDirectionTabContent({
                         fontFamily: `${FONT.family}, sans-serif`,
                         fontSize: FONT.sizeXs,
                         fontWeight: FONT.weightNormal,
-                        lineHeight: "14px",
+                        lineHeight: "15px",
                         whiteSpace: "nowrap",
                       }}
                     >
@@ -404,7 +404,7 @@ export function ConfigureRadarDirectionTabContent({
                 color: COLOR.missionsSecondaryText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               Horizontal bearing
@@ -419,7 +419,7 @@ export function ConfigureRadarDirectionTabContent({
                   color: COLOR.missionReviewChecklistHeading,
                   fontFamily: `${FONT.family}, sans-serif`,
                   /* TODO: token — Figma bearing value 20px / Medium */
-                  fontSize: "20px",
+                  fontSize: "21px",
                   fontWeight: FONT.weightMedium,
                   lineHeight: "24px",
                 }}
@@ -433,7 +433,7 @@ export function ConfigureRadarDirectionTabContent({
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
                   fontWeight: FONT.weightNormal,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 {bearingParts.cardinal}
@@ -470,7 +470,7 @@ export function ConfigureRadarDirectionTabContent({
               >
                 <div
                   className="flex w-full min-w-0 flex-wrap items-end justify-center"
-                  style={{ gap: "4px", rowGap: "2px", lineHeight: "16px" }}
+                  style={{ gap: "4px", rowGap: "2px", lineHeight: "17px" }}
                 >
                   <span
                     className="shrink-0 tabular-nums"
@@ -478,7 +478,7 @@ export function ConfigureRadarDirectionTabContent({
                       color: COLOR.missionReviewChecklistHeading,
                       fontFamily: `${FONT.family}, sans-serif`,
                       /* TODO: token — Figma +5° display 20px / Medium */
-                      fontSize: "20px",
+                      fontSize: "21px",
                       fontWeight: FONT.weightMedium,
                     }}
                   >
@@ -530,7 +530,7 @@ export function ConfigureRadarDirectionTabContent({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 Pitch (vertical tilt)
@@ -557,7 +557,7 @@ export function ConfigureRadarDirectionTabContent({
                 color: COLOR.missionsSecondaryText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               <span>−40°</span>

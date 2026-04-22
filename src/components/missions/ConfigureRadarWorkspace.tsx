@@ -118,7 +118,7 @@ export function ConfigureRadarWorkspace({
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
                 fontWeight: FONT.weightMedium,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
             >
               <ConfigureRadarPlusGlyph size={18} />

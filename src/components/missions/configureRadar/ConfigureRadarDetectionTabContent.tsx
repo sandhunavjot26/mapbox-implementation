@@ -18,7 +18,7 @@ const INPUT_SHELL = {
   color: COLOR.missionsSecondaryText,
   fontFamily: `${FONT.family}, sans-serif`,
   fontSize: FONT.sizeMd,
-  lineHeight: "20px",
+  lineHeight: "21px",
 } as const;
 
 const FREQ_OPTIONS = [
@@ -66,7 +66,7 @@ export function ConfigureRadarDetectionTabContent() {
             color: COLOR.missionsSecondaryText,
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           Detection mode
@@ -77,7 +77,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeMd,
-              lineHeight: "20px",
+              lineHeight: "21px",
               whiteSpace: "nowrap",
             }}
           >
@@ -101,7 +101,7 @@ export function ConfigureRadarDetectionTabContent() {
             color: COLOR.missionsBodyText,
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeXs,
-            lineHeight: "14px",
+            lineHeight: "15px",
           }}
         >
           Blend Mode runs both library matching and full RF parsing simultaneously.
@@ -125,7 +125,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsBodyText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Scan sensitivity
@@ -153,7 +153,7 @@ export function ConfigureRadarDetectionTabContent() {
                       : COLOR.missionCreateFieldText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                   cursor: "pointer",
                 }}
               >
@@ -167,7 +167,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "14px",
+              lineHeight: "15px",
             }}
           >
             Balanced detection-recommended for most operations
@@ -180,7 +180,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsBodyText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             False positive filter
@@ -208,7 +208,7 @@ export function ConfigureRadarDetectionTabContent() {
                       : COLOR.missionCreateFieldText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                   cursor: "pointer",
                 }}
               >
@@ -222,7 +222,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "14px",
+              lineHeight: "15px",
             }}
           >
             Filters known civilian RF signatures
@@ -245,7 +245,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsBodyText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Match confidence threshold
@@ -258,7 +258,7 @@ export function ConfigureRadarDetectionTabContent() {
                 color: COLOR.missionsBodyText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               {confidenceThreshold}%
@@ -270,7 +270,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "14px",
+              lineHeight: "15px",
             }}
           >
             Objects below threshold treated as unknown and scored for threat
@@ -283,7 +283,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Unknown object action
@@ -294,7 +294,7 @@ export function ConfigureRadarDetectionTabContent() {
                 color: COLOR.missionsSecondaryText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 whiteSpace: "nowrap",
               }}
             >
@@ -311,7 +311,7 @@ export function ConfigureRadarDetectionTabContent() {
             color: COLOR.missionsSecondaryText,
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeXs,
-            lineHeight: "12px",
+            lineHeight: "13px",
           }}
         >
           Jamming Frequencies
@@ -338,7 +338,7 @@ export function ConfigureRadarDetectionTabContent() {
                   color: isActive ? JAMMING_ACTIVE_COLOR : COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                   cursor: "pointer",
                 }}
               >
@@ -364,7 +364,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Detection range (km)
@@ -385,7 +385,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "14px",
+              lineHeight: "15px",
             }}
           >
             Hardware max: {detectionRange} km
@@ -398,7 +398,7 @@ export function ConfigureRadarDetectionTabContent() {
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Altitude ceiling (m AGL)

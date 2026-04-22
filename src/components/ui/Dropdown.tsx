@@ -63,7 +63,7 @@ export function Dropdown({
         className={`flex h-8 w-full items-center justify-between overflow-hidden rounded-[2px] border px-3 text-left ${className}`}
         style={buttonStyle}
       >
-        <span className={`truncate text-[14px] leading-5 ${textClassName}`} style={textStyle}>
+        <span className={`truncate text-[15px] leading-5 ${textClassName}`} style={textStyle}>
           {selectedOption?.label ?? ""}
         </span>
         <Image
@@ -91,7 +91,7 @@ export function Dropdown({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`flex h-8 w-full items-center px-3 text-left text-[14px] leading-5 transition-colors ${optionClassName}`}
+                className={`flex h-8 w-full items-center px-3 text-left text-[15px] leading-5 transition-colors ${optionClassName}`}
                 style={active ? { ...optionStyle, ...selectedOptionStyle } : optionStyle}
               >
                 {option.label}

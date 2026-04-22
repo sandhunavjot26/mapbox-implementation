@@ -160,13 +160,13 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
 
         {error && (
           <div className="mx-4 mt-2 flex items-center justify-between gap-2 bg-red-950/50 border border-red-500/50 px-2 py-1.5">
-            <span className="text-red-400 text-[10px] font-mono truncate flex-1">{error}</span>
+            <span className="text-red-400 text-[11px] font-mono truncate flex-1">{error}</span>
             <button type="button" onClick={() => setError(null)} className="text-slate-400 hover:text-slate-200 text-xs shrink-0">×</button>
           </div>
         )}
 
         <div className="flex-1 overflow-auto p-4">
-          <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] gap-2 text-[10px] font-mono mb-2">
+          <div className="grid grid-cols-[auto_1fr_1fr_1fr_1fr] gap-2 text-[11px] font-mono mb-2">
             <span className="text-slate-500">#</span>
             <span className="text-slate-500">Enable</span>
             <span className="text-slate-500">Start (MHz)</span>
@@ -182,7 +182,7 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
                 max={1}
                 value={band.enable}
                 onChange={(e) => updateBand(i, "enable", Number(e.target.value))}
-                className="w-14 px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[10px]"
+                className="w-14 px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[11px]"
               />
               <input
                 type="number"
@@ -190,7 +190,7 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
                 max={6000}
                 value={band.start}
                 onChange={(e) => updateBand(i, "start", Number(e.target.value))}
-                className="w-full px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[10px]"
+                className="w-full px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[11px]"
               />
               <input
                 type="number"
@@ -198,7 +198,7 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
                 max={6000}
                 value={band.end}
                 onChange={(e) => updateBand(i, "end", Number(e.target.value))}
-                className="w-full px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[10px]"
+                className="w-full px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[11px]"
               />
               <input
                 type="number"
@@ -206,7 +206,7 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
                 max={100}
                 value={band.att}
                 onChange={(e) => updateBand(i, "att", Number(e.target.value))}
-                className="w-14 px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[10px]"
+                className="w-14 px-1 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[11px]"
               />
             </div>
           ))}
@@ -217,7 +217,7 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
             type="button"
             onClick={handleQuery}
             disabled={pending}
-            className="px-3 py-1.5 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 text-[11px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 transition-colors disabled:opacity-50"
           >
             {queryPending ? "Querying…" : "Query"}
           </button>
@@ -225,11 +225,11 @@ export function BandRangeEditor({ asset, missionId, onClose }: BandRangeEditorPr
             type="button"
             onClick={handleSet}
             disabled={pending}
-            className="px-3 py-1.5 text-[10px] font-mono border border-cyan-500/60 text-cyan-400 hover:bg-cyan-950/40 transition-colors disabled:opacity-50"
+            className="px-3 py-1.5 text-[11px] font-mono border border-cyan-500/60 text-cyan-400 hover:bg-cyan-950/40 transition-colors disabled:opacity-50"
           >
             {setPending ? "Sending…" : "Set"}
           </button>
-          <button type="button" onClick={onClose} className="ml-auto px-3 py-1.5 text-[10px] font-mono border border-slate-600 text-slate-400 hover:text-slate-200 transition-colors">
+          <button type="button" onClick={onClose} className="ml-auto px-3 py-1.5 text-[11px] font-mono border border-slate-600 text-slate-400 hover:text-slate-200 transition-colors">
             Close
           </button>
         </div>

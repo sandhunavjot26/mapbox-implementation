@@ -36,7 +36,7 @@ const rowStyle: CSSProperties = {
   alignItems: "baseline",
   gap: "12px",
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
 };
 
 const labelStyle: CSSProperties = {
@@ -202,7 +202,7 @@ export function EntityHoverPopup() {
                 background: "transparent",
                 border: "none",
                 color: "rgba(255,255,255,0.6)",
-                fontSize: "18px",
+                fontSize: "19px",
                 lineHeight: 1,
                 cursor: "pointer",
                 padding: "2px 4px",
@@ -316,7 +316,7 @@ export function EntityHoverPopup() {
               background: "transparent",
               border: "none",
               color: "rgba(255,255,255,0.6)",
-              fontSize: "18px",
+              fontSize: "19px",
               lineHeight: 1,
               cursor: "pointer",
               padding: "2px 4px",
@@ -385,7 +385,7 @@ function AssetPopupContent({
   const titleStyle: CSSProperties = {
     color: COLOR.missionsBodyText,
     fontSize: FONT.sizeMd,
-    lineHeight: "20px",
+    lineHeight: "21px",
     fontWeight: FONT.weightBold,
     fontFamily: `${FONT.mono}, monospace`,
     overflow: "hidden",
@@ -396,7 +396,7 @@ function AssetPopupContent({
 
   const badgeBase: CSSProperties = {
     fontSize: FONT.sizeXs,
-    lineHeight: "14px",
+    lineHeight: "15px",
     fontFamily: `${FONT.mono}, monospace`,
     padding: "2px 6px",
     borderRadius: RADIUS.panel,
@@ -412,7 +412,7 @@ function AssetPopupContent({
 
   const detailRowFont: CSSProperties = {
     fontSize: FONT.sizeXs,
-    lineHeight: "14px",
+    lineHeight: "15px",
   };
 
   const detailRow: CSSProperties = { ...rowStyle, ...detailRowFont };
@@ -517,7 +517,7 @@ function TargetHoverTooltip({ target }: { target: Target }) {
           style={{
             color: COLOR.missionsBodyText,
             fontSize: FONT.sizeMd,
-            lineHeight: "20px",
+            lineHeight: "21px",
             fontWeight: FONT.weightBold,
             ...mono,
             overflow: "hidden",
@@ -534,7 +534,7 @@ function TargetHoverTooltip({ target }: { target: Target }) {
             <span
               style={{
                 fontSize: FONT.sizeXs,
-                lineHeight: "14px",
+                lineHeight: "15px",
                 ...mono,
                 color: COLOR.missionsSecondaryText,
                 background: COLOR.missionCreateFieldBg,
@@ -546,21 +546,21 @@ function TargetHoverTooltip({ target }: { target: Target }) {
               Stale
             </span>
           )}
-          <span style={{ fontSize: FONT.sizeXs, lineHeight: "14px", ...mono, color: classColor }}>
+          <span style={{ fontSize: FONT.sizeXs, lineHeight: "15px", ...mono, color: classColor }}>
             {classLabel}
           </span>
         </div>
       </div>
       <div style={{ display: "flex", flexDirection: "column", gap: "4px", ...mono }}>
-        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "14px" }}>
+        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "15px" }}>
           <span style={{ ...labelStyle, fontSize: FONT.sizeXs }}>Distance</span>
           <span style={{ ...valueStyle, fontSize: FONT.sizeXs }}>{target.distanceKm.toFixed(1)} km</span>
         </div>
-        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "14px" }}>
+        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "15px" }}>
           <span style={{ ...labelStyle, fontSize: FONT.sizeXs }}>Altitude</span>
           <span style={{ ...valueStyle, fontSize: FONT.sizeXs }}>{target.altitude} ft</span>
         </div>
-        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "14px" }}>
+        <div style={{ ...rowStyle, fontSize: FONT.sizeXs, lineHeight: "15px" }}>
           <span style={{ ...labelStyle, fontSize: FONT.sizeXs }}>Heading</span>
           <span style={{ ...valueStyle, fontSize: FONT.sizeXs }}>{target.heading}°</span>
         </div>
@@ -569,7 +569,7 @@ function TargetHoverTooltip({ target }: { target: Target }) {
             margin: 0,
             paddingTop: "4px",
             fontSize: FONT.sizeXs,
-            lineHeight: "14px",
+            lineHeight: "15px",
             color: COLOR.missionsSecondaryText,
             ...mono,
             opacity: 0.85,

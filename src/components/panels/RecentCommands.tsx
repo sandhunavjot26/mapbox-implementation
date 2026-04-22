@@ -98,7 +98,7 @@ export function RecentCommands() {
                   {cmd.status}
                 </span>
               </div>
-              <div className="flex items-center justify-between gap-2 text-[10px] font-mono text-slate-500">
+              <div className="flex items-center justify-between gap-2 text-[11px] font-mono text-slate-500">
                 <span className="truncate" title={cmd.device_id ?? undefined}>
                   {cmd.device_id ? deviceNameMap.get(cmd.device_id) ?? cmd.device_id.slice(0, 8) + "…" : "—"}
                 </span>
@@ -106,7 +106,7 @@ export function RecentCommands() {
                 <span>{formatCommandTime(cmd.created_at)}</span>
               </div>
               {(cmd.result_payload || cmd.last_error) && (
-                <div className="text-[10px] font-mono truncate max-w-full">
+                <div className="text-[11px] font-mono truncate max-w-full">
                   {cmd.last_error ? (
                     <span className="text-red-400/80" title={cmd.last_error}>
                       {cmd.last_error.slice(0, 50)}…

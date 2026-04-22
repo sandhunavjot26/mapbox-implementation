@@ -60,7 +60,7 @@ export function FenceMetadataPopover({
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Fence Name
@@ -83,7 +83,7 @@ export function FenceMetadataPopover({
                 color: COLOR.missionsBodyText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
               placeholder="Enter fence name"
             />
@@ -94,7 +94,7 @@ export function FenceMetadataPopover({
                 color: COLOR.statusDanger,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.missionFormFieldErrorTextSize,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               {nameError}
@@ -111,7 +111,7 @@ export function FenceMetadataPopover({
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Altitude Ceiling
@@ -136,7 +136,7 @@ export function FenceMetadataPopover({
                 color: COLOR.missionsBodyText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
               placeholder="Enter altitude ceiling"
             />
@@ -146,7 +146,7 @@ export function FenceMetadataPopover({
                 color: COLOR.missionsBodyText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
             >
               m AGL
@@ -158,7 +158,7 @@ export function FenceMetadataPopover({
                 color: COLOR.statusDanger,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.missionFormFieldErrorTextSize,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               {altitudeError}
@@ -184,7 +184,7 @@ export function FenceMetadataPopover({
             color: COLOR.missionsTitleMuted,
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeMd,
-            lineHeight: "20px",
+            lineHeight: "21px",
           }}
         >
           Cancel
@@ -207,7 +207,7 @@ export function FenceMetadataPopover({
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeMd,
             fontWeight: FONT.weightMedium,
-            lineHeight: "20px",
+            lineHeight: "21px",
           }}
         >
           Save

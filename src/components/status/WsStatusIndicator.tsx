@@ -24,7 +24,7 @@ function StatusDot({ status }: { status: WsStatus }) {
       <span
         className={`w-2 h-2 rounded-full ${color} ${status === "connecting" ? "animate-pulse" : ""}`}
       />
-      <span className="text-[10px] font-mono uppercase">{label}</span>
+      <span className="text-[11px] font-mono uppercase">{label}</span>
     </span>
   );
 }
@@ -41,7 +41,7 @@ export function WsStatusIndicator({
   commandsStatus,
 }: WsStatusIndicatorProps) {
   return (
-    <div className="flex items-center gap-4 text-[10px] font-mono">
+    <div className="flex items-center gap-4 text-[11px] font-mono">
       <span className="text-slate-500 uppercase">WS:</span>
       <StatusDot status={eventsStatus} />
       <StatusDot status={devicesStatus} />
