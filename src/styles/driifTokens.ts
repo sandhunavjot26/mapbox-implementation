@@ -324,6 +324,9 @@ export const POSITION = {
   missionsWidth: "360px",
   missionsHeight: "auto",
 
+  /** Devices inventory overlay (map) — wide table, filters */
+  devicesInventoryWidth: "700px",
+
   /** Create Mission panel (Figma node 853:9815): left=79, top=76, 448px wide */
   createMissionLeft: "79px",
   createMissionTop: "76px",

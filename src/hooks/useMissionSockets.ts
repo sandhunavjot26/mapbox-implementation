@@ -2,12 +2,16 @@
  * useMissionSockets — connects to events, devices, commands WebSocket streams.
  * Device-service: events (DETECTED, JAMMED, COMMAND_*), devices (device_state_update, device_online, device_offline).
  * Command-service: commands (command_status_update, command_sent, command_response, command_failed, command_timeout).
+ *
+ * Live tracks on the map: only `handleMissionEvent` (WS) updates `targetsStore`. REST timeline backfill does not seed targets.
  */
 
 import { useEffect, useRef, useCallback, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthStore } from "@/stores/authStore";
 import { useWsStatusStore } from "@/stores/wsStatusStore";
 import { useMissionStore } from "@/stores/missionStore";
+import { missionsKeys } from "@/hooks/useMissions";
 import {
   getEventsWsUrl,
   getDevicesWsUrl,
@@ -21,8 +25,16 @@ import {
 import { useCommandsStore } from "@/stores/commandsStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import { useMissionEventsStore } from "@/stores/missionEventsStore";
+import { publish as publishMissionEventBus } from "@/stores/missionEventsBus";
 import { useAttackModeStore } from "@/stores/attackModeStore";
 import { useEngageOverlayStore } from "@/stores/engageOverlayStore";
+import type {
+  TrackRatedPayload,
+  ThreatEscalationPayload,
+  DeviceAzimuthPayload,
+  DeviceOnlineEventPayload,
+  DeviceOfflineEventPayload,
+} from "@/types/aeroshield";
 
 type WsStatus = "connecting" | "open" | "closed" | "error";
 
@@ -113,13 +125,17 @@ function useWs(
 }
 
 export function useMissionSockets(): UseMissionSocketsResult {
+  const queryClient = useQueryClient();
   const token = useAuthStore((s) => s.getToken());
   const missionId = useMissionStore((s) => s.activeMissionId);
   const cachedMission = useMissionStore((s) => s.cachedMission);
   const addOrUpdateTarget = useTargetsStore((s) => s.addOrUpdateTarget);
   const markTargetLost = useTargetsStore((s) => s.markTargetLost);
+  const applyTrackRating = useTargetsStore((s) => s.applyTrackRating);
+  const applyThreatEscalation = useTargetsStore((s) => s.applyThreatEscalation);
   const addOrUpdateCommand = useCommandsStore((s) => s.addOrUpdateCommand);
   const setDeviceStatus = useDeviceStatusStore((s) => s.setDeviceStatus);
+  const updateDeviceAzimuth = useDeviceStatusStore((s) => s.updateDeviceAzimuth);
   const addMissionEvent = useMissionEventsStore((s) => s.addEvent);
   const setAttackMode = useAttackModeStore((s) => s.setAttackMode);
   const setEngageOverlay = useEngageOverlayStore((s) => s.setOverlay);
@@ -130,6 +146,167 @@ export function useMissionSockets(): UseMissionSocketsResult {
     missionId && token ? getDevicesWsUrl(missionId, token) : null;
   const commandsUrl =
     missionId && token ? getCommandsWsUrl(missionId, token) : null;
+
+  const handleMissionEvent = useCallback(
+    (ev: {
+      id?: string;
+      event_type?: string;
+      mission_id?: string;
+      device_id?: string | null;
+      ts?: string;
+      payload?: Record<string, unknown>;
+    }) => {
+      const eventType = ev.event_type ?? "";
+      const payload = ev.payload ?? {};
+      const eventId =
+        ev.id ?? `ev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
+
+      // Timeline: one place that sees every mission_event
+      addMissionEvent({
+        id: eventId,
+        mission_id: ev.mission_id ?? missionId ?? "",
+        device_id: ev.device_id ?? null,
+        event_type: eventType,
+        ts: ev.ts ?? new Date().toISOString(),
+        payload: Object.keys(payload).length ? payload : null,
+      });
+
+      switch (eventType) {
+        case "DETECTED":
+        case "UAV_DETECTED": {
+          const uav = payload.uav as Record<string, unknown> | undefined;
+          if (uav) {
+            let deviceId = ev.device_id ?? null;
+            if (!deviceId && payload.monitor_device_id != null && cachedMission?.devices) {
+              const d = cachedMission.devices.find(
+                (dev) => dev.monitor_device_id === payload.monitor_device_id,
+              );
+              deviceId = d?.id ?? null;
+            }
+            const target = uavPayloadToTarget(
+              uav as unknown as Parameters<typeof uavPayloadToTarget>[0],
+              deviceId,
+              eventId,
+            );
+            addOrUpdateTarget(target);
+          }
+          break;
+        }
+        case "TRACK_UPDATE": {
+          const trackPayload =
+            payload as unknown as Parameters<typeof trackUpdatePayloadToTarget>[0];
+          if (
+            trackPayload.target_uid &&
+            trackPayload.lat != null &&
+            trackPayload.lon != null
+          ) {
+            const target = trackUpdatePayloadToTarget(trackPayload);
+            addOrUpdateTarget(target);
+          }
+          break;
+        }
+        case "TRACK_LOST":
+        case "TRACK_END": {
+          const targetUid = (payload.target_uid ?? payload.target_id) as
+            | string
+            | undefined;
+          if (targetUid) {
+            markTargetLost(targetUid);
+          }
+          break;
+        }
+        case "TRACK_RATED": {
+          const p = payload as Partial<TrackRatedPayload>;
+          if (typeof p.target_uid === "string" && typeof p.status === "string") {
+            applyTrackRating(p.target_uid, p as TrackRatedPayload);
+          }
+          break;
+        }
+        case "THREAT_ESCALATION": {
+          const p = payload as Partial<ThreatEscalationPayload>;
+          if (
+            typeof p.target_uid === "string" &&
+            p.level != null &&
+            typeof p.score === "number" &&
+            Array.isArray(p.reasons)
+          ) {
+            applyThreatEscalation(p.target_uid, p as ThreatEscalationPayload);
+          }
+          break;
+        }
+        case "SWARM_DETECTED": {
+          publishMissionEventBus("SWARM_DETECTED", payload);
+          break;
+        }
+        case "DEVICE_ONLINE": {
+          const p = payload as Partial<DeviceOnlineEventPayload> & {
+            last_seen?: string;
+          };
+          if (p.device_id) {
+            setDeviceStatus({
+              device_id: p.device_id,
+              monitor_device_id: p.monitor_device_id,
+              status: "ONLINE",
+              last_seen: p.last_seen ?? new Date().toISOString(),
+              name: p.name,
+            });
+          }
+          break;
+        }
+        case "DEVICE_OFFLINE": {
+          const p = payload as Partial<DeviceOfflineEventPayload> & {
+            last_seen?: string;
+          };
+          if (p.device_id) {
+            setDeviceStatus({
+              device_id: p.device_id,
+              monitor_device_id: p.monitor_device_id,
+              status: "OFFLINE",
+              last_seen: p.last_seen ?? new Date().toISOString(),
+              name: p.name,
+            });
+          }
+          break;
+        }
+        case "DEVICE_AZIMUTH": {
+          const p = payload as Partial<DeviceAzimuthPayload>;
+          if (p.device_id != null && typeof p.azimuth_deg === "number") {
+            updateDeviceAzimuth(p.device_id, {
+              azimuth_deg: p.azimuth_deg,
+              elevation_deg: p.elevation_deg,
+              monitor_device_id: p.monitor_device_id,
+            });
+          }
+          break;
+        }
+        case "MISSION_ACTIVATED":
+        case "MISSION_STOPPED":
+        case "MISSION_AUTO_JAM_STOP": {
+          const mid = ev.mission_id ?? missionId;
+          if (mid) {
+            void queryClient.invalidateQueries({ queryKey: missionsKeys.detail(mid) });
+          }
+          void queryClient.invalidateQueries({ queryKey: missionsKeys.all });
+          break;
+        }
+        // NFZ_BREACH, ZONE_*, BREACH_*, NFZ_BREACH_PREDICTED — timeline only (P0)
+        default:
+          break;
+      }
+    },
+    [
+      missionId,
+      cachedMission,
+      addOrUpdateTarget,
+      addMissionEvent,
+      markTargetLost,
+      applyTrackRating,
+      applyThreatEscalation,
+      setDeviceStatus,
+      updateDeviceAzimuth,
+      queryClient,
+    ],
+  );
 
   const onEvent = useCallback(
     (data: unknown) => {
@@ -145,63 +322,9 @@ export function useMissionSockets(): UseMissionSocketsResult {
         };
       };
       if (msg.type !== "mission_event" || !msg.event) return;
-
-      const ev = msg.event;
-      const eventType = ev.event_type ?? "";
-      const payload = ev.payload ?? {};
-      const eventId =
-        ev.id ?? `ev-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-
-      // Add to timeline (DETECTED, JAM_STARTED, COMMAND_*)
-      addMissionEvent({
-        id: eventId,
-        mission_id: ev.mission_id ?? missionId ?? "",
-        device_id: ev.device_id ?? null,
-        event_type: eventType,
-        ts: ev.ts ?? new Date().toISOString(),
-        payload: Object.keys(payload).length ? payload : null,
-      });
-
-      // DETECTED: add/update target for map (nested payload.uav structure)
-      if (eventType === "DETECTED") {
-        const uav = payload.uav as Record<string, unknown> | undefined;
-        if (uav) {
-          // Resolve device_id: event level, or from payload.monitor_device_id via mission devices
-          let deviceId = ev.device_id ?? null;
-          if (!deviceId && payload.monitor_device_id != null && cachedMission?.devices) {
-            const d = cachedMission.devices.find(
-              (dev) => dev.monitor_device_id === payload.monitor_device_id
-            );
-            deviceId = d?.id ?? null;
-          }
-          const target = uavPayloadToTarget(
-            uav as unknown as Parameters<typeof uavPayloadToTarget>[0],
-            deviceId,
-            eventId,
-          );
-          addOrUpdateTarget(target);
-        }
-      }
-
-      // TRACK_UPDATE: continuous position updates (flat payload: lat, lon, target_uid, etc.)
-      // Merges with existing target; creates new if track appeared without prior DETECTED
-      if (eventType === "TRACK_UPDATE") {
-        const trackPayload = payload as unknown as Parameters<typeof trackUpdatePayloadToTarget>[0];
-        if (trackPayload.target_uid && trackPayload.lat != null && trackPayload.lon != null) {
-          const target = trackUpdatePayloadToTarget(trackPayload);
-          addOrUpdateTarget(target);
-        }
-      }
-
-      // TRACK_LOST: backend signals track loss — mark target as lost (greyed on map)
-      if (eventType === "TRACK_LOST" || eventType === "TRACK_END") {
-        const targetUid = (payload.target_uid ?? payload.target_id) as string | undefined;
-        if (targetUid) {
-          markTargetLost(targetUid);
-        }
-      }
+      handleMissionEvent(msg.event);
     },
-    [missionId, cachedMission, addOrUpdateTarget, addMissionEvent, markTargetLost],
+    [handleMissionEvent],
   );
 
   const onDevice = useCallback(

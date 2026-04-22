@@ -5,7 +5,12 @@
  */
 
 import { create } from "zustand";
-import type { DetectedUavPayload, TrackUpdatePayload } from "@/types/aeroshield";
+import type {
+  DetectedUavPayload,
+  ThreatEscalationPayload,
+  TrackRatedPayload,
+  TrackUpdatePayload,
+} from "@/types/aeroshield";
 import type { Target, TargetClassification } from "@/types/targets";
 
 // Re-export for backward compatibility
@@ -52,6 +57,9 @@ interface TargetsState {
   removeTarget: (id: string) => void;
   markTargetLost: (id: string) => void;
   reclassifyTarget: (id: string, classification: TargetClassification) => void;
+  /** Wire TRACK_RATED — no-op if target not in store; UNRATED + null priority clears `rating` */
+  applyTrackRating: (targetUid: string, payload: TrackRatedPayload) => void;
+  applyThreatEscalation: (targetUid: string, payload: ThreatEscalationPayload) => void;
   clearTargets: () => void;
   getPositionHistory: (targetId: string) => [number, number][];
 }
@@ -174,6 +182,50 @@ export const useTargetsStore = create<TargetsState>((set, get) => ({
         t.id === id ? { ...t, classification } : t,
       ),
     })),
+
+  applyTrackRating: (targetUid, payload) =>
+    set((state) => {
+      const idx = state.targets.findIndex((t) => t.id === targetUid);
+      if (idx < 0) return state;
+      const clear =
+        payload.status === "UNRATED" && payload.priority == null;
+      return {
+        targets: state.targets.map((t, i) => {
+          if (i !== idx) return t;
+          if (clear) {
+            const next = { ...t };
+            delete next.rating;
+            return next;
+          }
+          return {
+            ...t,
+            rating: {
+              status: payload.status,
+              priority: payload.priority,
+              ratedBy: payload.rated_by,
+              ratedAt: Date.now(),
+            },
+          };
+        }),
+      };
+    }),
+
+  applyThreatEscalation: (targetUid, payload) =>
+    set((state) => {
+      const idx = state.targets.findIndex((t) => t.id === targetUid);
+      if (idx < 0) return state;
+      const threat = {
+        level: payload.level,
+        score: payload.score,
+        reasons: payload.reasons,
+        stampedAt: Date.now(),
+      };
+      return {
+        targets: state.targets.map((t, i) =>
+          i === idx ? { ...t, threat } : t,
+        ),
+      };
+    }),
 
   clearTargets: () => set({ targets: [], positionHistory: {} }),
 

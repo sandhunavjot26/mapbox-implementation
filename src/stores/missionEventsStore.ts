@@ -16,7 +16,7 @@ export interface MissionEventEntry {
   receivedAt: number;
 }
 
-const MAX_EVENTS = 100;
+const MAX_EVENTS = 500;
 
 interface MissionEventsState {
   events: MissionEventEntry[];

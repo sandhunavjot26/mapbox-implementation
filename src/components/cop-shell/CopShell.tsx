@@ -6,7 +6,7 @@
  */
 
 import Image from "next/image";
-import { COLOR, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
+import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 import { COP_GLASS_PANEL } from "@/components/cop-shell/shellStyles";
 
 const NAV_ITEMS = [
@@ -77,30 +77,51 @@ export function CopShell({
         {NAV_ITEMS.map((item) => {
           const active = activeNavKey === item.key;
           return (
-            <button
+            <div
               key={item.key}
-              type="button"
-              title={item.label}
-              aria-label={item.label}
-              aria-pressed={active}
-              onClick={() => onNav(item.key)}
-              className="flex items-center justify-center shrink-0 transition-colors"
-              style={{
-                width: SPACING.iconRowHeight,
-                height: SPACING.iconRowHeight,
-                padding: SPACING.iconButtonPad,
-                borderRadius: RADIUS.panel,
-                background: active ? COLOR.iconButtonBg : "transparent",
-              }}
+              className="group relative flex shrink-0 flex-col items-center"
             >
-              <Image
-                src={item.src}
-                alt=""
-                width={20}
-                height={20}
-                className="opacity-90"
-              />
-            </button>
+              <button
+                type="button"
+                aria-label={item.label}
+                aria-pressed={active}
+                onClick={() => onNav(item.key)}
+                className="flex items-center justify-center transition-colors"
+                style={{
+                  width: SPACING.iconRowHeight,
+                  height: SPACING.iconRowHeight,
+                  padding: SPACING.iconButtonPad,
+                  borderRadius: RADIUS.panel,
+                  background: active ? COLOR.iconButtonBg : "transparent",
+                }}
+              >
+                <Image
+                  src={item.src}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="opacity-90"
+                />
+              </button>
+              <span
+                className="pointer-events-none absolute left-full top-1/2 z-20 -translate-y-1/2 rounded-[2px] border px-2.5 py-1.5 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+                style={{
+                  marginLeft: 8,
+                  background: COP_GLASS_PANEL.background,
+                  border: COP_GLASS_PANEL.border,
+                  backdropFilter: COP_GLASS_PANEL.backdropFilter,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.45)",
+                  color: COLOR.missionsTitleMuted,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeSm,
+                  lineHeight: "17px",
+                  whiteSpace: "nowrap",
+                }}
+                role="tooltip"
+              >
+                {item.label}
+              </span>
+            </div>
           );
         })}
       </nav>

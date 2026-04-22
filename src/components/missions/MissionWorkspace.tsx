@@ -51,6 +51,7 @@ export function MissionWorkspace({
 }: MissionWorkspaceProps) {
   const { data: missionData } = useMissionLoad(missionId, true);
   const wsStatus = useMissionSockets();
+  // While events WS is connecting, one-shot REST backfills the timeline only (not map targets)
   useMissionEvents(missionId, true, wsStatus.eventsStatus !== "open");
 
   const setCachedMission = useMissionStore((s) => s.setCachedMission);

@@ -8,6 +8,7 @@ import { DetectionsPanel } from "@/components/detections/DetectionsPanel";
 import { CopTopBar } from "@/components/cop-shell/CopTopBar";
 import { MissionSelector } from "@/components/missions/MissionSelector";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { DevicesInventoryOverlay } from "@/components/devices/DevicesInventoryOverlay";
 import {
   subscribeToIntercepts,
   getInterceptStats,
@@ -61,8 +62,8 @@ export default function DashboardPage() {
     "night",
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
+  const [devicesOpen, setDevicesOpen] = useState(false);
   const [detectionsOpen, setDetectionsOpen] = useState(false);
-  const [activeNavKey, setActiveNavKey] = useState<string | null>(null);
   const [mapDismissLocked, setMapDismissLocked] = useState(false);
   const [interceptStats, setInterceptStats] = useState({
     neutralized: 0,
@@ -94,6 +95,18 @@ export default function DashboardPage() {
     });
   }, []);
 
+  /** Deep link from `/dashboard?setMission=<uuid>` (e.g. devices → open on map). */
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    const mid = u.searchParams.get("setMission");
+    if (!mid) return;
+    setActiveMission(mid);
+    setCachedMission(null);
+    u.searchParams.delete("setMission");
+    window.history.replaceState(null, "", u.toString());
+  }, [setActiveMission, setCachedMission]);
+
   useEffect(() => {
     if (!token) {
       clearAuth();
@@ -110,13 +123,18 @@ export default function DashboardPage() {
   }, [setActiveMission, setCachedMission, clearTargets]);
 
   const onShellNav = useCallback((key: string) => {
+    if (key === "assets") {
+      setDevicesOpen(true);
+      setMissionsOpen(false);
+      return;
+    }
     if (key === "missions") {
       setMissionsOpen(true);
-      setActiveNavKey("missions");
+      setDevicesOpen(false);
       return;
     }
     setMissionsOpen(false);
-    setActiveNavKey(key);
+    setDevicesOpen(false);
   }, []);
 
   const onShellClose = useCallback(() => {
@@ -125,14 +143,14 @@ export default function DashboardPage() {
       return;
     }
     setMissionsOpen(false);
-    setActiveNavKey(null);
+    setDevicesOpen(false);
   }, [activeMissionId, exitMission]);
 
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
   const onMapBackgroundClick = useCallback(() => {
     if (mapDismissLocked) return;
     setMissionsOpen(false);
-    setActiveNavKey(null);
+    setDevicesOpen(false);
   }, [mapDismissLocked]);
 
   if (!isAuthorized) {
@@ -202,7 +220,9 @@ export default function DashboardPage() {
       />
 
       <CopShell
-        activeNavKey={missionsOpen ? "missions" : activeNavKey}
+        activeNavKey={
+          missionsOpen ? "missions" : devicesOpen ? "assets" : null
+        }
         onNav={onShellNav}
         hasMission={!!activeMissionId}
         onBell={onShellClose}
@@ -232,9 +252,27 @@ export default function DashboardPage() {
             onMapDismissLockChange={setMapDismissLocked}
             onClose={() => {
               setMissionsOpen(false);
-              setActiveNavKey(null);
               setMapDismissLocked(false);
             }}
+          />
+        </div>
+      )}
+
+      {devicesOpen && (
+        <div
+          className="pointer-events-auto absolute z-[12]"
+          style={{ left: POSITION.missionsLeft, top: POSITION.missionsTop }}
+        >
+          <DevicesInventoryOverlay
+            onFocusMissionOnMap={(missionId) => {
+              if (missionId) {
+                clearTargets();
+                setActiveMission(missionId);
+                setCachedMission(null);
+              }
+              setDevicesOpen(false);
+            }}
+            onMapDismissLockChange={setMapDismissLocked}
           />
         </div>
       )}
