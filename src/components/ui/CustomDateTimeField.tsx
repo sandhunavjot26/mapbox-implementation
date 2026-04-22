@@ -197,13 +197,13 @@ function Stepper({
       <StepButton direction="up" onClick={onIncrement} />
       <div className="flex flex-col items-center py-[3px]">
         <span
-          className="text-[8px] uppercase leading-3"
+          className="text-[9px] uppercase leading-3"
           style={{ color: COLOR.missionCreateDatePickerMuted }}
         >
           {label}
         </span>
         <span
-          className="text-[14px] font-medium leading-5"
+          className="text-[15px] font-medium leading-5"
           style={{ color: COLOR.missionCreateDatePickerText }}
         >
           {value}
@@ -225,7 +225,7 @@ function ActionButton({
     <button
       type="button"
       onClick={onClick}
-      className="text-[10px] leading-4 transition-opacity hover:opacity-80"
+      className="text-[11px] leading-4 transition-opacity hover:opacity-80"
       style={{
         color: COLOR.missionCreateDatePickerAction,
         fontFamily: `${FONT.family}, sans-serif`,
@@ -366,14 +366,14 @@ export function CustomDateTimeField({
                 new Date(viewMonth.getFullYear(), viewMonth.getMonth() - 1, 1),
               )
             }
-            className="text-[14px] leading-5 transition-opacity hover:opacity-80"
+            className="text-[15px] leading-5 transition-opacity hover:opacity-80"
             style={{ color: COLOR.missionCreateDatePickerText }}
             aria-label="Previous month"
           >
             {"<"}
           </button>
           <p
-            className="text-[12px] font-medium leading-4"
+            className="text-[13px] font-medium leading-4"
             style={{ color: COLOR.missionCreateDatePickerText }}
           >
             {monthLabel}
@@ -385,7 +385,7 @@ export function CustomDateTimeField({
                 new Date(viewMonth.getFullYear(), viewMonth.getMonth() + 1, 1),
               )
             }
-            className="text-[14px] leading-5 transition-opacity hover:opacity-80"
+            className="text-[15px] leading-5 transition-opacity hover:opacity-80"
             style={{ color: COLOR.missionCreateDatePickerText }}
             aria-label="Next month"
           >
@@ -397,7 +397,7 @@ export function CustomDateTimeField({
           {DAY_LABELS.map((label) => (
             <div
               key={label}
-              className="flex h-6 items-center justify-center text-[10px] leading-4"
+              className="flex h-6 items-center justify-center text-[11px] leading-4"
               style={{ color: COLOR.missionCreateDatePickerMuted }}
             >
               {label}
@@ -413,7 +413,7 @@ export function CustomDateTimeField({
                 key={day.toISOString()}
                 type="button"
                 onClick={() => commitDate(setSelectedDate(selectedDate, day))}
-                className="mx-auto flex h-7 w-7 items-center justify-center rounded-[2px] text-[12px] leading-4"
+                className="mx-auto flex h-7 w-7 items-center justify-center rounded-[2px] text-[13px] leading-4"
                 style={{
                   background: active
                     ? COLOR.missionCreateDatePickerSelection
@@ -493,7 +493,7 @@ export function CustomDateTimeField({
                     ),
                   )
                 }
-                className="flex-1 rounded-[2px] py-[7px] text-[11px] leading-4"
+                className="flex-1 rounded-[2px] py-[7px] text-[12px] leading-4"
                 style={{
                   background: active
                     ? COLOR.missionCreateDatePickerSelection
@@ -521,7 +521,7 @@ export function CustomDateTimeField({
         className="flex h-8 w-full items-center justify-between overflow-hidden rounded-[2px] border px-3 text-left"
         style={buttonStyle}
       >
-        <span className="truncate text-[14px] leading-5" style={textStyle}>
+        <span className="truncate text-[15px] leading-5" style={textStyle}>
           {value}
         </span>
         <Image

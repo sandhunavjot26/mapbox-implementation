@@ -167,7 +167,7 @@ export function setBorderLayer(
     slot: "top",
     layout: {
       "text-field": ["get", "name"] as unknown as string,
-      "text-size": 12,
+      "text-size": 13,
       "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
       "text-allow-overlap": false,
       "text-anchor": "bottom",

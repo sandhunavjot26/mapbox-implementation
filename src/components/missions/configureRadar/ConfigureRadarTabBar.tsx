@@ -50,7 +50,7 @@ export function ConfigureRadarTabBar({
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeSm,
               fontWeight: FONT.weightNormal,
-              lineHeight: "16px",
+              lineHeight: "17px",
               cursor: "pointer",
             }}
           >

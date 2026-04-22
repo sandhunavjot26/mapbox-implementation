@@ -1110,7 +1110,7 @@ export function MapContainer({
           <p className="text-red-400 font-mono text-xs tracking-wide mb-2">
             {error}
           </p>
-          <p className="text-slate-500 font-mono text-[10px]">
+          <p className="text-slate-500 font-mono text-[11px]">
             Get a token at mapbox.com/account/access-tokens
           </p>
         </div>

@@ -64,7 +64,7 @@ export function CopTopBar({
           <button
             type="button"
             onClick={() => onBasemapVariant("standard")}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-mono transition-colors ${basemapVariant === "standard"
+            className={`rounded-full px-2.5 py-1 text-[12px] font-mono transition-colors ${basemapVariant === "standard"
                 ? "bg-slate-600 text-slate-100"
                 : "text-slate-400 hover:text-slate-200"
               }`}
@@ -74,7 +74,7 @@ export function CopTopBar({
           <button
             type="button"
             onClick={() => onBasemapVariant("standard-satellite")}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-mono transition-colors ${basemapVariant === "standard-satellite"
+            className={`rounded-full px-2.5 py-1 text-[12px] font-mono transition-colors ${basemapVariant === "standard-satellite"
                 ? "bg-slate-600 text-slate-100"
                 : "text-slate-400 hover:text-slate-200"
               }`}
@@ -86,7 +86,7 @@ export function CopTopBar({
           <button
             type="button"
             onClick={() => onMapLightPreset("day")}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-mono transition-colors ${mapLightPreset === "day"
+            className={`rounded-full px-2.5 py-1 text-[12px] font-mono transition-colors ${mapLightPreset === "day"
                 ? "bg-slate-600 text-slate-100"
                 : "text-slate-400 hover:text-slate-200"
               }`}
@@ -96,7 +96,7 @@ export function CopTopBar({
           <button
             type="button"
             onClick={() => onMapLightPreset("night")}
-            className={`rounded-full px-2.5 py-1 text-[11px] font-mono transition-colors ${mapLightPreset === "night"
+            className={`rounded-full px-2.5 py-1 text-[12px] font-mono transition-colors ${mapLightPreset === "night"
                 ? "bg-slate-600 text-slate-100"
                 : "text-slate-400 hover:text-slate-200"
               }`}

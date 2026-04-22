@@ -64,7 +64,7 @@ const TAB_ACTIVE: React.CSSProperties = {
   background: COLOR.missionCreatePrimaryChipBg,
   color: COLOR.missionCreatePrimaryChipText,
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
   borderRadius: "2px",
   cursor: "default",
   border: "none",
@@ -85,7 +85,7 @@ const TAB_INACTIVE: React.CSSProperties = {
   background: COLOR.missionCreateFieldBg,
   color: TAB_INACTIVE_TEXT,
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
   borderRadius: "2px",
   cursor: "pointer",
   border: "none",
@@ -237,7 +237,7 @@ function AccordionSection({
           style={{
             color: COLOR.missionsBodyText,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           {label}
@@ -294,7 +294,7 @@ function HardwareAccordionSection({
           style={{
             color: COLOR.missionsBodyText,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           {label}
@@ -363,7 +363,7 @@ function HardwareStatusRow({
           <p
             style={{
               fontSize: FONT.sizeSm,
-              lineHeight: "20px",
+              lineHeight: "21px",
               color: COLOR.missionCreateDatePickerSelectionText,
               fontWeight: FONT.weightNormal,
               width: "100%",
@@ -374,7 +374,7 @@ function HardwareStatusRow({
           <p
             style={{
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
               color: COLOR.missionReviewChecklistHeading,
               opacity: 0.6,
               width: "100%",
@@ -397,8 +397,8 @@ function HardwareStatusRow({
       >
         <span
           style={{
-            fontSize: "11px",
-            lineHeight: "12px",
+            fontSize: "12px",
+            lineHeight: "13px",
             fontWeight: FONT.weightMedium,
             color: badge.fg,
             fontFamily: `${FONT.family}, sans-serif`,
@@ -456,7 +456,7 @@ function TopBar({ isDegraded }: { isDegraded: boolean }) {
               style={{
                 color: STATUS_FG,
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
                 whiteSpace: "nowrap",
               }}
             >
@@ -478,7 +478,7 @@ function TopBar({ isDegraded }: { isDegraded: boolean }) {
               style={{
                 color: "#22C55E",
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
                 whiteSpace: "nowrap",
               }}
             >
@@ -574,7 +574,7 @@ function InfoSection({
             style={{
               color: "#FFFFFF",
               fontSize: FONT.sizeMd,
-              lineHeight: "20px",
+              lineHeight: "21px",
               fontWeight: 500,
             }}
           >
@@ -584,7 +584,7 @@ function InfoSection({
             style={{
               color: "#FAFAFA",
               fontSize: FONT.sizeXs,
-              lineHeight: "12px",
+              lineHeight: "13px",
               whiteSpace: "nowrap",
             }}
           >
@@ -603,7 +603,7 @@ function InfoSection({
             style={{
               color: "rgba(255,255,255,0.6)",
               fontSize: FONT.sizeSm,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Mission
@@ -612,7 +612,7 @@ function InfoSection({
             style={{
               color: "#FFFFFF",
               fontSize: FONT.sizeMd,
-              lineHeight: "20px",
+              lineHeight: "21px",
             }}
           >
             Alpha Battalion
@@ -626,7 +626,7 @@ function InfoSection({
           style={{
             color: "rgba(255,255,255,0.6)",
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           Northern Command
@@ -635,7 +635,7 @@ function InfoSection({
           style={{
             color: "#FFFFFF",
             fontSize: FONT.sizeMd,
-            lineHeight: "20px",
+            lineHeight: "21px",
           }}
         >
           {asset.area ?? "Airport North Tower"}
@@ -665,7 +665,7 @@ function InfoSection({
               style={{
                 color: "rgba(255,255,255,0.6)",
                 fontSize: FONT.sizeSm,
-                lineHeight: "16px",
+                lineHeight: "17px",
               }}
             >
               {label}
@@ -674,7 +674,7 @@ function InfoSection({
               style={{
                 color: "#FFFFFF",
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
             >
               {value}
@@ -718,8 +718,8 @@ function PayloadFeedsContent() {
             top: "8px",
             left: "8px",
             color: "#fff",
-            fontSize: "10px",
-            lineHeight: "14px",
+            fontSize: "11px",
+            lineHeight: "15px",
           }}
         >
           <div>ALT 122 SPD 38km/h</div>
@@ -745,7 +745,7 @@ function PayloadFeedsContent() {
               flexShrink: 0,
             }}
           />
-          <span style={{ color: "#D93333", fontSize: "10px", lineHeight: "14px" }}>
+          <span style={{ color: "#D93333", fontSize: "11px", lineHeight: "15px" }}>
             REC 00:11:24
           </span>
         </div>
@@ -784,8 +784,8 @@ function PayloadFeedsContent() {
             bottom: "8px",
             right: "8px",
             color: "rgba(255,255,255,0.2)",
-            fontSize: "14px",
-            lineHeight: "20px",
+            fontSize: "15px",
+            lineHeight: "21px",
           }}
         >
           Sensor Feed
@@ -805,8 +805,8 @@ function PayloadFeedsContent() {
                   ? COLOR.missionCreateFooterBorder
                   : COLOR.missionCreateFieldBorder,
               color: "#fff",
-              fontSize: "10px",
-              lineHeight: "12px",
+              fontSize: "11px",
+              lineHeight: "13px",
               padding: "4px 6px",
               borderRadius: "4px",
               border: "none",
@@ -832,7 +832,7 @@ function PayloadFeedsContent() {
               border: `1px solid ${COLOR.missionCreateFooterBorder}`,
               color: COLOR.missionCreateFieldText,
               fontSize: FONT.sizeSm,
-              lineHeight: "20px",
+              lineHeight: "21px",
               padding: "5px 9px",
               borderRadius: "2px",
               cursor: "pointer",
@@ -870,7 +870,7 @@ function FrequencyChip({
   const style: React.CSSProperties = selected
     ? {
       fontSize: FONT.sizeSm,
-      lineHeight: "16px",
+      lineHeight: "17px",
       fontFamily: `${FONT.family}, sans-serif`,
       padding: "4px 8px",
       borderRadius: "2px",
@@ -883,7 +883,7 @@ function FrequencyChip({
     }
     : {
       fontSize: FONT.sizeSm,
-      lineHeight: "16px",
+      lineHeight: "17px",
       fontFamily: `${FONT.family}, sans-serif`,
       padding: "4px 8px",
       borderRadius: "2px",
@@ -1322,7 +1322,7 @@ function LogsTab() {
                 style={{
                   color: COLOR.missionsBodyText,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                   fontWeight: 500,
                 }}
               >
@@ -1332,7 +1332,7 @@ function LogsTab() {
                 style={{
                   color: COLOR.missionsSecondaryText,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "12px",
+                  lineHeight: "13px",
                   flexShrink: 0,
                 }}
               >
@@ -1343,7 +1343,7 @@ function LogsTab() {
               style={{
                 color: COLOR.missionsSecondaryText,
                 fontSize: FONT.sizeXs,
-                lineHeight: "14px",
+                lineHeight: "15px",
                 display: "block",
                 marginTop: "2px",
               }}
@@ -1374,7 +1374,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
         style={{
           color: COLOR.missionsSecondaryText,
           fontSize: FONT.sizeSm,
-          lineHeight: "16px",
+          lineHeight: "17px",
         }}
       >
         {label}
@@ -1383,7 +1383,7 @@ function InfoRow({ label, value }: { label: string; value: string }) {
         style={{
           color: COLOR.missionsBodyText,
           fontSize: FONT.sizeSm,
-          lineHeight: "16px",
+          lineHeight: "17px",
           textAlign: "right",
         }}
       >
@@ -1403,7 +1403,7 @@ function MissionDetailsFooter() {
     justifyContent: "center",
     borderRadius: "2px",
     fontSize: FONT.sizeSm,
-    lineHeight: "16px",
+    lineHeight: "17px",
     cursor: "pointer",
     border: `1px solid ${COLOR.missionCreateFooterBorder}`,
     padding: "4px 8px",

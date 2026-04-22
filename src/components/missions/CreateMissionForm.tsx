@@ -286,7 +286,7 @@ export function CreateMissionForm({
                   style={{
                     ...fieldTextStyle,
                     fontSize: FONT.sizeMd,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                   }}
                 />
               </label>
@@ -325,7 +325,7 @@ export function CreateMissionForm({
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeMd,
                   fontWeight: FONT.weightMedium,
-                  lineHeight: "20px",
+                  lineHeight: "21px",
                 }}
               >
                 Select Mission type
@@ -353,7 +353,7 @@ export function CreateMissionForm({
                         fontFamily: `${FONT.family}, sans-serif`,
                         fontSize: FONT.sizeSm,
                         fontWeight: FONT.weightNormal,
-                        lineHeight: "16px",
+                        lineHeight: "17px",
                       }}
                     >
                       {option}
@@ -373,7 +373,7 @@ export function CreateMissionForm({
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeMd,
                   fontWeight: FONT.weightMedium,
-                  lineHeight: "20px",
+                  lineHeight: "21px",
                 }}
               >
                 Mission Duration
@@ -388,7 +388,7 @@ export function CreateMissionForm({
                     color: COLOR.missionsTitleMuted,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "16px",
+                    lineHeight: "17px",
                   }}
                 >
                   Start Date & Time
@@ -399,7 +399,7 @@ export function CreateMissionForm({
                     color: COLOR.missionsTitleMuted,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "16px",
+                    lineHeight: "17px",
                   }}
                 >
                   End Date & Time
@@ -454,7 +454,7 @@ export function CreateMissionForm({
                     sectionTab === "fences"
                       ? FONT.weightMedium
                       : FONT.weightNormal,
-                  lineHeight: "20px",
+                  lineHeight: "21px",
                 }}
               >
                 Select Fences
@@ -478,7 +478,7 @@ export function CreateMissionForm({
                     sectionTab === "assets"
                       ? FONT.weightMedium
                       : FONT.weightNormal,
-                  lineHeight: "20px",
+                  lineHeight: "21px",
                 }}
               >
                 Select Assets
@@ -518,7 +518,7 @@ export function CreateMissionForm({
                       style={{
                         ...fieldTextStyle,
                         fontSize: FONT.sizeMd,
-                        lineHeight: "20px",
+                        lineHeight: "21px",
                       }}
                     />
                   </label>
@@ -531,7 +531,7 @@ export function CreateMissionForm({
                       color: COLOR.missionsCreateBtnText,
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeMd,
-                      lineHeight: "20px",
+                      lineHeight: "21px",
                       minHeight: SPACING.missionCreateFieldRowHeight,
                       borderRadius: RADIUS.panel,
                     }}
@@ -564,7 +564,7 @@ export function CreateMissionForm({
                           color: COLOR.missionsBodyText,
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeMd,
-                          lineHeight: "20px",
+                          lineHeight: "21px",
                         }}
                       >
                         {item.name}
@@ -581,7 +581,7 @@ export function CreateMissionForm({
                           color: COLOR.missionsTitleMuted,
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeSm,
-                          lineHeight: "16px",
+                          lineHeight: "17px",
                           cursor: "pointer",
                         }}
                       >
@@ -624,7 +624,7 @@ export function CreateMissionForm({
                       style={{
                         ...fieldTextStyle,
                         fontSize: FONT.sizeMd,
-                        lineHeight: "20px",
+                        lineHeight: "21px",
                       }}
                     />
                   </label>
@@ -637,7 +637,7 @@ export function CreateMissionForm({
                       color: COLOR.missionsCreateBtnText,
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeMd,
-                      lineHeight: "20px",
+                      lineHeight: "21px",
                       minHeight: SPACING.missionCreateFieldRowHeight,
                       borderRadius: RADIUS.panel,
                     }}
@@ -684,7 +684,7 @@ export function CreateMissionForm({
                                 fontFamily: `${FONT.family}, sans-serif`,
                                 fontSize: FONT.sizeMd,
                                 fontWeight: FONT.weightNormal,
-                                lineHeight: "20px",
+                                lineHeight: "21px",
                               }}
                             >
                               {deviceDisplayName(device)}
@@ -696,7 +696,7 @@ export function CreateMissionForm({
                                 fontFamily: `${FONT.family}, sans-serif`,
                                 fontSize: FONT.sizeSm,
                                 fontWeight: FONT.weightNormal,
-                                lineHeight: "16px",
+                                lineHeight: "17px",
                               }}
                             >
                               {formatSelectedRadarMetaLine(device)}
@@ -757,7 +757,7 @@ export function CreateMissionForm({
                               fontFamily: `${FONT.family}, sans-serif`,
                               fontSize: FONT.sizeSm,
                               fontWeight: FONT.weightNormal,
-                              lineHeight: "16px",
+                              lineHeight: "17px",
                             }}
                           >
                             <svg
@@ -790,7 +790,7 @@ export function CreateMissionForm({
                               color: COLOR.missionsTitleMuted,
                               fontFamily: `${FONT.family}, sans-serif`,
                               fontSize: FONT.sizeSm,
-                              lineHeight: "16px",
+                              lineHeight: "17px",
                               cursor: "pointer",
                             }}
                           >
@@ -810,7 +810,7 @@ export function CreateMissionForm({
                   color: COLOR.statusDanger,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 {createError}
@@ -823,7 +823,7 @@ export function CreateMissionForm({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 Add a mission name, at least one fence, and one asset to
@@ -847,7 +847,7 @@ export function CreateMissionForm({
                   : COLOR.missionsTitleMuted,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeMd,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 minHeight: SPACING.missionCreateFooterBtnMinHeight,
                 borderRadius: RADIUS.panel,
               }}

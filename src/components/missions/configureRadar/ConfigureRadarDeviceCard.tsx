@@ -75,7 +75,7 @@ export function ConfigureRadarDeviceCard({
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeMd,
             fontWeight: FONT.weightMedium,
-            lineHeight: "20px",
+            lineHeight: "21px",
           }}
         >
           {deviceDisplayName(device)}
@@ -134,7 +134,7 @@ export function ConfigureRadarDeviceCard({
           color: COLOR.missionsSecondaryText,
           fontFamily: `${FONT.family}, sans-serif`,
           fontSize: FONT.sizeSm,
-          lineHeight: "16px",
+          lineHeight: "17px",
         }}
       >
         {formatSelectedRadarMetaLine(device)}
@@ -167,7 +167,7 @@ export function ConfigureRadarDeviceCard({
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeSm,
             fontWeight: FONT.weightNormal,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           {statusUi.label}
@@ -198,7 +198,7 @@ function StatBlock({ label, value }: { label: string; value: string }) {
           fontFamily: `${FONT.family}, sans-serif`,
           fontSize: FONT.sizeSm,
           fontWeight: FONT.weightMedium,
-          lineHeight: "16px",
+          lineHeight: "17px",
         }}
       >
         {value}

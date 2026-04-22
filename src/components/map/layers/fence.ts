@@ -145,7 +145,7 @@ export function ensureFenceLayers(map: mapboxgl.Map) {
       slot: "top",
       layout: {
         "text-field": ["get", "name"] as unknown as string,
-        "text-size": 14,
+        "text-size": 15,
         "text-font": ["DIN Pro Regular", "Arial Unicode MS Regular"],
         "text-offset": [0, 1.2],
         "text-allow-overlap": true,

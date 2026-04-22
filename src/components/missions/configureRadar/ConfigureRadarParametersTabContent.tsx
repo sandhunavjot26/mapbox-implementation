@@ -25,14 +25,14 @@ const LABEL_STYLE = {
   color: COLOR.missionsSecondaryText,
   fontFamily: `${FONT.family}, sans-serif`,
   fontSize: FONT.sizeSm,
-  lineHeight: "16px",
+  lineHeight: "17px",
 } as const;
 
 const VALUE_STYLE = {
   color: COLOR.missionsBodyText,
   fontFamily: `${FONT.family}, sans-serif`,
   fontSize: FONT.sizeMd,
-  lineHeight: "20px",
+  lineHeight: "21px",
   whiteSpace: "nowrap" as const,
 } as const;
 

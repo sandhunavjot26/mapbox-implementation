@@ -29,7 +29,7 @@ const INPUT_SHELL = {
   color: COLOR.missionsBodyText,
   fontFamily: `${FONT.family}, sans-serif`,
   fontSize: FONT.sizeMd,
-  lineHeight: "20px",
+  lineHeight: "21px",
 } as const;
 
 type PowerLevel = "Low" | "Medium" | "High";
@@ -133,7 +133,7 @@ export function ConfigureRadarJammersTabContent() {
             color: ADD_JAMMER_TEXT,
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           Add Jammer
@@ -188,7 +188,7 @@ function JammerCard({
             color: COLOR.missionsBodyText,
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeSm,
-            lineHeight: "16px",
+            lineHeight: "17px",
           }}
         >
           {jammer.name}
@@ -199,7 +199,7 @@ function JammerCard({
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "12px",
+              lineHeight: "13px",
               whiteSpace: "nowrap",
             }}
           >
@@ -217,9 +217,9 @@ function JammerCard({
                 paddingBottom: "2px",
                 color: ACTIVE_PILL_TEXT,
                 fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: "11px",
+                fontSize: "12px",
                 fontWeight: FONT.weightMedium,
-                lineHeight: "12px",
+                lineHeight: "13px",
                 whiteSpace: "nowrap",
               }}
             >
@@ -256,7 +256,7 @@ function JammerCard({
                 color: COLOR.missionsSecondaryText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeXs,
-                lineHeight: "12px",
+                lineHeight: "13px",
               }}
             >
               Jamming Frequencies
@@ -285,7 +285,7 @@ function JammerCard({
                       color: isActive ? JAMMING_ACTIVE_COLOR : COLOR.missionsSecondaryText,
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeSm,
-                      lineHeight: "16px",
+                      lineHeight: "17px",
                       cursor: "pointer",
                     }}
                   >
@@ -312,7 +312,7 @@ function JammerCard({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "12px",
+                  lineHeight: "13px",
                 }}
               >
                 Power level
@@ -348,7 +348,7 @@ function JammerCard({
                           : COLOR.missionCreateFieldText,
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeSm,
-                      lineHeight: "16px",
+                      lineHeight: "17px",
                       cursor: "pointer",
                       whiteSpace: "nowrap",
                     }}
@@ -366,7 +366,7 @@ function JammerCard({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "12px",
+                  lineHeight: "13px",
                 }}
               >
                 Activation trigger
@@ -380,7 +380,7 @@ function JammerCard({
                     color: COLOR.missionsBodyText,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeMd,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
@@ -408,7 +408,7 @@ function JammerCard({
                 color: COLOR.missionsSecondaryText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.sizeXs,
-                lineHeight: "12px",
+                lineHeight: "13px",
               }}
             >
               Jamming direction
@@ -447,7 +447,7 @@ function JammerCard({
                           color: isActive ? JAMMING_ACTIVE_COLOR : COLOR.missionCreateFieldText,
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeSm,
-                          lineHeight: "16px",
+                          lineHeight: "17px",
                           whiteSpace: "nowrap",
                         }}
                       >
@@ -475,7 +475,7 @@ function JammerCard({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "12px",
+                  lineHeight: "13px",
                 }}
               >
                 Jamming range
@@ -497,7 +497,7 @@ function JammerCard({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeXs,
-                  lineHeight: "12px",
+                  lineHeight: "13px",
                 }}
               >
                 Jamming zone shape
@@ -511,7 +511,7 @@ function JammerCard({
                     color: COLOR.missionsBodyText,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeMd,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",

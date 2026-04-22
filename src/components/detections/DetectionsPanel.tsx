@@ -146,7 +146,7 @@ function Pill({ children }: { children: React.ReactNode }) {
         borderRadius: RADIUS_MD,
         fontFamily,
         fontSize: FONT.missionReviewDetail10Size,
-        lineHeight: "20px",
+        lineHeight: "21px",
         color: COLOR.missionCreateDatePickerSelectionText,
         gap: "8px",
         paddingLeft: "8px",
@@ -283,7 +283,7 @@ function SwarmRow({
                 fontFamily,
                 fontWeight: FONT.weightNormal,
                 fontSize: FONT.sizeSm,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 color: COLOR.missionCreateDatePickerSelectionText,
               }}
             >
@@ -306,7 +306,7 @@ function SwarmRow({
                 fontFamily,
                 fontWeight: FONT.weightNormal,
                 fontSize: FONT.sizeSm,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 color: statusFg,
                 whiteSpace: "nowrap",
               }}
@@ -366,7 +366,7 @@ function EnemyDroneRow({
                 fontFamily,
                 fontWeight: FONT.weightNormal,
                 fontSize: FONT.sizeSm,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 color: COLOR.missionCreateDatePickerSelectionText,
               }}
             >
@@ -406,7 +406,7 @@ function FriendlyDroneRow({
                 fontFamily,
                 fontWeight: FONT.weightNormal,
                 fontSize: FONT.sizeSm,
-                lineHeight: "20px",
+                lineHeight: "21px",
                 color: COLOR.missionCreateDatePickerSelectionText,
               }}
             >
@@ -484,7 +484,7 @@ function DetectionsHeader({ titleId }: { titleId: string }) {
             fontFamily,
             fontWeight: FONT.weightMedium,
             fontSize: FONT.sizeMd,
-            lineHeight: "20px",
+            lineHeight: "21px",
             color: FG_CLOCK,
             whiteSpace: "nowrap",
           }}
@@ -746,7 +746,7 @@ export function DetectionsPanel() {
                   style={{
                     fontFamily,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                     color: COLOR.missionsBodyText,
                   }}
                 >
@@ -796,7 +796,7 @@ export function DetectionsPanel() {
                   style={{
                     fontFamily,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                     color: FG_POSSIBLE_PILL,
                   }}
                 >
@@ -848,7 +848,7 @@ export function DetectionsPanel() {
                   style={{
                     fontFamily,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                     color: FG_ON_MISSION,
                   }}
                 >
@@ -894,7 +894,7 @@ export function DetectionsPanel() {
                   style={{
                     fontFamily,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                     color: FG_RETURNING,
                   }}
                 >
