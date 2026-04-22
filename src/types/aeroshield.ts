@@ -182,6 +182,10 @@ export interface DetectedUavPayload {
   return_lat?: number;
   drone_type?: number;
   drone_number?: number;
+  /** Backend derived lat/lon from range + azimuth (see old-ui / detection-service). */
+  position_derived?: boolean;
+  target_uid_synthesised?: boolean;
+  monitor_device_id?: number;
 }
 
 /** §E.1 — TRACK_RATED (operator + system:swarm-tag) */

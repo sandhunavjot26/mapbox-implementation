@@ -174,20 +174,21 @@ export function useMissionSockets(): UseMissionSocketsResult {
       switch (eventType) {
         case "DETECTED":
         case "UAV_DETECTED": {
-          const uav = payload.uav as Record<string, unknown> | undefined;
-          if (uav) {
+          const raw = payload.uav as Record<string, unknown> | undefined;
+          if (raw) {
+            const mon = payload.monitor_device_id ?? raw.monitor_device_id;
+            const uav = {
+              ...raw,
+              monitor_device_id: raw.monitor_device_id ?? mon,
+            } as unknown as Parameters<typeof uavPayloadToTarget>[0];
             let deviceId = ev.device_id ?? null;
-            if (!deviceId && payload.monitor_device_id != null && cachedMission?.devices) {
+            if (!deviceId && mon != null && cachedMission?.devices) {
               const d = cachedMission.devices.find(
-                (dev) => dev.monitor_device_id === payload.monitor_device_id,
+                (dev) => dev.monitor_device_id === mon,
               );
               deviceId = d?.id ?? null;
             }
-            const target = uavPayloadToTarget(
-              uav as unknown as Parameters<typeof uavPayloadToTarget>[0],
-              deviceId,
-              eventId,
-            );
+            const target = uavPayloadToTarget(uav, deviceId, eventId);
             addOrUpdateTarget(target);
           }
           break;

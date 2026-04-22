@@ -9,8 +9,8 @@ todos:
     content: Centralize mission_event WS reducers and extend MissionEvent payload types (plus REST backfill = timeline only, WS authoritative for targets)
     status: completed
   - id: t1-lifecycle
-    content: Mission lifecycle (activate/stop/overlaps) + Mission Workspace tabbed shell (Timeline/Devices/Detections/Commands/Intel) + Toast alerts (3s auto-dismiss, max 10)
-    status: pending
+    content: "Mission lifecycle (activate/stop/overlaps) + Mission Workspace tabbed shell (Timeline/Devices/Detections/Commands/Intel) + Toast alerts (3s auto-dismiss, max 10) — 1a+1b UI largely done; 1c activate/stop/overlaps + header actions pending"
+    status: in_progress
   - id: t2-approvals
     content: Pending Approvals queue with approve/reject and WS-driven refresh
     status: pending
@@ -62,7 +62,7 @@ isProject: false
 | Zone-breach active roster | V1 appendix | Nothing | Live tile + dwell timers |
 | AAR export (CSV/NDJSON) | V1 appendix | Nothing | Download buttons on timeline |
 | WS streams (events, devices, commands) | §6 / B.12 / C.4 | All 3 connected via [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts) | `command_update` store wiring exists; `SWARM_DETECTED`, `TRACK_RATED`, `NFZ_BREACH`, `ZONE_ENTER`/`EXIT`, `BREACH_RING_ENTERED` need explicit reducers in `missionEventsStore` / `targetsStore` |
-| Mission Workspace UI | — | Bottom strip: `RecentCommands` + `MissionTimeline` + `EngagementLog` stacked over the map ([src/components/missions/MissionWorkspace.tsx](src/components/missions/MissionWorkspace.tsx) L78-L131) | No tabbed shell, no mission-scoped Devices tab, no Detections tab slotting, no Intel aggregation |
+| Mission Workspace UI | — | **Done (iterative):** right-rail overlay (anchor matches Detections) — `MissionWorkspaceTabs` with Timeline / Devices / Detections / Commands / Intel; KPI row; `localStorage` `aeroshield.workspace.tab`; `MissionDetectionsList` (live `targetsStore`, grouped by radar); `Deselect` clears mission + targets + `missionEventsStore`; timeline table with Device + Location (incl. zone-breach `target_name` + `uav_lat`/`uav_lon` from `docs/API_REFERENCE.md`); det shell overlay = same list. | **Pending Task 1c:** mission status / Activate / Stop in shell header, overlaps modal, Figma pass where nodes exist |
 | Alerts / toasts | — | None (errors go to console / inline text only) | No `ToastProvider`, no `useToast()` — alerts must be added before operator feedback is usable |
 
 Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permissions), protocol catalogue, policy editor, command trace + cleanup.
@@ -360,7 +360,7 @@ This task ships in **one PR with three sub-deliverables** because later feature 
 - **What lives in each tab** (content model, not visual model):
   - **Timeline** → `MissionTimeline` body (Task 8 replaces internals).
   - **Devices** → mission's devices + `deviceStatusStore` (health / last-seen / battery / azimuth / telemetry). Field list for tiles derived from [old-ui/.../DevicePanel.tsx](old-ui/src/app/components/DevicePanel.tsx) L258-L500.
-  - **Detections** → existing `DetectionsPanel` ([src/components/detections/DetectionsPanel.tsx](src/components/detections/DetectionsPanel.tsx)).
+  - **Detections** → live `MissionDetectionsList` in tab + bell overlay; old Figma mock rows in `DetectionsPanel` were replaced.
   - **Commands** → existing `RecentCommands` + an Approvals-queue slot (filled by Task 2) + a disabled "New command" button that says "Coming soon" (detailed UI is Task 10).
   - **Intel** → 4 empty section slots (Coverage overlaps / Swarms / Friendlies / Jams) — Coverage overlaps content filled by Task 1c; Swarms by Task 5; Friendlies by Task 4; Jams derived from `targetsStore` in a follow-up.
 
@@ -372,6 +372,14 @@ This task ships in **one PR with three sub-deliverables** because later feature 
 - New `src/components/missions/MissionDevicesTab.tsx` — mission-scoped, reads `cachedMission.devices` + `useDeviceStatusStore`. Does **not** call any new API.
 - New `src/components/intel/IntelTab.tsx` — section-slot layout from Figma; ships with the Coverage-overlaps section populated (from Task 1c) and placeholder sections for Swarms/Friendlies/Jams.
 - New `src/components/commands/CommandsTab.tsx` — wraps the existing `RecentCommands` plus approval-queue and new-command-button slots.
+- `src/components/detections/MissionDetectionsList.tsx` + slim `DetectionsPanel.tsx` wrapper; `src/utils/missionEventDisplay.ts` for timeline Device/Location columns (zone-breach + DETECTED payloads).
+
+**Shipped in repo (refined after review; Figma + `driifTokens` — not old-ui chrome):**
+- **Placement:** [src/app/dashboard/page.tsx](src/app/dashboard/page.tsx) — mission UI is `absolute` right-rail, same top/right anchor as the Detections overlay (`POSITION.bellRight`, below the bell), `z-[11]` (Detections `z-[12]`).
+- **Deselect** button in the shell header (next to mission title) — calls the same `exitMission` as other flows: `setActiveMission(null)`, `setCachedMission(null)`, `clearTargets`, `useMissionEventsStore.clearEvents()`.
+- **Intentional omission:** no mission `status` chip (e.g. STOPPED) in the header until **Task 1c** (activate/stop/refresh from API) — avoids misleading static labels.
+- **Timeline (workspace):** full-height table in the tab panel, no inner “Mission timeline (n)” title bar; columns Event / Device / Location / Time; zone rows use `payload.target_name`, `zone_label`, `uav_lat`/`uav_lon` per API ref.
+- **KPI row:** `border` (not `box-shadow`) to avoid first/last card border clipping; tab badges + 10s tick for stale KPIs.
 
 **Acceptance:**
 - Selecting a mission shows the new tab shell with the last-used tab pre-selected from `localStorage`.
@@ -734,3 +742,4 @@ Already written but currently unused — will be consumed by the tasks above:
 - **P0 WS reducers + drone-flood fix (current pass).** Centralized `handleMissionEvent`; added `missionEventsBus`; bumped `MAX_EVENTS` to 500; extended `Target` with `rating`/`threat` and `DeviceStatusEntry` with azimuth fields; REST `useMissionEvents` is now a one-shot 15-minute timeline backfill (no longer seeds `targetsStore`), fixing the "200 historical drones on mission select" flood. `yarn build` green.
 - **Task A — Devices admin list.** Shipped (see Task A section for file list and follow-ups).
 - **Plan update (this pass).** Expanded Task 1 to three sub-deliverables (1a Toast provider, 1b Mission Workspace tabbed shell with Timeline / Devices / Detections / Commands / Intel tabs, 1c lifecycle + overlaps). Annotated Tasks 2 / 4 / 5 / 7 / 8 with their landing tab. Added deferred Task 10 — Command launch UI. Added a strict `old-ui/` scope guardrail to §7: references for APIs + behaviour only, visuals come from Figma + `driifTokens.ts`. Informed by review of legacy `old-ui/` (`MissionWorkspacePage.tsx`, `Toasts.tsx`, `CommandPanel.tsx`, `DetectionsPanel.tsx`, `TimelinePanel.tsx`, `DevicePanel.tsx`, `command.api.ts`, `device.api.ts`).
+- **Task 1b follow-on (this pass).** Right-rail mission workspace aligned with Detections; live detections list + `Target` fields `positionDerived` / `monitorDeviceId`; `MissionDetectionsList`; timeline Device/Location from `missionEventDisplay` (incl. zone-breach top-level `uav_lat`/`uav_lon`); KPI border fix; flat timeline tab; removed footer status badges; `Deselect` + `clearEvents` on exit; header status chip removed pending Task 1c. `t1-lifecycle` marked `in_progress`.

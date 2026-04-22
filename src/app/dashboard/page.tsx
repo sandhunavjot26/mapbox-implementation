@@ -8,6 +8,7 @@ import { DetectionsPanel } from "@/components/detections/DetectionsPanel";
 import { CopTopBar } from "@/components/cop-shell/CopTopBar";
 import { MissionSelector } from "@/components/missions/MissionSelector";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { MissionEventToasts } from "@/components/alerts/MissionEventToasts";
 import { DevicesInventoryOverlay } from "@/components/devices/DevicesInventoryOverlay";
 import {
   subscribeToIntercepts,
@@ -16,6 +17,7 @@ import {
 import { useAuthStore } from "@/stores/authStore";
 import { logout } from "@/lib/api/auth";
 import { useMissionStore } from "@/stores/missionStore";
+import { useMissionEventsStore } from "@/stores/missionEventsStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useWsStatusStore } from "@/stores/wsStatusStore";
 import { useLandingMissionAssets, useLandingBorders, useMapFeatures } from "@/hooks/useMissions";
@@ -52,8 +54,6 @@ const EntityHoverPopup = dynamic(
 export default function DashboardPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [assetsCollapsed, setAssetsCollapsed] = useState(false);
-  const [trackingCollapsed, setTrackingCollapsed] = useState(false);
   const [mapMode, setMapMode] = useState<"2D" | "3D">("2D");
   const [basemapVariant, setBasemapVariant] = useState<
     "standard" | "standard-satellite"
@@ -77,6 +77,7 @@ export default function DashboardPage() {
   const setActiveMission = useMissionStore((s) => s.setActiveMission);
   const setCachedMission = useMissionStore((s) => s.setCachedMission);
   const clearTargets = useTargetsStore((s) => s.clearTargets);
+  const clearMissionEvents = useMissionEventsStore((s) => s.clearEvents);
 
   const wsEventsStatus = useWsStatusStore((s) => s.eventsStatus);
   const wsDevicesStatus = useWsStatusStore((s) => s.devicesStatus);
@@ -278,15 +279,23 @@ export default function DashboardPage() {
       )}
 
       {activeMissionId && (
-        <div className="absolute inset-0 z-[8] flex min-h-0 min-w-0 pointer-events-none">
-          <MissionWorkspace
-            missionId={activeMissionId}
-            assetsCollapsed={assetsCollapsed}
-            trackingCollapsed={trackingCollapsed}
-            onAssetsToggle={() => setAssetsCollapsed((c) => !c)}
-            onTrackingToggle={() => setTrackingCollapsed((c) => !c)}
-          />
-        </div>
+        <>
+          <MissionEventToasts />
+          <div
+            className="pointer-events-auto absolute z-[11] flex min-h-0 min-w-0 flex-col"
+            style={{
+              right: POSITION.bellRight,
+              top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
+              bottom: POSITION.zoomBottom,
+              width: "min(510px, calc(100vw - 32px))",
+            }}
+          >
+            <MissionWorkspace
+              missionId={activeMissionId}
+              onDeselect={exitMission}
+            />
+          </div>
+        </>
       )}
     </div>
   );
