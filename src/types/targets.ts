@@ -53,4 +53,9 @@ export interface Target {
   rating?: TargetRating;
   /** §E.1 THREAT_ESCALATION */
   threat?: TargetThreat;
+  /** From DETECTED uav when backend derived coordinates from range + azimuth. */
+  positionDerived?: boolean;
+  targetUidSynthesised?: boolean;
+  /** Vendor-reported id (groups with mission devices in Detections list). */
+  monitorDeviceId?: number;
 }

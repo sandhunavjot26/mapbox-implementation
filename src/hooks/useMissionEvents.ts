@@ -62,6 +62,7 @@ export function useMissionEvents(
         event_type: e.event_type,
         ts: e.ts,
         payload: pl && Object.keys(pl).length > 0 ? pl : null,
+        silent: true,
       });
     }
   }, [data, isSuccess, addEvent]);

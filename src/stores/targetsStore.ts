@@ -96,6 +96,12 @@ export function uavPayloadToTarget(
     lastSeenAt: Date.now(),
     bandwidthMHz: uav.bandwidth_khz != null ? uav.bandwidth_khz / 1000 : undefined,
     rcCoords,
+    positionDerived: uav.position_derived === true,
+    targetUidSynthesised: uav.target_uid_synthesised === true,
+    monitorDeviceId:
+      uav.monitor_device_id != null && Number.isFinite(Number(uav.monitor_device_id))
+        ? Number(uav.monitor_device_id)
+        : undefined,
   };
 }
 
@@ -138,6 +144,13 @@ export const useTargetsStore = create<TargetsState>((set, get) => ({
           target.classification === "UNKNOWN" && existing
             ? existing.classification
             : target.classification,
+        positionDerived: target.positionDerived ?? existing?.positionDerived,
+        targetUidSynthesised:
+          target.targetUidSynthesised ?? existing?.targetUidSynthesised,
+        monitorDeviceId: target.monitorDeviceId ?? existing?.monitorDeviceId,
+        deviceId: target.deviceId !== undefined && target.deviceId !== null
+          ? target.deviceId
+          : existing?.deviceId,
       };
       const coord = target.coordinates;
       const prevHistory = state.positionHistory[target.id] ?? [];

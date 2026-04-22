@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // old-ui/ is a read-only reference project (Vite + axios); do not lint.
+    "old-ui/**",
   ]),
 ]);
 
