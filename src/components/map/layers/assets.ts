@@ -1,6 +1,7 @@
 import mapboxgl from "mapbox-gl";
 import type { Asset } from "@/types/assets";
 import { useTargetsStore } from "@/stores/targetsStore";
+import type { BasemapVariant } from "@/utils/mapboxBasemapConfig";
 
 /** Current assets for animation — updated by setAssetLayersData when using API */
 let currentAssetsForAnimation: Array<{
@@ -26,6 +27,29 @@ const RADAR_LIME = "#C6E600"; // Primary/60 — inner ring
 const RADAR_SWEEP_FILL = "#0CBB58"; // Green/50 — scan wedge
 const RADAR_YELLOW_FILL = "rgba(244, 163, 12, 0.16)";
 const RADAR_ORANGE_FILL = "rgba(234, 88, 12, 0.1)";
+const RADAR_YELLOW_FILL_SAT = "rgba(244, 163, 12, 0.28)";
+const RADAR_ORANGE_FILL_SAT = "rgba(234, 88, 12, 0.22)";
+
+let currentBasemapVariant: BasemapVariant = "standard";
+
+export function setAssetBasemapVariant(variant: BasemapVariant): void {
+  currentBasemapVariant = variant;
+}
+
+let cachedAssetTowerImage:
+  | HTMLImageElement
+  | ImageBitmap
+  | ImageData
+  | null = null;
+
+/** Decoded tower PNG for reuse after setStyle (no re-fetch). */
+export function getCachedAssetTowerImage():
+  | HTMLImageElement
+  | ImageBitmap
+  | ImageData
+  | null {
+  return cachedAssetTowerImage;
+}
 
 // Compute destination point from [lng, lat], bearing (degrees), distance (km)
 function destinationPoint(
@@ -143,17 +167,20 @@ function generateRingBand(
   return [...outer, outer[0], ...inner, inner[0]];
 }
 
-// Load tower icon into map
+// Load tower icon into map (decode once, reuse across setStyle)
 async function loadAssetIcon(map: mapboxgl.Map): Promise<void> {
+  if (map.hasImage("asset-tower")) return;
+  if (cachedAssetTowerImage) {
+    map.addImage("asset-tower", cachedAssetTowerImage);
+    return;
+  }
   return new Promise((resolve) => {
-    if (map.hasImage("asset-tower")) {
-      resolve();
-      return;
-    }
-
     map.loadImage("/icons/tower.png", (err, image) => {
       if (!err && image) {
-        map.addImage("asset-tower", image);
+        cachedAssetTowerImage = image;
+        if (!map.hasImage("asset-tower")) {
+          map.addImage("asset-tower", image);
+        }
       }
       resolve();
     });
@@ -207,7 +234,11 @@ export function setAssetLayersData(
 export async function addAssetLayers(
   map: mapboxgl.Map,
   initialData?: GeoJSON.FeatureCollection,
+  opts?: { basemapVariant?: BasemapVariant },
 ): Promise<void> {
+  if (opts?.basemapVariant) {
+    currentBasemapVariant = opts.basemapVariant;
+  }
   if (map.getSource("assets")) return;
 
   await loadAssetIcon(map);
@@ -319,6 +350,28 @@ export async function addAssetLayers(
     });
   }
   map.addLayer({
+    id: "radar-rings-halo-layer",
+    type: "line",
+    source: "radar-rings",
+    slot: RADAR_SLOT,
+    paint: {
+      "line-color": "rgba(5, 10, 20, 0.55)",
+      "line-width": ["match", ["get", "ringTier"], 2, 4.2, 3.8],
+      "line-blur": 1.5,
+      "line-opacity": [
+        "*",
+        [
+          "case",
+          ["==", ["get", "variant"], "satellite"],
+          0.7,
+          0.35,
+        ],
+        ["get", "statusDim"],
+      ],
+      "line-color-use-theme": "disabled",
+    },
+  });
+  map.addLayer({
     id: "radar-rings-layer",
     type: "line",
     source: "radar-rings",
@@ -331,9 +384,34 @@ export async function addAssetLayers(
         RADAR_ORANGE_DEEP,
         RADAR_ORANGE,
       ],
-      "line-width": ["match", ["get", "ringTier"], 2, 2, 1.6],
+      "line-width": [
+        "match",
+        ["get", "ringTier"],
+        2,
+        [
+          "case",
+          ["==", ["get", "variant"], "satellite"],
+          2.6,
+          2.0,
+        ],
+        [
+          "case",
+          ["==", ["get", "variant"], "satellite"],
+          2.1,
+          1.6,
+        ],
+      ],
       "line-dasharray": ["literal", [4, 3]],
-      "line-opacity": ["*", 0.92, ["get", "statusDim"]],
+      "line-opacity": [
+        "*",
+        [
+          "case",
+          ["==", ["get", "variant"], "satellite"],
+          1.0,
+          0.92,
+        ],
+        ["get", "statusDim"],
+      ],
       "line-emissive-strength": 1,
       "line-color-use-theme": "disabled",
     },
@@ -447,6 +525,11 @@ export async function addAssetLayers(
     // Two filled warm radar bands with dashed outlines
     const ringFillFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
     const ringFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = [];
+    const isSat = currentBasemapVariant === "standard-satellite";
+    const variant = isSat ? "satellite" : "standard";
+    const yellowFill = isSat ? RADAR_YELLOW_FILL_SAT : RADAR_YELLOW_FILL;
+    const orangeFill = isSat ? RADAR_ORANGE_FILL_SAT : RADAR_ORANGE_FILL;
+
     assets.forEach((asset) => {
       const statusDim = asset.status === "ACTIVE" ? 1 : 0.38;
       (
@@ -455,14 +538,14 @@ export async function addAssetLayers(
             innerRatio: 0,
             outerRatio: 0.5,
             ringTier: 1,
-            fillColor: RADAR_YELLOW_FILL,
+            fillColor: yellowFill,
             fillOpacity: 1,
           },
           {
             innerRatio: 0.5,
             outerRatio: 1,
             ringTier: 2,
-            fillColor: RADAR_ORANGE_FILL,
+            fillColor: orangeFill,
             fillOpacity: 1,
           },
         ] as const
@@ -490,7 +573,7 @@ export async function addAssetLayers(
           ring.push(ring[0]);
           ringFeatures.push({
             type: "Feature",
-            properties: { ringTier, statusDim },
+            properties: { ringTier, statusDim, variant },
             geometry: { type: "LineString", coordinates: ring },
           });
         },

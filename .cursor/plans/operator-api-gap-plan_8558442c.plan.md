@@ -9,7 +9,7 @@ todos:
     content: Centralize mission_event WS reducers and extend MissionEvent payload types (plus REST backfill = timeline only, WS authoritative for targets)
     status: completed
   - id: t1-lifecycle
-    content: Mission activate/stop + overlaps warning modal (PATCH/activate/stop/overlaps)
+    content: Mission lifecycle (activate/stop/overlaps) + Mission Workspace tabbed shell (Timeline/Devices/Detections/Commands/Intel) + Toast alerts (3s auto-dismiss, max 10)
     status: pending
   - id: t2-approvals
     content: Pending Approvals queue with approve/reject and WS-driven refresh
@@ -35,6 +35,9 @@ todos:
   - id: t9-polish
     content: Zone CRUD cache invalidation, configs/by-mission, deviceHealth rollup
     status: pending
+  - id: t10-command-launch-ui
+    content: "Command launch UI (structured forms + dynamic schema forms) — deferred; scaffold only in Task 1b"
+    status: pending
 isProject: false
 ---
 
@@ -59,6 +62,8 @@ isProject: false
 | Zone-breach active roster | V1 appendix | Nothing | Live tile + dwell timers |
 | AAR export (CSV/NDJSON) | V1 appendix | Nothing | Download buttons on timeline |
 | WS streams (events, devices, commands) | §6 / B.12 / C.4 | All 3 connected via [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts) | `command_update` store wiring exists; `SWARM_DETECTED`, `TRACK_RATED`, `NFZ_BREACH`, `ZONE_ENTER`/`EXIT`, `BREACH_RING_ENTERED` need explicit reducers in `missionEventsStore` / `targetsStore` |
+| Mission Workspace UI | — | Bottom strip: `RecentCommands` + `MissionTimeline` + `EngagementLog` stacked over the map ([src/components/missions/MissionWorkspace.tsx](src/components/missions/MissionWorkspace.tsx) L78-L131) | No tabbed shell, no mission-scoped Devices tab, no Detections tab slotting, no Intel aggregation |
+| Alerts / toasts | — | None (errors go to console / inline text only) | No `ToastProvider`, no `useToast()` — alerts must be added before operator feedback is usable |
 
 Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permissions), protocol catalogue, policy editor, command trace + cleanup.
 
@@ -88,6 +93,27 @@ flowchart LR
     TimelineExport -->|events.csv / events.ndjson| Device
 ```
 
+**UI shell → task map** (from Task 1b onwards, every feature task lands in a specific tab):
+
+```mermaid
+flowchart LR
+    Shell["Mission Workspace shell (Task 1b) + ToastProvider (Task 1a)"]
+    Shell --> TimelineTab[Timeline tab]
+    Shell --> DevicesTab[Devices tab]
+    Shell --> DetectionsTab[Detections tab]
+    Shell --> CommandsTab[Commands tab]
+    Shell --> IntelTab[Intel tab]
+
+    T1c["Task 1c: Activate/Stop + Overlap modal"] --> Shell
+    T1c --> IntelTab
+    T2["Task 2: Approvals queue"] --> CommandsTab
+    T4["Task 4: Friendlies"] --> IntelTab
+    T5["Task 5: Swarms"] --> IntelTab
+    T7["Task 7: Zone-breach roster"] --> IntelTab
+    T8["Task 8: Timeline V2"] --> TimelineTab
+    T10["Task 10: Command launch UI (deferred)"] --> CommandsTab
+```
+
 ## 3. Prerequisites (do these first, once)
 
 - **P0 — Central WS reducer contract. [DONE]** `useMissionSockets` now has one `handleMissionEvent(evt)` that pushes every event into `missionEventsStore` (cap 500) and runs type-specific side-effects on `targetsStore`, `deviceStatusStore`, React Query, and a tiny `missionEventsBus`. See [Section 6 / P0](#p0--centralize-websocket-reducers-done) for exactly what shipped.
@@ -99,15 +125,19 @@ Ordered so each task depends only on earlier ones. Each task = **one Cursor prom
 
 0. **Task A — Devices admin list** **[DONE]**
 1. **P0 — Centralize WS reducers** **[DONE]** (plus drone-flood follow-up: REST backfill is timeline-only; WS is authoritative for targets)
-2. Mission lifecycle (activate/stop) + overlaps warning
-3. Approvals queue (closes the biggest safety gap)
+2. **Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts.** Three sub-deliverables in one task so later features have a stable host:
+   - **1a** — Toast/Alert provider (3s auto-dismiss, max 10 stacked)
+   - **1b** — Mission Workspace tabbed shell (Timeline / Devices / Detections / Commands / Intel)
+   - **1c** — `POST activate` / `POST stop` / `GET overlaps` + CoverageWarningModal, activate button lives in the shell header
+3. Approvals queue (closes the biggest safety gap) → lands in the Commands tab
 4. Friendly-drone override retry on 409 + command idempotency keys
-5. Friendlies panel
-6. Swarms panel + halo rings on map
+5. Friendlies panel → lands in the Intel tab
+6. Swarms panel + halo rings on map → lands in the Intel tab
 7. Operator annotations persistence (TRACK_RATED via `POST /annotations`)
-8. Zone-breach active roster tile
-9. Mission timeline V2 (extended filters, counts, pagination, AAR export)
+8. Zone-breach active roster tile → lands in the Intel tab
+9. Mission timeline V2 (extended filters, counts, pagination, AAR export) → lands in the Timeline tab
 10. Polish: zone CRUD cache invalidation, `configs/by-mission` rendering
+11. **Task 10 — Command launch UI (deferred)** — full structured command forms + dynamic `payload_schema` forms. Task 1b only scaffolds a placeholder "New command" entry.
 
 ## 5. Cursor prompt templates (copy-paste ready)
 
@@ -294,38 +324,127 @@ Acceptance:
 - TRACK_RATED from another tab updates the drone icon colour within <1 s
 ```
 
-### Task 1 — Mission lifecycle (activate / stop) + overlaps warning
+### Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts
 
-**Figma nodes you'll likely need:** "Activate mission" primary button in mission workspace header; "Coverage warning" modal listing overlap pairs.
+This task ships in **one PR with three sub-deliverables** because later feature tasks (Approvals, Friendlies, Swarms, Timeline V2, Zone-breach roster) all need the shell and toast infrastructure to mount into.
 
-**Prompt:**
+> **`old-ui/` scope reminder:** the `old-ui/` references below are **behavioural only** — API shapes, event flow, data fields displayed, localStorage keys. **All visual design (layout, colors, spacing, typography, motion) comes from Figma + `driifTokens.ts`** per [.cursor/rules/design.md](.cursor/rules/design.md) and [.cursor/rules/figma-build.md](.cursor/rules/figma-build.md). Never copy old-ui layouts, grids, or styling verbatim.
+
+#### Task 1a — Toast / Alert provider
+
+**Figma node needed:** toast container + 4 states (success / error / info / warning). `<FIGMA_NODE_URL>` required before the styling pass.
+
+**From `old-ui/` (behaviour only):** the `ToastProvider` + `useToast()` API shape in [old-ui/src/app/components/Toasts.tsx](old-ui/src/app/components/Toasts.tsx) L49-L62 — context-based, imperative `push(kind, message, durationMs)`, auto-dismiss via `setTimeout`, stacked in a fixed container. Do **not** copy the Tailwind classes at L77-L92 (`bg-emerald-500/90`, `ring-emerald-400`, etc.); those come from Figma.
+
+**From user spec:** default `durationMs = 3000`, stack cap **10**. Four kinds: `success | error | info | warning`.
+
+**Deliverables:**
+- `src/components/alerts/ToastProvider.tsx` (context + state + render)
+- `src/components/alerts/useToast.ts` (`success / error / info / warning / push`)
+- Wrap [src/app/layout.tsx](src/app/layout.tsx) (or the closest client boundary) once, above `QueryProvider`.
+- Add types to `src/types/aeroshield.ts` if the toast payload union needs documenting.
+
+**Acceptance:**
+- `useToast().success("Mission activated")` renders a toast that auto-dismisses after 3s.
+- Queueing 12 toasts in a loop leaves at most 10 visible; oldest are evicted.
+- Visuals match Figma pixel-exact (spacing, radius, colours via `driifTokens.ts`).
+
+---
+
+#### Task 1b — Mission Workspace tabbed shell
+
+**Figma node needed:** full mission-active workspace — tab bar, header with Activate, tab body scroll behaviour, responsive breakpoints. `<FIGMA_NODE_URL>` required.
+
+**From `old-ui/` (behaviour only):**
+- Tab IDs and persistence key — [old-ui/src/app/pages/MissionWorkspacePage.tsx](old-ui/src/app/pages/MissionWorkspacePage.tsx) L228-L241: `"timeline" | "devices" | "detections" | "commands" | "intel"`, persisted under `localStorage["aeroshield.workspace.tab"]` (reuse the key so existing operator browsers pick up their last tab).
+- **What lives in each tab** (content model, not visual model):
+  - **Timeline** → `MissionTimeline` body (Task 8 replaces internals).
+  - **Devices** → mission's devices + `deviceStatusStore` (health / last-seen / battery / azimuth / telemetry). Field list for tiles derived from [old-ui/.../DevicePanel.tsx](old-ui/src/app/components/DevicePanel.tsx) L258-L500.
+  - **Detections** → existing `DetectionsPanel` ([src/components/detections/DetectionsPanel.tsx](src/components/detections/DetectionsPanel.tsx)).
+  - **Commands** → existing `RecentCommands` + an Approvals-queue slot (filled by Task 2) + a disabled "New command" button that says "Coming soon" (detailed UI is Task 10).
+  - **Intel** → 4 empty section slots (Coverage overlaps / Swarms / Friendlies / Jams) — Coverage overlaps content filled by Task 1c; Swarms by Task 5; Friendlies by Task 4; Jams derived from `targetsStore` in a follow-up.
+
+**Do NOT copy from old-ui:** the `grid-cols-12 / col-span-8 / col-span-4` split, the in-sidebar KPI strip, tile dimensions, colours, tab-bar visuals, the bottom-of-sidebar scroll model. All of that is Figma-driven.
+
+**Deliverables:**
+- Refactor [src/components/missions/MissionWorkspace.tsx](src/components/missions/MissionWorkspace.tsx) L78-L131 — remove the current stacked bottom strip (`RecentCommands + MissionTimeline + EngagementLog`).
+- New `src/components/missions/MissionWorkspaceTabs.tsx` — tab bar + active-tab router (`localStorage`-persisted state). Tab-bar visuals from Figma.
+- New `src/components/missions/MissionDevicesTab.tsx` — mission-scoped, reads `cachedMission.devices` + `useDeviceStatusStore`. Does **not** call any new API.
+- New `src/components/intel/IntelTab.tsx` — section-slot layout from Figma; ships with the Coverage-overlaps section populated (from Task 1c) and placeholder sections for Swarms/Friendlies/Jams.
+- New `src/components/commands/CommandsTab.tsx` — wraps the existing `RecentCommands` plus approval-queue and new-command-button slots.
+
+**Acceptance:**
+- Selecting a mission shows the new tab shell with the last-used tab pre-selected from `localStorage`.
+- Each tab renders the components listed above; no visual regression vs Figma.
+- `EngagementLog`, the `REAL-TIME DATA / THREAT PROFILING / COUNTER-UAS EFFECTORS` badge strip, and any other legacy bottom-of-map UI are either placed per Figma or removed.
+- No change in data hooks used — `useMissionLoad`, `useMissionSockets`, `useMissionEvents` still power the tabs.
+
+---
+
+#### Task 1c — Mission lifecycle (activate / stop / overlaps)
+
+**Figma nodes needed:** Activate button state variants inside the shell header, Stop button variant, CoverageWarningModal (severity chip styling for CRITICAL / HIGH / LOW). `<FIGMA_NODE_URL>` required.
+
+**From `old-ui/` (behaviour only):** `apiActivateMission` / `apiStopMission` + "block Activate when `overlaps.counts.CRITICAL > 0`" flow at [old-ui/.../MissionWorkspacePage.tsx](old-ui/src/app/pages/MissionWorkspacePage.tsx) L339-L344 and L878-L909. Do **not** copy the Activate button placement or styling from old-ui — the button lives wherever Figma puts it inside the shell header from Task 1b.
+
+**Endpoints (already documented):**
+- `POST /api/v1/missions/{id}/activate`
+- `POST /api/v1/missions/{id}/stop`
+- `PATCH /api/v1/missions/{id}` (name edits)
+- `GET  /api/v1/missions/{id}/overlaps`
+
+**Deliverables:**
+- `src/lib/api/missions.ts` → add `activateMission`, `stopMission`, `getMissionOverlaps` (`updateMission` already exists).
+- `src/hooks/useMissions.ts` → add `useActivateMission`, `useStopMission` (invalidate `["mission", id]`).
+- `src/hooks/useMissionOverlaps.ts` → `useQuery`, enabled when mission status !== ACTIVE.
+- `src/components/missions/MissionActivationButton.tsx` — rendered inside `MissionWorkspaceTabs` header slot.
+- `src/components/missions/CoverageWarningModal.tsx` — renders `warnings[]` with severity chips; visual from Figma.
+- Wire success / failure to `useToast()` (1a).
+- Populate the Intel tab's **Coverage overlaps** section from `useMissionOverlaps`.
+
+**Acceptance:**
+- Click Activate → if `overlaps.counts.CRITICAL > 0` opens `CoverageWarningModal` (blocks activate); otherwise mutation runs and `MissionOut.status` flips to ACTIVE.
+- Stop button visible only when ACTIVE.
+- Success toast on activate / stop; error toast on failure.
+- `PATCH` name inline-edits mission title and invalidates the list query.
+- Intel tab's Coverage-overlaps section lists current overlap warnings, updates on mission reload.
+
+---
+
+**Combined Cursor prompt (all three sub-deliverables, one PR):**
 ```
-Task: Add mission activation and coverage-overlap warnings.
+Read first:
+- .cursor/rules/design.md, .cursor/rules/figma-build.md (Figma-first, no redesign)
+- docs/API_REFERENCE.md §B.4 (activate, stop, overlaps, PATCH)
+- src/components/missions/MissionWorkspace.tsx (current bottom-strip layout to refactor)
+- src/styles/driifTokens.ts (all styling must come from these tokens)
+- Behavioural references (DO NOT copy visuals):
+  - old-ui/src/app/components/Toasts.tsx L49-L62 (provider API shape)
+  - old-ui/src/app/pages/MissionWorkspacePage.tsx L228-L241 (tab ids + localStorage key), L339-L344, L878-L909 (lifecycle flow)
 
-Read: docs/API_REFERENCE.md §B.4 (activate, stop, overlaps, PATCH)
-Figma: <FIGMA_NODE_URL> — call get_design_context first.
+Figma (required for every sub-deliverable):
+- 1a Toast: <FIGMA_NODE_URL_TOAST>
+- 1b Tab shell: <FIGMA_NODE_URL_SHELL>
+- 1c Activate/Stop + CoverageWarningModal: <FIGMA_NODE_URL_LIFECYCLE>
+- Use user-driif-figma MCP: call get_design_context for each URL first. Do NOT invent visuals.
 
-Endpoints:
-- POST /api/v1/missions/{id}/activate
-- POST /api/v1/missions/{id}/stop
-- PATCH /api/v1/missions/{id} (for name edits)
-- GET  /api/v1/missions/{id}/overlaps
+Task: Ship Task 1 from .cursor/plans/operator-api-gap-plan_8558442c.plan.md as one PR with three sub-deliverables (1a toasts, 1b tab shell, 1c lifecycle). Every visual decision must come from Figma + driifTokens.ts; old-ui is reference for APIs/behaviour ONLY.
 
-Deliverables:
-- src/lib/api/missions.ts → add activateMission, stopMission, getMissionOverlaps (updateMission already exists but is unused — keep)
-- src/hooks/useMissions.ts → add useActivateMission, useStopMission mutations (invalidate ["mission", id])
-- src/hooks/useMissionOverlaps.ts → useQuery, enabled when mission status !== ACTIVE
-- src/components/missions/MissionActivationButton.tsx (new)
-- src/components/missions/CoverageWarningModal.tsx (new) — renders warnings[] with severity chips (CRITICAL/HIGH/LOW) using driifTokens colors
-- Wire into MissionWorkspaceShell top-right slot
+Deliverables: see Task 1a/1b/1c sections for exact file lists. Tab IDs and localStorage key match old-ui for operator continuity. Toast defaults: 3000ms, max 10 stacked, kinds success|error|info|warning.
 
-Acceptance:
-- Click Activate → if overlaps.counts.CRITICAL>0 opens modal (block); else mutation runs and MissionOut.status flips to ACTIVE
-- Stop button visible only when ACTIVE
-- PATCH name inline-edits mission title and invalidates the list query
+Acceptance (combined):
+- useToast() works, 3s auto-dismiss, max 10 visible.
+- Mission selection shows tabbed shell with last-used tab persisted.
+- Activate blocks on CRITICAL overlaps (modal from Figma); success/failure routed through toast.
+- Stop visible only when ACTIVE.
+- Intel tab's Coverage-overlaps section populated; Swarms/Friendlies/Jams are empty slots.
+- No visual regression vs Figma; no borrowed layout from old-ui.
+- yarn build green; no lints.
 ```
 
 ### Task 2 — Approvals queue (live, WS-driven)
+
+**Lands in:** Commands tab (slot above `RecentCommands`, rendered by `CommandsTab.tsx` from Task 1b).
 
 **Figma nodes:** Pending approvals list with approve/reject actions, reason input modal.
 
@@ -385,6 +504,8 @@ Acceptance:
 
 ### Task 4 — Friendlies panel
 
+**Lands in:** Intel tab → "Friendlies" section slot (scaffolded empty by Task 1b).
+
 **Figma nodes:** Friendlies list + "Add friendly" form + inline edit row.
 
 **Prompt:**
@@ -413,6 +534,8 @@ Acceptance:
 ```
 
 ### Task 5 — Swarms panel + halo rings + WS trigger
+
+**Lands in:** Intel tab → "Swarms" section slot (scaffolded empty by Task 1b). Map halo-ring layer is independent of the tab.
 
 **Figma nodes:** Swarms list with severity chips, "Tag swarm" form, Closed filter; swarm halo ring on map.
 
@@ -475,6 +598,8 @@ Acceptance:
 
 ### Task 7 — Zone-breach active roster tile
 
+**Lands in:** Intel tab → "Breaches" section (new slot added alongside Coverage / Swarms / Friendlies / Jams).
+
 **Figma nodes:** Active-breaches card list with dwell timers.
 
 **Prompt:**
@@ -500,6 +625,8 @@ Acceptance:
 ```
 
 ### Task 8 — Mission timeline V2: extended filters, counts, pagination, CSV/NDJSON export
+
+**Lands in:** Timeline tab — replaces the current `MissionTimeline` body inside the shell from Task 1b.
 
 **Figma nodes:** Timeline filter bar (types multi-select, date range, source, target_uid), "showing N of M" footer, Export menu.
 
@@ -548,8 +675,34 @@ Acceptance:
 - Radar config tab shows the current band plan read from the server
 ```
 
+### Task 10 — Command launch UI (deferred; scaffold only in Task 1b)
+
+**Lands in:** Commands tab — replaces the "New command (coming soon)" button scaffolded by Task 1b.
+
+**Why deferred:** The legacy [old-ui/src/app/components/CommandPanel.tsx](old-ui/src/app/components/CommandPanel.tsx) is ~35 KB and combines three concerns (hard-coded structured forms, DB-policy-driven dynamic forms, per-command capability gating). We intentionally ship Task 1 → Task 9 first so the operator loop closes, then tackle command launch UI as a focused task.
+
+**`old-ui/` scope reminder:** port **APIs, field lists, form shapes, and behaviour** from the references below. **Do not port visual layout.** Each form's UI must come from a dedicated Figma node.
+
+**Reference files (behaviour only):**
+- [old-ui/src/app/components/CommandPanel.tsx](old-ui/src/app/components/CommandPanel.tsx) — capability fetch (L273-L296), DB-policy merge over presets (L298-L368), POST dispatch + approval path (L370-L402), friendly-lockout retry (L407-L440), BAND_RANGE_QUERY poll (L714-L764), Mission vs Diagnostics split (L480-L508).
+- [old-ui/src/app/components/PayloadForm.tsx](old-ui/src/app/components/PayloadForm.tsx) — structured form set `JAM_START`, `JAM_STOP`, `ATTACK_MODE_SET`, `IP_SET`, `TURNTABLE_POINT`, `TURNTABLE_DIR`, `BAND_RANGE_SET` (L18-L26).
+- [old-ui/src/app/components/SchemaForm.tsx](old-ui/src/app/components/SchemaForm.tsx) — renderer for DB-driven `payload_schema`.
+
+**New endpoints to wire (not in the new project yet):**
+- `GET /api/v1/commands/capabilities` — per-protocol supported `command_type[]`.
+- `GET /api/v1/policies` — per-command `payload_schema`, `required_approvals`, defaults.
+
+**Deliverables (outline; detailed prompt when Task 10 starts):**
+- `src/lib/api/capabilities.ts`, `src/lib/api/policies.ts`.
+- `src/types/aeroshield.ts` → `PolicyRow`, `PolicyPayloadSchema`, `PolicyPayloadField` (mirroring old-ui `types/command.ts` / `api/command.api.ts`).
+- `src/components/commands/CommandLaunchPanel.tsx` — Mission vs Diagnostics dropdown, hardcoded structured forms for the 7 commands above, fallback `SchemaForm` for policy-only commands, raw JSON textarea last-resort.
+- Integrates with Task 3 friendly-lockout retry and Task 2 approvals progress.
+
+**Explicit non-goals for Task 10:** admin policy editor, protocol catalogue UI, command trace / cleanup. Those remain out of the operator scope.
+
 ## 7. Cross-cutting guardrails (apply to every task)
 
+- **`old-ui/` scope (STRICT):** `old-ui/` is a reference for **APIs, WS reducers, data fields shown, and behavioural contracts ONLY**. All visual design (layout, grids, colors, spacing, radii, typography, motion) comes from **Figma + [src/styles/driifTokens.ts](src/styles/driifTokens.ts)** per [.cursor/rules/design.md](.cursor/rules/design.md) and [.cursor/rules/figma-build.md](.cursor/rules/figma-build.md). **Never copy `old-ui/` component layouts, grids, Tailwind class strings, or styling verbatim.** If a Figma node is not provided for a sub-task, pause and ask — do not invent designs.
 - **Auth:** always go through `apiFetch` in [src/lib/api/client.ts](src/lib/api/client.ts); it handles Bearer + base URL.
 - **Permissions:** read `authStore.permissions` before rendering action buttons. Hide, don't disable, per §F.
 - **Error mapping:** extend [src/lib/formatCommandError.ts](src/lib/formatCommandError.ts) for the new error codes (`friendly_drone_active`, `command_not_valid_for_device_type`, `command_not_supported_by_protocol`).
@@ -580,3 +733,4 @@ Already written but currently unused — will be consumed by the tasks above:
 
 - **P0 WS reducers + drone-flood fix (current pass).** Centralized `handleMissionEvent`; added `missionEventsBus`; bumped `MAX_EVENTS` to 500; extended `Target` with `rating`/`threat` and `DeviceStatusEntry` with azimuth fields; REST `useMissionEvents` is now a one-shot 15-minute timeline backfill (no longer seeds `targetsStore`), fixing the "200 historical drones on mission select" flood. `yarn build` green.
 - **Task A — Devices admin list.** Shipped (see Task A section for file list and follow-ups).
+- **Plan update (this pass).** Expanded Task 1 to three sub-deliverables (1a Toast provider, 1b Mission Workspace tabbed shell with Timeline / Devices / Detections / Commands / Intel tabs, 1c lifecycle + overlaps). Annotated Tasks 2 / 4 / 5 / 7 / 8 with their landing tab. Added deferred Task 10 — Command launch UI. Added a strict `old-ui/` scope guardrail to §7: references for APIs + behaviour only, visuals come from Figma + `driifTokens.ts`. Informed by review of legacy `old-ui/` (`MissionWorkspacePage.tsx`, `Toasts.tsx`, `CommandPanel.tsx`, `DetectionsPanel.tsx`, `TimelinePanel.tsx`, `DevicePanel.tsx`, `command.api.ts`, `device.api.ts`).

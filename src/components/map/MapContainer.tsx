@@ -26,6 +26,8 @@ import {
   setAssetLayersData,
   assetsToGeoJSON,
   stopAssetAnimation,
+  getCachedAssetTowerImage,
+  setAssetBasemapVariant,
 } from "./layers/assets";
 import { addTargetLayers, updateTargetLayersData } from "./layers/targets";
 import { addZonesLayer, setZonesLayerData } from "./layers/zones";
@@ -441,7 +443,9 @@ export function MapContainer({
       } else if (mf) {
         assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mf);
       }
-      await addAssetLayers(map, assetsGeoJSON);
+      await addAssetLayers(map, assetsGeoJSON, {
+        basemapVariant: basemapVariantRef.current,
+      });
 
       const missionZones = useMissionStore.getState().cachedMission?.zones;
       if (missionZones?.length) {
@@ -684,6 +688,18 @@ export function MapContainer({
         antialias: true,
       });
 
+      map.on("styleimagemissing", (e) => {
+        if (e.id !== "asset-tower") return;
+        const img = getCachedAssetTowerImage();
+        if (img && !map.hasImage("asset-tower")) {
+          try {
+            map.addImage("asset-tower", img);
+          } catch {
+            // ignore
+          }
+        }
+      });
+
       map.on("style.load", () => {
         console.log("Style loaded");
       });
@@ -847,6 +863,10 @@ export function MapContainer({
       map.setConfig("basemap", basemapFrag);
     }
   }, [basemapVariant, mapLightPreset, isIntroComplete]);
+
+  useEffect(() => {
+    setAssetBasemapVariant(basemapVariant);
+  }, [basemapVariant]);
 
   // Smooth interpolation: lerp display positions toward target positions (~20fps)
   const displayCoordsRef = useRef<Record<string, [number, number]>>({});
