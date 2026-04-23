@@ -5,15 +5,13 @@ export type MissionWorkspaceTabId =
   | "timeline"
   | "devices"
   | "detections"
-  | "commands"
-  | "intel";
+  | "commands";
 
 const ORDER: MissionWorkspaceTabId[] = [
   "timeline",
   "devices",
   "detections",
   "commands",
-  "intel",
 ];
 
 export function isMissionWorkspaceTabId(
@@ -28,7 +26,6 @@ export const MISSION_WORKSPACE_TAB_LABELS: Record<MissionWorkspaceTabId, string>
     devices: "Devices",
     detections: "Detections",
     commands: "Commands",
-    intel: "Intel",
   };
 
 export const MISSION_WORKSPACE_TAB_ORDER = ORDER;

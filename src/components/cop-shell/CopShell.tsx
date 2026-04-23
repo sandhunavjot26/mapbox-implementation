@@ -30,6 +30,8 @@ export type CopShellProps = {
   onBell: () => void;
   /** Top-right detection control (left of notifications) */
   onDetection?: () => void;
+  /** Whether the overall detections panel is open (accessibility). */
+  detectionsOpen?: boolean;
 };
 
 export function CopShell({
@@ -38,6 +40,7 @@ export function CopShell({
   hasMission,
   onBell,
   onDetection,
+  detectionsOpen = false,
 }: CopShellProps) {
   return (
     <div className="pointer-events-none absolute inset-0 z-11">
@@ -163,6 +166,7 @@ export function CopShell({
           type="button"
           title="Detection"
           aria-label="Detection"
+          aria-expanded={detectionsOpen}
           className="flex shrink-0 items-center justify-center p-2"
           style={{
             width: POSITION.bellSize,

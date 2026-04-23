@@ -36,11 +36,8 @@ export function setAssetBasemapVariant(variant: BasemapVariant): void {
   currentBasemapVariant = variant;
 }
 
-let cachedAssetTowerImage:
-  | HTMLImageElement
-  | ImageBitmap
-  | ImageData
-  | null = null;
+let cachedAssetTowerImage: HTMLImageElement | ImageBitmap | ImageData | null =
+  null;
 
 /** Decoded tower PNG for reuse after setStyle (no re-fetch). */
 export function getCachedAssetTowerImage():
@@ -360,12 +357,7 @@ export async function addAssetLayers(
       "line-blur": 1.5,
       "line-opacity": [
         "*",
-        [
-          "case",
-          ["==", ["get", "variant"], "satellite"],
-          0.7,
-          0.35,
-        ],
+        ["case", ["==", ["get", "variant"], "satellite"], 0.7, 0.35],
         ["get", "statusDim"],
       ],
       "line-color-use-theme": "disabled",
@@ -388,28 +380,13 @@ export async function addAssetLayers(
         "match",
         ["get", "ringTier"],
         2,
-        [
-          "case",
-          ["==", ["get", "variant"], "satellite"],
-          2.6,
-          2.0,
-        ],
-        [
-          "case",
-          ["==", ["get", "variant"], "satellite"],
-          2.1,
-          1.6,
-        ],
+        ["case", ["==", ["get", "variant"], "satellite"], 2.6, 2.0],
+        ["case", ["==", ["get", "variant"], "satellite"], 2.1, 1.6],
       ],
       "line-dasharray": ["literal", [4, 3]],
       "line-opacity": [
         "*",
-        [
-          "case",
-          ["==", ["get", "variant"], "satellite"],
-          1.0,
-          0.92,
-        ],
+        ["case", ["==", ["get", "variant"], "satellite"], 1.0, 0.92],
         ["get", "statusDim"],
       ],
       "line-emissive-strength": 1,
@@ -469,7 +446,7 @@ export async function addAssetLayers(
     slot: RADAR_SLOT,
     layout: {
       "icon-image": "asset-tower",
-      "icon-size": 0.3,
+      "icon-size": 0.2,
       "icon-allow-overlap": true,
     },
     paint: {
