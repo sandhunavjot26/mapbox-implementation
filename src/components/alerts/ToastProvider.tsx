@@ -11,7 +11,7 @@
  *
  * User spec:
  *   - Default durationMs = 3000
- *   - Max 10 stacked
+ *   - Max 5 stacked
  *
  * Visuals:
  *   - Derived from existing new-project UI language (driifTokens.ts).
@@ -32,7 +32,7 @@ import {
 } from "react";
 import { flushSync } from "react-dom";
 import type { CSSProperties, ReactNode } from "react";
-import { COLOR, FONT, RADIUS } from "@/styles/driifTokens";
+import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 
 export type ToastKind = "success" | "error" | "info" | "warning";
 
@@ -54,7 +54,7 @@ export type ToastContextValue = {
 };
 
 const DEFAULT_DURATION_MS = 3000;
-const MAX_STACK = 10;
+const MAX_STACK = 5;
 /** Exit animation — toast stays in DOM with opacity 0 before removal. */
 const FADE_OUT_MS = 280;
 const FADE_IN_MS = 180;
@@ -328,13 +328,12 @@ const KIND_PALETTE: Record<
   },
 };
 
-// TODO: Figma — container position is aligned to the right rail below the
-// notification bell (bellTop 76 + bellSize 44 + gap). Replace with the exact
-// placement / gutter / stack direction once a Figma node is provided.
+// Bottom-right stack — clears CopTopBar / mission chrome at top and sits above
+// Mapbox zoom (zoomBottom + zoomWidth + zoomGap). TODO: Figma — exact gutter.
 const containerStyle: CSSProperties = {
   position: "fixed",
-  top: "128px",
-  right: "16px",
+  right: POSITION.zoomRight,
+  bottom: `calc(${POSITION.zoomBottom} + ${POSITION.zoomWidth} + ${SPACING.zoomGap})`,
   display: "flex",
   flexDirection: "column",
   gap: "8px",

@@ -8,6 +8,9 @@ todos:
   - id: p0-ws-reducers
     content: Centralize mission_event WS reducers and extend MissionEvent payload types (plus REST backfill = timeline only, WS authoritative for targets)
     status: completed
+  - id: t0-radar-map-semantics
+    content: "Task 0 — Radar map semantics: azimuth-driven detection/jammer sector (deviceStatusStore.azimuth_deg + beam widths), no fake rAF sweep; breach vs detection radii when API fields exist; old-ui MissionMap + beam.ts behaviour reference"
+    status: pending
   - id: t1-lifecycle
     content: "Mission lifecycle (activate/stop/overlaps) + Mission Workspace tabbed shell (Timeline/Devices/Detections/Commands/Intel) + Toast alerts (3s auto-dismiss, max 10) — 1a+1b UI largely done; 1c activate/stop/overlaps + header actions pending"
     status: in_progress
@@ -97,7 +100,9 @@ flowchart LR
 
 ```mermaid
 flowchart LR
+    T0["Task 0: Radar map semantics (azimuth + radii)"]
     Shell["Mission Workspace shell (Task 1b) + ToastProvider (Task 1a)"]
+    T0 --> Shell
     Shell --> TimelineTab[Timeline tab]
     Shell --> DevicesTab[Devices tab]
     Shell --> DetectionsTab[Detections tab]
@@ -125,19 +130,20 @@ Ordered so each task depends only on earlier ones. Each task = **one Cursor prom
 
 0. **Task A — Devices admin list** **[DONE]**
 1. **P0 — Centralize WS reducers** **[DONE]** (plus drone-flood follow-up: REST backfill is timeline-only; WS is authoritative for targets)
-2. **Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts.** Three sub-deliverables in one task so later features have a stable host:
+2. **Task 0 — Radar map semantics (pick before Task 1).** Align Mapbox asset layers with **old-ui behaviour** (not chrome): detection/jammer coverage as **sector or full disk** from **`deviceStatusStore.azimuth_deg`** + beam width (`detection_beam_deg` / `jammer_beam_deg` or protocol defaults per [old-ui/src/app/utils/beam.ts](old-ui/src/app/utils/beam.ts)); **remove** the decorative `requestAnimationFrame` sweep (or gate behind an explicit demo flag). **Separate** breach threat rings (`breach_*_m`) from detection/jammer radius when mission/device payloads expose those fields (see [old-ui/src/app/components/MissionMap.tsx](old-ui/src/app/components/MissionMap.tsx) breach vs `showRadii` blocks). Sweep **freezes** when azimuth stops updating (stopped turntable). Devices-tab direction controls = later; this task only consumes live state. **Lands in:** [src/components/map/layers/assets.ts](src/components/map/layers/assets.ts) + wiring from [src/stores/deviceStatusStore.ts](src/stores/deviceStatusStore.ts) / [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts).
+3. **Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts.** Three sub-deliverables in one task so later features have a stable host:
    - **1a** — Toast/Alert provider (3s auto-dismiss, max 10 stacked)
    - **1b** — Mission Workspace tabbed shell (Timeline / Devices / Detections / Commands / Intel)
    - **1c** — `POST activate` / `POST stop` / `GET overlaps` + CoverageWarningModal, activate button lives in the shell header
-3. Approvals queue (closes the biggest safety gap) → lands in the Commands tab
-4. Friendly-drone override retry on 409 + command idempotency keys
-5. Friendlies panel → lands in the Intel tab
-6. Swarms panel + halo rings on map → lands in the Intel tab
-7. Operator annotations persistence (TRACK_RATED via `POST /annotations`)
-8. Zone-breach active roster tile → lands in the Intel tab
-9. Mission timeline V2 (extended filters, counts, pagination, AAR export) → lands in the Timeline tab
-10. Polish: zone CRUD cache invalidation, `configs/by-mission` rendering
-11. **Task 10 — Command launch UI (deferred)** — full structured command forms + dynamic `payload_schema` forms. Task 1b only scaffolds a placeholder "New command" entry.
+4. Approvals queue (closes the biggest safety gap) → lands in the Commands tab
+5. Friendly-drone override retry on 409 + command idempotency keys
+6. Friendlies panel → lands in the Intel tab
+7. Swarms panel + halo rings on map → lands in the Intel tab
+8. Operator annotations persistence (TRACK_RATED via `POST /annotations`)
+9. Zone-breach active roster tile → lands in the Intel tab
+10. Mission timeline V2 (extended filters, counts, pagination, AAR export) → lands in the Timeline tab
+11. Polish: zone CRUD cache invalidation, `configs/by-mission` rendering
+12. **Task 10 — Command launch UI (deferred)** — full structured command forms + dynamic `payload_schema` forms. Task 1b only scaffolds a placeholder "New command" entry.
 
 ## 5. Cursor prompt templates (copy-paste ready)
 
@@ -323,6 +329,27 @@ Acceptance:
 - devtools shows events landing in missionEventsStore in real time
 - TRACK_RATED from another tab updates the drone icon colour within <1 s
 ```
+
+### Task 0 — Radar map semantics (before Task 1)
+
+**Intent:** The operator map must not imply motion or range that the backend does not report. Today [src/components/map/layers/assets.ts](src/components/map/layers/assets.ts) uses a **synthetic rotating sweep** and a **single** `coverageRadiusKm` for bands/rings; old-ui instead uses **`DeviceState.azimuth_deg`** for wedge orientation, **beam width** for sector vs full circle, and **separate** breach radii vs detection/jammer radii ([old-ui/src/app/components/MissionMap.tsx](old-ui/src/app/components/MissionMap.tsx), [old-ui/src/app/utils/beam.ts](old-ui/src/app/utils/beam.ts), [old-ui/src/app/utils/threat.ts](old-ui/src/app/utils/threat.ts) `effectiveBreachRings`).
+
+**Data already in new COP:** `useMissionSockets` → `deviceStatusStore` patches `azimuth_deg` (and timestamps). Mission/device types may need extending for `breach_*_m`, `detection_radius_m`, `jammer_radius_m`, `detection_beam_deg`, `jammer_beam_deg` if not already on `cachedMission.devices`.
+
+**Deliverables (outline):**
+- Replace or gate synthetic sweep: render **one static sector per asset** from live azimuth + effective beam (port `effectiveBeams` / `sectorPolygon` logic or equivalent geodesic in Mapbox GeoJSON).
+- When beam is 360°, render **omnidirectional** coverage (disk) without fake rotation.
+- If `breach_*_m` (or protocol defaults) exist on devices, draw **green/yellow/red breach rings** at those radii; keep **detection/jammer** fill at `detection_radius_m` / `jammer_radius_m` so the wedge does not visually “reach” the outer breach ring unless radii match.
+- Document behaviour in a short code comment at top of `assets.ts`.
+
+**Acceptance:**
+- With WS disconnected or `azimuth_deg` absent, sector uses a defined fallback (e.g. 0° or last known) and does not spin by itself.
+- With simulator holding azimuth fixed, wedge **does not** animate.
+- No regression to tower icons, lock-on dots, or mission GeoJSON layers.
+
+**Non-goals for Task 0:** Figma restyle of rings; Devices tab UI to **send** azimuth commands (that lands in a follow-up once command UX exists).
+
+---
 
 ### Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts
 

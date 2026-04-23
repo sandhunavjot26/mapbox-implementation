@@ -35,6 +35,28 @@ export interface MissionLoad extends Mission {
   devices: Device[];
 }
 
+/** GET /api/v1/missions/{id}/overlaps — jammer/coverage overlap warnings */
+export type MissionOverlapSeverity = "CRITICAL" | "HIGH" | "LOW";
+
+export interface MissionOverlapWarning {
+  severity: MissionOverlapSeverity;
+  kind: string;
+  device_a_id: string;
+  device_a_name: string;
+  device_b_id: string;
+  device_b_name: string;
+  overlap_radius_m?: number;
+  overlap_area_m2?: number;
+}
+
+export interface MissionOverlapsResult {
+  mission_id: string;
+  device_count?: number;
+  warning_count?: number;
+  counts: { CRITICAL: number; HIGH: number; LOW: number };
+  warnings: MissionOverlapWarning[];
+}
+
 // --- Zones (TL-1/TL-2) ---
 export interface Zone {
   id: string;

@@ -1,13 +1,22 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import type { MissionLoad } from "@/types/aeroshield";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import type { MissionLoad, MissionOverlapsResult } from "@/types/aeroshield";
 import { MissionDetectionsList } from "@/components/detections/MissionDetectionsList";
 import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EngagementLog } from "@/components/panels/EngagementLog";
 import { MissionTimeline } from "@/components/panels/MissionTimeline";
 import { MissionDevicesTab } from "@/components/missions/MissionDevicesTab";
 import { CommandsTab } from "@/components/commands/CommandsTab";
+import { CoverageWarningModal } from "@/components/missions/CoverageWarningModal";
+import {
+  useMissionOverlaps,
+  useActivateMission,
+  useStopMission,
+} from "@/hooks/useMissions";
+import { useToast } from "@/components/alerts/useToast";
+import { formatCommandError } from "@/lib/formatCommandError";
+import { useAuthStore } from "@/stores/authStore";
 import {
   MISSION_WORKSPACE_TAB_LABELS,
   MISSION_WORKSPACE_TAB_ORDER,
@@ -38,6 +47,36 @@ function parseTs(iso: string) {
   return Number.isFinite(t) ? t : NaN;
 }
 
+function missionIsRunning(status: string | null | undefined): boolean {
+  const u = (status ?? "").toUpperCase();
+  return u === "ACTIVE" || u === "LIVE_OPS";
+}
+
+function statusChipSurface(status: string | null | undefined) {
+  const s = (status ?? "DRAFT").toUpperCase();
+  if (s === "ACTIVE" || s === "LIVE_OPS") {
+    return {
+      background: "rgba(16, 185, 129, 0.18)",
+      color: "#6ee7b7",
+      border: "1px solid rgba(16, 185, 129, 0.4)",
+    };
+  }
+  if (s === "STOPPED") {
+    return {
+      background: "rgba(100, 116, 139, 0.22)",
+      color: "#cbd5e1",
+      border: "1px solid rgba(148, 163, 184, 0.35)",
+    };
+  }
+  return {
+    background: "rgba(245, 158, 11, 0.14)",
+    color: "#fcd34d",
+    border: "1px solid rgba(245, 158, 11, 0.35)",
+  };
+}
+
+const EMPTY_OVERLAP_COUNTS = { CRITICAL: 0, HIGH: 0, LOW: 0 };
+
 export function MissionWorkspaceTabs({
   missionName,
   cachedMission,
@@ -49,6 +88,20 @@ export function MissionWorkspaceTabs({
 }) {
   const [tab, setTab] = useState<MissionWorkspaceTabId>(readInitialTab);
   const missionId = cachedMission?.id;
+  const toast = useToast();
+  const canUpdateMission = useAuthStore((s) => s.hasPermission("mission:update"));
+  const { data: overlapsData, refetch: refetchOverlaps } = useMissionOverlaps(
+    missionId,
+    !!missionId,
+  );
+  const activateMut = useActivateMission();
+  const stopMut = useStopMission();
+  const criticalOverlapToastMissionRef = useRef<string | null>(null);
+  const [coverageModalOpen, setCoverageModalOpen] = useState(false);
+  const [coverageModalBlocks, setCoverageModalBlocks] = useState(false);
+  const [coverageModalPayload, setCoverageModalPayload] =
+    useState<MissionOverlapsResult | null>(null);
+
   const events = useMissionEventsStore((s) => s.events);
   const targets = useTargetsStore((s) => s.targets);
   const byDeviceId = useDeviceStatusStore((s) => s.byDeviceId);
@@ -57,6 +110,68 @@ export function MissionWorkspaceTabs({
     const id = setInterval(() => setTick((t) => t + 1), 10_000);
     return () => clearInterval(id);
   }, []);
+
+  useEffect(() => {
+    criticalOverlapToastMissionRef.current = null;
+  }, [missionId]);
+
+  useEffect(() => {
+    if (!missionId || !overlapsData) return;
+    const n = overlapsData.counts?.CRITICAL ?? 0;
+    if (n <= 0) return;
+    if (criticalOverlapToastMissionRef.current === missionId) return;
+    criticalOverlapToastMissionRef.current = missionId;
+    toast.error(
+      `${n} critical jammer overlap${n > 1 ? "s" : ""} — review Coverage before activating.`,
+    );
+  }, [missionId, overlapsData, toast]);
+
+  const isRunning = missionIsRunning(cachedMission?.status);
+
+  const openCoverageDetails = useCallback(
+    (opts: { blockActivate: boolean; data?: MissionOverlapsResult | null }) => {
+      setCoverageModalPayload(opts.data ?? overlapsData ?? null);
+      setCoverageModalBlocks(opts.blockActivate);
+      setCoverageModalOpen(true);
+    },
+    [overlapsData],
+  );
+
+  const handleActivate = useCallback(async () => {
+    if (!missionId) return;
+    try {
+      // Overlaps are advisory only (same as old-ui MissionWorkspacePage.activate —
+      // it does not block on CRITICAL; load-time toast + Coverage panel warn).
+      const refetchResult = await refetchOverlaps();
+      if (refetchResult.error) {
+        toast.warning(
+          `Could not refresh coverage — ${formatCommandError(refetchResult.error)}. Activating anyway.`,
+        );
+      } else {
+        const payload = refetchResult.data;
+        const crit = payload?.counts?.CRITICAL ?? 0;
+        if (crit > 0) {
+          toast.warning(
+            `${crit} critical jammer overlap${crit > 1 ? "s" : ""} — review Coverage. Activating anyway.`,
+          );
+        }
+      }
+      await activateMut.mutateAsync(missionId);
+      toast.success(`Mission "${missionName}" is now ACTIVE`);
+    } catch (e) {
+      toast.error(formatCommandError(e));
+    }
+  }, [missionId, missionName, refetchOverlaps, activateMut, toast]);
+
+  const handleStop = useCallback(async () => {
+    if (!missionId) return;
+    try {
+      await stopMut.mutateAsync(missionId);
+      toast.info(`Mission "${missionName}" stopped`);
+    } catch (e) {
+      toast.error(formatCommandError(e));
+    }
+  }, [missionId, missionName, stopMut, toast]);
 
   const onTab = useCallback((id: MissionWorkspaceTabId) => {
     setTab(id);
@@ -114,6 +229,7 @@ export function MissionWorkspaceTabs({
       return s !== "ONLINE" && s !== "WORKING";
     });
     const detWarn = active.some((t) => t.positionDerived);
+    const overlapCrit = overlapsData?.counts?.CRITICAL ?? 0;
 
     return {
       activeNonStaleTracks: active,
@@ -129,7 +245,7 @@ export function MissionWorkspaceTabs({
         {
           id: "devices" as const,
           badge: devList.length,
-          warn: dWarn,
+          warn: dWarn || overlapCrit > 0,
         },
         {
           id: "detections" as const,
@@ -139,7 +255,19 @@ export function MissionWorkspaceTabs({
         { id: "commands" as const, badge: null as number | null, warn: false },
       ],
     };
-  }, [tick, targets, cachedMission?.devices, missionEvents, byDeviceId]);
+  }, [
+    tick,
+    targets,
+    cachedMission?.devices,
+    missionEvents,
+    byDeviceId,
+    overlapsData?.counts?.CRITICAL,
+  ]);
+
+  const overlapCounts = overlapsData?.counts ?? EMPTY_OVERLAP_COUNTS;
+  const overlapTotal =
+    overlapCounts.CRITICAL + overlapCounts.HIGH + overlapCounts.LOW;
+  const statusLabel = (cachedMission?.status ?? "DRAFT").toUpperCase();
 
   return (
     <div
@@ -150,29 +278,61 @@ export function MissionWorkspaceTabs({
         fontFamily: `${FONT.family}, sans-serif`,
       }}
     >
+      <CoverageWarningModal
+        open={coverageModalOpen}
+        title={
+          coverageModalBlocks
+            ? "Cannot activate — critical overlaps"
+            : "Coverage overlaps"
+        }
+        subtitle={
+          coverageModalBlocks
+            ? undefined
+            : "Jammer and coverage overlap warnings for this mission."
+        }
+        counts={
+          coverageModalPayload?.counts ??
+          overlapsData?.counts ??
+          EMPTY_OVERLAP_COUNTS
+        }
+        warnings={
+          coverageModalPayload?.warnings ?? overlapsData?.warnings ?? []
+        }
+        blockActivate={coverageModalBlocks}
+        onClose={() => setCoverageModalOpen(false)}
+      />
+
       {/* Header card — mirrors old-ui sidebar top */}
       <div
         className="shrink-0"
         style={{
           borderRadius: RADIUS.fencePopover,
           border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
-          background: "rgba(39, 39, 39, 0.85)",
+          background: COLOR.missionsPanelBg,
           padding: "12px",
         }}
       >
         <div className="flex min-w-0 items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
             <div className="flex min-w-0 items-center justify-between gap-2">
-              <div
-                className="min-w-0 truncate"
-                style={{
-                  fontSize: FONT.missionWorkspaceTitleSize,
-                  lineHeight: FONT.missionWorkspaceTitleLineHeight,
-                  fontWeight: FONT.weightBold,
-                  color: COLOR.missionsBodyText,
-                }}
-              >
-                {missionName}
+              <div className="flex min-w-0 items-center gap-2">
+                <span
+                  className="shrink-0 rounded px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider"
+                  style={statusChipSurface(cachedMission?.status)}
+                >
+                  {statusLabel}
+                </span>
+                <div
+                  className="min-w-0 truncate"
+                  style={{
+                    fontSize: FONT.missionWorkspaceTitleSize,
+                    lineHeight: FONT.missionWorkspaceTitleLineHeight,
+                    fontWeight: FONT.weightBold,
+                    color: COLOR.missionsBodyText,
+                  }}
+                >
+                  {missionName}
+                </div>
               </div>
               <button
                 type="button"
@@ -197,6 +357,61 @@ export function MissionWorkspaceTabs({
             >
               {cachedMission?.aop || "—"}
             </div>
+            {canUpdateMission ? (
+              <div
+                className="mt-2 flex flex-wrap items-center gap-2"
+                style={{ gap: "8px" }}
+              >
+                <button
+                  type="button"
+                  onClick={() => void handleActivate()}
+                  disabled={isRunning || activateMut.isPending}
+                  className="min-w-0 flex-1 rounded border border-solid px-2 py-1.5 text-[11px] font-semibold transition-opacity disabled:opacity-40"
+                  style={{
+                    borderColor: "rgba(16, 185, 129, 0.45)",
+                    background: "rgba(16, 185, 129, 0.2)",
+                    color: "#a7f3d0",
+                  }}
+                >
+                  {activateMut.isPending ? "Activating…" : "Activate"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => void handleStop()}
+                  disabled={!isRunning || stopMut.isPending}
+                  className="min-w-0 flex-1 rounded border border-solid px-2 py-1.5 text-[11px] font-semibold transition-opacity disabled:opacity-40"
+                  style={{
+                    borderColor: COLOR.missionCreateSummaryModalBorder,
+                    background: COLOR.missionCreateFieldBg,
+                    color: COLOR.missionCreateFieldText,
+                  }}
+                >
+                  {stopMut.isPending ? "Stopping…" : "Stop"}
+                </button>
+              </div>
+            ) : null}
+            {overlapTotal > 0 ? (
+              <button
+                type="button"
+                className="mt-2 w-full rounded border border-dashed px-2 py-1.5 text-left text-[10px] transition-opacity hover:opacity-90"
+                style={{
+                  borderColor: COLOR.missionCreateSummaryModalBorder,
+                  color: COLOR.missionsSecondaryText,
+                  background: COLOR.missionCreateSectionBg,
+                }}
+                onClick={() =>
+                  openCoverageDetails({ blockActivate: false, data: null })
+                }
+              >
+                <span className="font-semibold" style={{ color: COLOR.missionsBodyText }}>
+                  Coverage
+                </span>
+                <span className="ml-1 font-mono">
+                  {overlapCounts.CRITICAL} critical · {overlapCounts.HIGH} high ·{" "}
+                  {overlapCounts.LOW} low
+                </span>
+              </button>
+            ) : null}
           </div>
         </div>
       </div>
@@ -224,7 +439,7 @@ export function MissionWorkspaceTabs({
             key={k.key}
             className="flex min-h-[72px] min-w-0 flex-col items-center justify-center gap-1 rounded-md px-1 py-2"
             style={{
-              background: "rgba(39, 39, 39, 0.7)",
+              background: COLOR.missionsPanelBg,
               border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
             }}
           >
@@ -266,7 +481,7 @@ export function MissionWorkspaceTabs({
         className="flex min-w-0 items-center gap-0.5 self-stretch rounded-md p-1"
         style={{
           width: "100%",
-          background: "rgba(39, 39, 39, 0.7)",
+          background: COLOR.missionsPanelBg,
           border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
         }}
         role="tablist"
@@ -328,7 +543,7 @@ export function MissionWorkspaceTabs({
       <div
         className="driif-mission-scrollbar flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md"
         style={{
-          background: "rgba(39, 39, 39, 0.7)",
+          background: COLOR.missionsPanelBg,
           border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
         }}
         role="tabpanel"
