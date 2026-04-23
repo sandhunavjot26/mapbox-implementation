@@ -4,22 +4,17 @@ import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import { CopShell } from "@/components/cop-shell/CopShell";
-import { DetectionsPanel } from "@/components/detections/DetectionsPanel";
+import { OverallDetectionPanel } from "@/components/detections/OverallDetectionPanel";
 import { CopTopBar } from "@/components/cop-shell/CopTopBar";
 import { MissionSelector } from "@/components/missions/MissionSelector";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
 import { MissionEventToasts } from "@/components/alerts/MissionEventToasts";
 import { DevicesInventoryOverlay } from "@/components/devices/DevicesInventoryOverlay";
-import {
-  subscribeToIntercepts,
-  getInterceptStats,
-} from "@/stores/mapActionsStore";
 import { useAuthStore } from "@/stores/authStore";
 import { logout } from "@/lib/api/auth";
 import { useMissionStore } from "@/stores/missionStore";
 import { useMissionEventsStore } from "@/stores/missionEventsStore";
 import { useTargetsStore } from "@/stores/targetsStore";
-import { useWsStatusStore } from "@/stores/wsStatusStore";
 import { useLandingMissionAssets, useLandingBorders, useMapFeatures } from "@/hooks/useMissions";
 import { COLOR, POSITION } from "@/styles/driifTokens";
 
@@ -65,12 +60,6 @@ export default function DashboardPage() {
   const [devicesOpen, setDevicesOpen] = useState(false);
   const [detectionsOpen, setDetectionsOpen] = useState(false);
   const [mapDismissLocked, setMapDismissLocked] = useState(false);
-  const [interceptStats, setInterceptStats] = useState({
-    neutralized: 0,
-    confirmed: 0,
-    successRate: 0,
-  });
-
   const token = useAuthStore((s) => s.getToken());
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const activeMissionId = useMissionStore((s) => s.activeMissionId);
@@ -79,22 +68,12 @@ export default function DashboardPage() {
   const clearTargets = useTargetsStore((s) => s.clearTargets);
   const clearMissionEvents = useMissionEventsStore((s) => s.clearEvents);
 
-  const wsEventsStatus = useWsStatusStore((s) => s.eventsStatus);
-  const wsDevicesStatus = useWsStatusStore((s) => s.devicesStatus);
-  const wsCommandsStatus = useWsStatusStore((s) => s.commandsStatus);
-
   const { data: mapFeatures } = useMapFeatures(
     activeMissionId,
     !!activeMissionId,
   );
   const { data: landingMissionAssets } = useLandingMissionAssets();
   const landingBorders = useLandingBorders();
-
-  useEffect(() => {
-    return subscribeToIntercepts(() => {
-      setInterceptStats(getInterceptStats());
-    });
-  }, []);
 
   /** Deep link from `/dashboard?setMission=<uuid>` (e.g. devices → open on map). */
   useEffect(() => {
@@ -141,10 +120,12 @@ export default function DashboardPage() {
   const onShellClose = useCallback(() => {
     if (activeMissionId) {
       exitMission();
+      setDetectionsOpen(false);
       return;
     }
     setMissionsOpen(false);
     setDevicesOpen(false);
+    setDetectionsOpen(false);
   }, [activeMissionId, exitMission]);
 
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
@@ -152,6 +133,7 @@ export default function DashboardPage() {
     if (mapDismissLocked) return;
     setMissionsOpen(false);
     setDevicesOpen(false);
+    setDetectionsOpen(false);
   }, [mapDismissLocked]);
 
   if (!isAuthorized) {
@@ -204,19 +186,12 @@ export default function DashboardPage() {
       <EntityHoverPopup />
 
       <CopTopBar
-        interceptStats={interceptStats}
         mapMode={mapMode}
         onMapMode={setMapMode}
         basemapVariant={basemapVariant}
         onBasemapVariant={setBasemapVariant}
         mapLightPreset={mapLightPreset}
         onMapLightPreset={setMapLightPreset}
-        showWs={!!activeMissionId}
-        ws={{
-          eventsStatus: wsEventsStatus,
-          devicesStatus: wsDevicesStatus,
-          commandsStatus: wsCommandsStatus,
-        }}
         onLogout={logout}
       />
 
@@ -228,6 +203,7 @@ export default function DashboardPage() {
         hasMission={!!activeMissionId}
         onBell={onShellClose}
         onDetection={() => setDetectionsOpen((v) => !v)}
+        detectionsOpen={detectionsOpen}
       />
 
       {detectionsOpen && (
@@ -238,7 +214,7 @@ export default function DashboardPage() {
             top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
           }}
         >
-          <DetectionsPanel />
+          <OverallDetectionPanel variant="overlay" />
         </div>
       )}
 

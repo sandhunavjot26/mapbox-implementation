@@ -7,7 +7,6 @@ import { ErrorBoundary } from "@/components/ErrorBoundary";
 import { EngagementLog } from "@/components/panels/EngagementLog";
 import { MissionTimeline } from "@/components/panels/MissionTimeline";
 import { MissionDevicesTab } from "@/components/missions/MissionDevicesTab";
-import { IntelTab } from "@/components/intel/IntelTab";
 import { CommandsTab } from "@/components/commands/CommandsTab";
 import {
   MISSION_WORKSPACE_TAB_LABELS,
@@ -77,71 +76,70 @@ export function MissionWorkspaceTabs({
   );
 
   const { kpis, tabDefs } = useMemo(() => {
-      const now = Date.now();
-      const active = targets.filter((t) => {
-        if (t.lost) return false;
-        const last = t.lastSeenAt ?? now;
-        return now - last <= STALE_MS;
-      });
+    const now = Date.now();
+    const active = targets.filter((t) => {
+      if (t.lost) return false;
+      const last = t.lastSeenAt ?? now;
+      return now - last <= STALE_MS;
+    });
 
-      const devList = cachedMission?.devices ?? [];
-      const totalDevices = devList.length;
-      let online = 0;
-      for (const d of devList) {
-        const live = byDeviceId[d.id];
-        const s = (live?.status ?? d.status ?? "").toUpperCase();
-        if (s === "ONLINE" || s === "WORKING") online++;
-      }
+    const devList = cachedMission?.devices ?? [];
+    const totalDevices = devList.length;
+    let online = 0;
+    for (const d of devList) {
+      const live = byDeviceId[d.id];
+      const s = (live?.status ?? d.status ?? "").toUpperCase();
+      if (s === "ONLINE" || s === "WORKING") online++;
+    }
 
-      const det5 = missionEvents.filter((e) => {
-        const ev = (e.event_type || "").toUpperCase();
-        if (ev !== "DETECTED" && ev !== "UAV_DETECTED") return false;
-        const ts = parseTs(e.ts);
-        if (!Number.isFinite(ts)) return false;
-        return now - ts <= FIVE_M_MS;
-      }).length;
+    const det5 = missionEvents.filter((e) => {
+      const ev = (e.event_type || "").toUpperCase();
+      if (ev !== "DETECTED" && ev !== "UAV_DETECTED") return false;
+      const ts = parseTs(e.ts);
+      if (!Number.isFinite(ts)) return false;
+      return now - ts <= FIVE_M_MS;
+    }).length;
 
-      const det24 = missionEvents.filter((e) => {
-        const ev = (e.event_type || "").toUpperCase();
-        if (ev !== "DETECTED" && ev !== "UAV_DETECTED") return false;
-        const ts = parseTs(e.ts);
-        if (!Number.isFinite(ts)) return false;
-        return now - ts <= TWENTY_FOUR_H_MS;
-      }).length;
+    const det24 = missionEvents.filter((e) => {
+      const ev = (e.event_type || "").toUpperCase();
+      if (ev !== "DETECTED" && ev !== "UAV_DETECTED") return false;
+      const ts = parseTs(e.ts);
+      if (!Number.isFinite(ts)) return false;
+      return now - ts <= TWENTY_FOUR_H_MS;
+    }).length;
 
-      const dWarn = devList.some((d) => {
-        const live = byDeviceId[d.id];
-        const s = (live?.status ?? d.status ?? "UNKNOWN").toUpperCase();
-        return s !== "ONLINE" && s !== "WORKING";
-      });
-      const detWarn = active.some((t) => t.positionDerived);
+    const dWarn = devList.some((d) => {
+      const live = byDeviceId[d.id];
+      const s = (live?.status ?? d.status ?? "UNKNOWN").toUpperCase();
+      return s !== "ONLINE" && s !== "WORKING";
+    });
+    const detWarn = active.some((t) => t.positionDerived);
 
-      return {
-        activeNonStaleTracks: active,
-        kpis: {
-          online,
-          totalDevices,
-          activeTracks: active.length,
-          detections5m: det5,
-          detections24h: det24,
+    return {
+      activeNonStaleTracks: active,
+      kpis: {
+        online,
+        totalDevices,
+        activeTracks: active.length,
+        detections5m: det5,
+        detections24h: det24,
+      },
+      tabDefs: [
+        { id: "timeline" as const, badge: missionEvents.length, warn: false as boolean },
+        {
+          id: "devices" as const,
+          badge: devList.length,
+          warn: dWarn,
         },
-        tabDefs: [
-          { id: "timeline" as const, badge: missionEvents.length, warn: false as boolean },
-          {
-            id: "devices" as const,
-            badge: devList.length,
-            warn: dWarn,
-          },
-          {
-            id: "detections" as const,
-            badge: active.length,
-            warn: detWarn,
-          },
-          { id: "commands" as const, badge: null as number | null, warn: false },
-          { id: "intel" as const, badge: 0, warn: false },
-        ],
-      };
-    }, [tick, targets, cachedMission?.devices, missionEvents, byDeviceId]);
+        {
+          id: "detections" as const,
+          badge: active.length,
+          warn: detWarn,
+        },
+        { id: "commands" as const, badge: null as number | null, warn: false },
+      ],
+    };
+  }, [tick, targets, cachedMission?.devices, missionEvents, byDeviceId]);
 
   return (
     <div
@@ -211,7 +209,13 @@ export function MissionWorkspaceTabs({
         {(
           [
             { key: "online", label: "Online", a: kpis.online, b: ` / ${kpis.totalDevices}`, aColor: "#4ade80" },
-            { key: "tracks", label: "Tracks", a: kpis.activeTracks, b: null, aColor: "#f87171" },
+            {
+              key: "tracks",
+              label: "Active tracks",
+              a: kpis.activeTracks,
+              b: null,
+              aColor: "#f87171",
+            },
             { key: "5m", label: "5m", a: kpis.detections5m, b: null, aColor: "#fbbf24" },
             { key: "24h", label: "24h", a: kpis.detections24h, b: null, aColor: "#22d3ee" },
           ] as const
@@ -263,7 +267,7 @@ export function MissionWorkspaceTabs({
         style={{
           width: "100%",
           background: "rgba(39, 39, 39, 0.7)",
-          boxShadow: `0 0 0 1px ${COLOR.missionCreateSummaryModalBorder}`,
+          border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
         }}
         role="tablist"
         aria-label="Workspace"
@@ -325,7 +329,7 @@ export function MissionWorkspaceTabs({
         className="driif-mission-scrollbar flex min-h-0 min-w-0 flex-1 flex-col overflow-hidden rounded-md"
         style={{
           background: "rgba(39, 39, 39, 0.7)",
-          boxShadow: `0 0 0 1px ${COLOR.missionCreateSummaryModalBorder}`,
+          border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
         }}
         role="tabpanel"
       >
@@ -342,37 +346,31 @@ export function MissionWorkspaceTabs({
             </ErrorBoundary>
           </div>
         ) : (
-        <div
-          className="driif-mission-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto"
-          style={{ padding: SPACING.missionWorkspacePadX }}
-        >
-          {tab === "devices" && (
-            <ErrorBoundary label="Devices">
-              <MissionDevicesTab devices={cachedMission?.devices} />
-            </ErrorBoundary>
-          )}
+          <div
+            className="driif-mission-scrollbar min-h-0 min-w-0 flex-1 overflow-y-auto"
+            style={{ padding: SPACING.missionWorkspacePadX }}
+          >
+            {tab === "devices" && (
+              <ErrorBoundary label="Devices">
+                <MissionDevicesTab devices={cachedMission?.devices} />
+              </ErrorBoundary>
+            )}
 
-          {tab === "detections" && (
-            <ErrorBoundary label="Detections">
-              <MissionDetectionsList
-                devices={cachedMission?.devices}
-                compact
-              />
-            </ErrorBoundary>
-          )}
+            {tab === "detections" && (
+              <ErrorBoundary label="Detections">
+                <MissionDetectionsList
+                  devices={cachedMission?.devices}
+                  compact
+                />
+              </ErrorBoundary>
+            )}
 
-          {tab === "commands" && (
-            <ErrorBoundary label="Commands">
-              <CommandsTab />
-            </ErrorBoundary>
-          )}
-
-          {tab === "intel" && (
-            <ErrorBoundary label="Intel">
-              <IntelTab />
-            </ErrorBoundary>
-          )}
-        </div>
+            {tab === "commands" && (
+              <ErrorBoundary label="Commands">
+                <CommandsTab />
+              </ErrorBoundary>
+            )}
+          </div>
         )}
       </div>
     </div>
