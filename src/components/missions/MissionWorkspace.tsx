@@ -9,6 +9,7 @@
 import { useEffect, useMemo } from "react";
 import dynamic from "next/dynamic";
 import { useMissionLoad } from "@/hooks/useMissions";
+import { useMissionDeviceStatesHydration } from "@/hooks/useMissionDeviceStatesHydration";
 import { useMissionSockets } from "@/hooks/useMissionSockets";
 import { useMissionEvents } from "@/hooks/useMissionEvents";
 import { useMissionStore } from "@/stores/missionStore";
@@ -31,6 +32,7 @@ interface MissionWorkspaceProps {
 export function MissionWorkspace({ missionId, onDeselect }: MissionWorkspaceProps) {
   const { data: missionData } = useMissionLoad(missionId, true);
   const wsStatus = useMissionSockets();
+  useMissionDeviceStatesHydration(missionId, true);
   useMissionEvents(missionId, true, wsStatus.eventsStatus !== "open");
 
   const setCachedMission = useMissionStore((s) => s.setCachedMission);

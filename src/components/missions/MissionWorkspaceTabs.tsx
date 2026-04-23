@@ -567,7 +567,10 @@ export function MissionWorkspaceTabs({
           >
             {tab === "devices" && (
               <ErrorBoundary label="Devices">
-                <MissionDevicesTab devices={cachedMission?.devices} />
+                <MissionDevicesTab
+                  devices={cachedMission?.devices}
+                  missionId={missionId}
+                />
               </ErrorBoundary>
             )}
 

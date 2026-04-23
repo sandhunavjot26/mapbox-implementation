@@ -101,8 +101,15 @@ export async function apiJson<T>(
   }
 
   if (!res.ok) {
-    const detail = (body as { detail?: string })?.detail ?? (body as { message?: string })?.message;
-    throw new ApiClientError(res.status, detail ?? res.statusText, detail);
+    const rawDetail =
+      (body as { detail?: unknown })?.detail ?? (body as { message?: unknown })?.message;
+    const detailMessage =
+      typeof rawDetail === "string"
+        ? rawDetail
+        : rawDetail !== undefined && rawDetail !== null
+          ? JSON.stringify(rawDetail)
+          : undefined;
+    throw new ApiClientError(res.status, detailMessage ?? res.statusText, detailMessage);
   }
 
   return body as T;

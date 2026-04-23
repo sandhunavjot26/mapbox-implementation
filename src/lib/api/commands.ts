@@ -7,7 +7,7 @@
  */
 
 import { apiJson } from "./client";
-import type { CommandRequest, CommandOut } from "@/types/aeroshield";
+import type { CommandRequest, CommandOut, CommandResponseRow } from "@/types/aeroshield";
 
 /** GET /api/v1/commands?mission_id=&status= — list commands for mission */
 export async function listCommands(
@@ -17,6 +17,32 @@ export async function listCommands(
   const params = new URLSearchParams({ mission_id: missionId });
   if (status) params.set("status", status);
   return apiJson<CommandOut[]>("command", `/api/v1/commands?${params}`);
+}
+
+/** GET /api/v1/commands — audit list with optional window (see API_REFERENCE C.2). */
+export async function listMissionCommandsAudit(
+  missionId: string,
+  opts?: {
+    since_minutes?: number;
+    limit?: number;
+    status?: string;
+    command_type?: string;
+  }
+): Promise<CommandOut[]> {
+  const params = new URLSearchParams({ mission_id: missionId });
+  if (opts?.since_minutes != null) params.set("since_minutes", String(opts.since_minutes));
+  if (opts?.limit != null) params.set("limit", String(opts.limit));
+  if (opts?.status) params.set("status", opts.status);
+  if (opts?.command_type) params.set("command_type", opts.command_type);
+  return apiJson<CommandOut[]>("command", `/api/v1/commands?${params}`);
+}
+
+/** GET /api/v1/commands/{command_id}/responses */
+export async function getCommandResponses(commandId: string): Promise<CommandResponseRow[]> {
+  return apiJson<CommandResponseRow[]>(
+    "command",
+    `/api/v1/commands/${commandId}/responses`
+  );
 }
 
 /** POST /api/v1/commands — create command (TRACK, ENGAGE, etc.) */

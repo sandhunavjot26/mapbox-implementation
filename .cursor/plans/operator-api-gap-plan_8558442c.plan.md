@@ -9,11 +9,11 @@ todos:
     content: Centralize mission_event WS reducers and extend MissionEvent payload types (plus REST backfill = timeline only, WS authoritative for targets)
     status: completed
   - id: t0-radar-map-semantics
-    content: "Task 0 — Radar map semantics: azimuth-driven detection/jammer sector (deviceStatusStore.azimuth_deg + beam widths), no fake rAF sweep; breach vs detection radii when API fields exist; old-ui MissionMap + beam.ts behaviour reference"
-    status: pending
+    content: "Task 0 — Radar map semantics (shipped + follow-ups): live azimuth, wedges, breach rings, gradients; ring-fill north-spike fix; shared readAzimuthFromDeviceStatePayload; REST hydration (useMissionDeviceStatesHydration) for parity with old-ui; devices-tab aim/diagnostics/live grid — still open: protocol default_* merge in GeoJSON"
+    status: completed
   - id: t1-lifecycle
-    content: "Mission lifecycle (activate/stop/overlaps) + Mission Workspace tabbed shell (Timeline/Devices/Detections/Commands/Intel) + Toast alerts (3s auto-dismiss, max 10) — 1a+1b UI largely done; 1c activate/stop/overlaps + header actions pending"
-    status: in_progress
+    content: "Mission lifecycle (activate/stop/overlaps) + Workspace tab shell + ToastProvider — 1a–1c shipped (CoverageWarningModal, mutations, header actions, Intel overlaps section)"
+    status: completed
   - id: t2-approvals
     content: Pending Approvals queue with approve/reject and WS-driven refresh
     status: pending
@@ -36,8 +36,8 @@ todos:
     content: "Timeline V2: extended filters, counts, pagination, CSV/NDJSON export"
     status: pending
   - id: t9-polish
-    content: Zone CRUD cache invalidation, configs/by-mission, deviceHealth rollup
-    status: pending
+    content: "Polish — partial: deviceHealth.ts + telemetry merge + Devices tab health UI shipped; still pending: zone CRUD invalidation + listZones layers, configs/by-mission in ConfigureRadar health tab"
+    status: in_progress
   - id: t10-command-launch-ui
     content: "Command launch UI (structured forms + dynamic schema forms) — deferred; scaffold only in Task 1b"
     status: pending
@@ -52,10 +52,10 @@ isProject: false
 | Area | API coverage in `docs/API_REFERENCE.md` | What's wired today | Gap |
 |---|---|---|---|
 | Auth | A.1 | `POST /auth/login` wired via [src/lib/api/auth.ts](src/lib/api/auth.ts) + cookie middleware | None for operator scope |
-| Missions (CRUD + activate/stop + overlaps) | B.4 | Create / list / load / `map/features` only | `PATCH`, `activate`, `stop`, `overlaps` missing |
+| Missions (CRUD + activate/stop + overlaps) | B.4 | Create / list / load / `map/features`; `activateMission` / `stopMission` / `getMissionOverlaps`; `PATCH` name; CoverageWarningModal on CRITICAL overlaps | None critical for operator loop; polish in Task 9 |
 | Mission map features | B.6 | Read via `map/features` | No create/delete yet |
 | Zones | B.5 | `POST /zones` direct-called from `MissionSelector` | List/update/delete not used; cache not invalidated; `useCreateZone`/`useDeleteZone` exist but unused |
-| Devices + state + config | B.2–B.3 | List, assign, states polling | `configs/by-mission` not rendered |
+| Devices + state + config | B.2–B.3 | List, assign; `getDeviceStates` + **8s poll**; **REST → `deviceStatusStore`** on mission open (`useMissionDeviceStatesHydration`) so map/panels match old-ui when WS is quiet | `configs/by-mission` not fully surfaced in Configure Radar (Task 9) |
 | Mission events | B.8 + V1 appendix | REST list + WS stream | No `source`/`target_uid`/`zone_id`/CSV filters; no `/events/counts` or `/events/types`; no `X-Total-Count` pagination; no CSV/NDJSON export |
 | Annotations (TRACK_RATED / NFZ_BREACH_PREDICTED) | B.8b | In-memory only in `targetsStore` | Not persisted via `POST /annotations` — reloads lose ratings |
 | Swarms | B.9 | Nothing | Full CRUD + WS trigger + halo rings missing |
@@ -65,10 +65,27 @@ isProject: false
 | Zone-breach active roster | V1 appendix | Nothing | Live tile + dwell timers |
 | AAR export (CSV/NDJSON) | V1 appendix | Nothing | Download buttons on timeline |
 | WS streams (events, devices, commands) | §6 / B.12 / C.4 | All 3 connected via [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts) | `command_update` store wiring exists; `SWARM_DETECTED`, `TRACK_RATED`, `NFZ_BREACH`, `ZONE_ENTER`/`EXIT`, `BREACH_RING_ENTERED` need explicit reducers in `missionEventsStore` / `targetsStore` |
-| Mission Workspace UI | — | **Done (iterative):** right-rail overlay (anchor matches Detections) — `MissionWorkspaceTabs` with Timeline / Devices / Detections / Commands / Intel; KPI row; `localStorage` `aeroshield.workspace.tab`; `MissionDetectionsList` (live `targetsStore`, grouped by radar); `Deselect` clears mission + targets + `missionEventsStore`; timeline table with Device + Location (incl. zone-breach `target_name` + `uav_lat`/`uav_lon` from `docs/API_REFERENCE.md`); det shell overlay = same list. | **Pending Task 1c:** mission status / Activate / Stop in shell header, overlaps modal, Figma pass where nodes exist |
-| Alerts / toasts | — | None (errors go to console / inline text only) | No `ToastProvider`, no `useToast()` — alerts must be added before operator feedback is usable |
+| Mission Workspace UI | — | **Shipped:** same shell as before **plus** Activate / Stop / overlaps flow, `CoverageWarningModal`, inline mission rename; **Devices tab** — aim controls (`MissionDeviceAimControls`), diagnostics, live telemetry grid, health rollups (`deviceHealth.ts`), command audit hooks | Figma pixel pass where nodes exist; Command launch UI still Task 10 |
+| Alerts / toasts | — | `ToastProvider` + `useToast()` (stack cap, auto-dismiss); command/mission errors routed through toasts where wired | Extend coverage to every mutation; visual Figma pass |
 
 Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permissions), protocol catalogue, policy editor, command trace + cleanup.
+
+### 1.1 Completed in recent passes (rolling summary)
+
+- **P0, Task A, Task 0 (core), Task 1 (1a–1c):** Central mission-event WS reducers; devices admin list; radar map semantics (azimuth-driven wedges, gradients, breach rings); `ToastProvider` / `useToast`; tabbed `MissionWorkspaceTabs`; **Activate / Stop**, `GET overlaps`, **`CoverageWarningModal`** (blocks activate on CRITICAL), Intel “Coverage overlaps” section.
+- **Map / radar:** Live bearing from `deviceStatusStore`; **north “spike” removed** — ring-fill bands use a non-zero inner radius so the polygon is a true annulus (degenerate inner ring at the asset drew radial spokes). Sweep / sector geometry avoids center spokes where applicable.
+- **Device state parity with old UI:** [`useMissionDeviceStatesHydration`](src/hooks/useMissionDeviceStatesHydration.ts) runs [`useDeviceStates`](src/hooks/useDeviceStates.ts) on the mission workspace and merges `GET .../devices/states/by-mission/{id}` into [`deviceStatusStore`](src/stores/deviceStatusStore.ts) (telemetry + [`readAzimuthFromDeviceStatePayload`](src/utils/deviceHealth.ts)) so wedges and panels populate on load and stay in sync when another client moves the turntable and WS is quiet.
+- **Devices tab (behavioural old-ui parity):** [`MissionDeviceAimControls`](src/components/missions/MissionDeviceAimControls.tsx), [`MissionDeviceDiagnostics`](src/components/missions/MissionDeviceDiagnostics.tsx), [`MissionDeviceLiveStateGrid`](src/components/missions/MissionDeviceLiveStateGrid.tsx), [`deviceHealth.ts`](src/utils/deviceHealth.ts) rollups; WS path still merges `device_state_update.state` via [`useMissionSockets`](src/hooks/useMissionSockets.ts).
+- **Misc:** Command error / 409 detail handling improvements; toast spacing token fix.
+
+### 1.2 Still pending (high level)
+
+| Bucket | Items |
+|--------|--------|
+| **Tasks 2–8, 10** | Approvals queue (2); friendly 409 + idempotency (3); Friendlies (4); Swarms + halos (5); `POST /annotations` persistence (6); zone-breach active roster (7); Timeline V2 + export (8); Command launch UI (10). |
+| **Task 9 (remainder)** | Zone CRUD → invalidate queries + render zones from `listZones` (not only `/map/features`); surface **`configs/by-mission`** in Configure Radar; any leftover cache polish. *(Health rollup in `deviceHealth.ts` is already used in Devices tab.)* |
+| **Task 0 (remainder)** | Protocol catalogue merge: `default_detection_beam_deg` / `default_jammer_beam_deg` / `default_breach_*` when device fields are null. |
+| **Design** | Figma pass for toasts, shell, lifecycle modal where formal nodes exist (behaviour is shipped). |
 
 ## 2. Data / control flow after the plan
 
@@ -131,7 +148,7 @@ Ordered so each task depends only on earlier ones. Each task = **one Cursor prom
 0. **Task A — Devices admin list** **[DONE]**
 1. **P0 — Centralize WS reducers** **[DONE]** (plus drone-flood follow-up: REST backfill is timeline-only; WS is authoritative for targets)
 2. **Task 0 — Radar map semantics (pick before Task 1).** Align Mapbox asset layers with **old-ui behaviour** (not chrome): detection/jammer coverage as **sector or full disk** from **`deviceStatusStore.azimuth_deg`** + beam width (`detection_beam_deg` / `jammer_beam_deg` or protocol defaults per [old-ui/src/app/utils/beam.ts](old-ui/src/app/utils/beam.ts)); **remove** the decorative `requestAnimationFrame` sweep (or gate behind an explicit demo flag). **Separate** breach threat rings (`breach_*_m`) from detection/jammer radius when mission/device payloads expose those fields (see [old-ui/src/app/components/MissionMap.tsx](old-ui/src/app/components/MissionMap.tsx) breach vs `showRadii` blocks). Sweep **freezes** when azimuth stops updating (stopped turntable). Devices-tab direction controls = later; this task only consumes live state. **Lands in:** [src/components/map/layers/assets.ts](src/components/map/layers/assets.ts) + wiring from [src/stores/deviceStatusStore.ts](src/stores/deviceStatusStore.ts) / [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts).
-3. **Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts.** Three sub-deliverables in one task so later features have a stable host:
+3. **Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts.** **[DONE]** Three sub-deliverables shipped:
    - **1a** — Toast/Alert provider (3s auto-dismiss, max 10 stacked)
    - **1b** — Mission Workspace tabbed shell (Timeline / Devices / Detections / Commands / Intel)
    - **1c** — `POST activate` / `POST stop` / `GET overlaps` + CoverageWarningModal, activate button lives in the shell header
@@ -332,22 +349,22 @@ Acceptance:
 
 ### Task 0 — Radar map semantics (before Task 1)
 
-**Intent:** The operator map must not imply motion or range that the backend does not report. Today [src/components/map/layers/assets.ts](src/components/map/layers/assets.ts) uses a **synthetic rotating sweep** and a **single** `coverageRadiusKm` for bands/rings; old-ui instead uses **`DeviceState.azimuth_deg`** for wedge orientation, **beam width** for sector vs full circle, and **separate** breach radii vs detection/jammer radii ([old-ui/src/app/components/MissionMap.tsx](old-ui/src/app/components/MissionMap.tsx), [old-ui/src/app/utils/beam.ts](old-ui/src/app/utils/beam.ts), [old-ui/src/app/utils/threat.ts](old-ui/src/app/utils/threat.ts) `effectiveBreachRings`).
+#### Shipped (current repo)
 
-**Data already in new COP:** `useMissionSockets` → `deviceStatusStore` patches `azimuth_deg` (and timestamps). Mission/device types may need extending for `breach_*_m`, `detection_radius_m`, `jammer_radius_m`, `detection_beam_deg`, `jammer_beam_deg` if not already on `cachedMission.devices`.
+- **[src/utils/radarAssetsGeoJSON.ts](src/utils/radarAssetsGeoJSON.ts)** — Device → GeoJSON properties: `device_type` roles, `detection_beam_deg` / `jammer_beam_deg` (fallbacks 360° / 30°), `breach_*` → km, `buildMergedRadarAssetsGeoJSON` (landing + mission devices + live status).
+- **[src/utils/mapFeatures.ts](src/utils/mapFeatures.ts)** — Map `/map/features` device rows get the same radar properties via `radarPropsFromMapFeatureProps`.
+- **[src/components/map/MapContainer.tsx](src/components/map/MapContainer.tsx)** — Initial + incremental asset source from `buildMergedRadarAssetsGeoJSON`; no fake bearing animation.
+- **[src/components/map/layers/assets.ts](src/components/map/layers/assets.ts)** — Live **`deviceStatusStore.azimuth_deg`** drives sector **centre bearing**; **360°** beams omit wedge polygons (omnidirectional); **&lt;360°** uses concentric **gradient bands** (legacy opacities): **green** (`RADAR_SWEEP_FILL`) for detection, **amber** for jammer (slightly scaled opacity); draw order jammer slices then detection so green reads on top. Optional **breach** line layers (green/yellow dashed, red solid) when `breach_*_m` validate. Warm annuli + orange dashed range rings scale to detection radius or jammer-only radius; lock-on distance uses detection radius when applicable else jammer. **Ring-fill bands** use a small **non-zero inner ratio** (~0.02) so the inner boundary is a circle, not a point — avoids a **north-pointing radial line** artefact from degenerate polygons.
+- **REST + WS azimuth** — [`readAzimuthFromDeviceStatePayload`](src/utils/deviceHealth.ts) is shared by [`useMissionSockets`](src/hooks/useMissionSockets.ts) (`device_state_update`) and [`useMissionDeviceStatesHydration`](src/hooks/useMissionDeviceStatesHydration.ts) (mission `states/by-mission` poll).
 
-**Deliverables (outline):**
-- Replace or gate synthetic sweep: render **one static sector per asset** from live azimuth + effective beam (port `effectiveBeams` / `sectorPolygon` logic or equivalent geodesic in Mapbox GeoJSON).
-- When beam is 360°, render **omnidirectional** coverage (disk) without fake rotation.
-- If `breach_*_m` (or protocol defaults) exist on devices, draw **green/yellow/red breach rings** at those radii; keep **detection/jammer** fill at `detection_radius_m` / `jammer_radius_m` so the wedge does not visually “reach” the outer breach ring unless radii match.
-- Document behaviour in a short code comment at top of `assets.ts`.
+#### Task 0 improvements still open (not blocking later tasks)
 
-**Acceptance:**
-- With WS disconnected or `azimuth_deg` absent, sector uses a defined fallback (e.g. 0° or last known) and does not spin by itself.
-- With simulator holding azimuth fixed, wedge **does not** animate.
-- No regression to tower icons, lock-on dots, or mission GeoJSON layers.
+1. **Protocol catalogue merge** — Fold `GET /protocols` `default_detection_beam_deg`, `default_jammer_beam_deg`, `default_breach_*_m` into feature build when device fields are null (parity with old-ui `protocolDefaults`).
+2. ~~**Devices tab / commands**~~ — **Shipped:** `MissionDeviceAimControls` + related tabs; map consumes store azimuth from WS **and** REST hydration.
+3. **Figma / token pass** — Ring and wedge colours are Driif/legacy constants, not a formal Figma node swap.
+4. **Edge cases** — e.g. `detection_radius_m` missing on detection-role device (current fallback km); validate against your simulators.
 
-**Non-goals for Task 0:** Figma restyle of rings; Devices tab UI to **send** azimuth commands (that lands in a follow-up once command UX exists).
+**Original intent (behavioural):** No motion implied without backend azimuth; separate breach vs detection/jammer radii per [old-ui MissionMap](old-ui/src/app/components/MissionMap.tsx) + [beam.ts](old-ui/src/app/utils/beam.ts) + [threat `effectiveBreachRings`](old-ui/src/app/utils/threat.ts).
 
 ---
 
@@ -357,9 +374,9 @@ This task ships in **one PR with three sub-deliverables** because later feature 
 
 > **`old-ui/` scope reminder:** the `old-ui/` references below are **behavioural only** — API shapes, event flow, data fields displayed, localStorage keys. **All visual design (layout, colors, spacing, typography, motion) comes from Figma + `driifTokens.ts`** per [.cursor/rules/design.md](.cursor/rules/design.md) and [.cursor/rules/figma-build.md](.cursor/rules/figma-build.md). Never copy old-ui layouts, grids, or styling verbatim.
 
-#### Task 1a — Toast / Alert provider
+#### Task 1a — Toast / Alert provider **[SHIPPED — behaviour; Figma polish optional]**
 
-**Figma node needed:** toast container + 4 states (success / error / info / warning). `<FIGMA_NODE_URL>` required before the styling pass.
+**Figma node needed:** toast container + 4 states (success / error / info / warning). `<FIGMA_NODE_URL>` required before a full styling pass.
 
 **From `old-ui/` (behaviour only):** the `ToastProvider` + `useToast()` API shape in [old-ui/src/app/components/Toasts.tsx](old-ui/src/app/components/Toasts.tsx) L49-L62 — context-based, imperative `push(kind, message, durationMs)`, auto-dismiss via `setTimeout`, stacked in a fixed container. Do **not** copy the Tailwind classes at L77-L92 (`bg-emerald-500/90`, `ring-emerald-400`, etc.); those come from Figma.
 
@@ -404,7 +421,8 @@ This task ships in **one PR with three sub-deliverables** because later feature 
 **Shipped in repo (refined after review; Figma + `driifTokens` — not old-ui chrome):**
 - **Placement:** [src/app/dashboard/page.tsx](src/app/dashboard/page.tsx) — mission UI is `absolute` right-rail, same top/right anchor as the Detections overlay (`POSITION.bellRight`, below the bell), `z-[11]` (Detections `z-[12]`).
 - **Deselect** button in the shell header (next to mission title) — calls the same `exitMission` as other flows: `setActiveMission(null)`, `setCachedMission(null)`, `clearTargets`, `useMissionEventsStore.clearEvents()`.
-- **Intentional omission:** no mission `status` chip (e.g. STOPPED) in the header until **Task 1c** (activate/stop/refresh from API) — avoids misleading static labels.
+- **Header:** mission **status** chip + Activate/Stop (Task 1c) — driven by `cachedMission.status` after mutations / reload.
+- **Devices tab (extended):** `MissionDeviceAimControls`, `MissionDeviceDiagnostics`, `MissionDeviceLiveStateGrid`; `useMissionDeviceStatesHydration` in [`MissionWorkspace`](src/components/missions/MissionWorkspace.tsx) for REST device-state sync.
 - **Timeline (workspace):** full-height table in the tab panel, no inner “Mission timeline (n)” title bar; columns Event / Device / Location / Time; zone rows use `payload.target_name`, `zone_label`, `uav_lat`/`uav_lon` per API ref.
 - **KPI row:** `border` (not `box-shadow`) to avoid first/last card border clipping; tab badges + 10s tick for stale KPIs.
 
@@ -412,13 +430,13 @@ This task ships in **one PR with three sub-deliverables** because later feature 
 - Selecting a mission shows the new tab shell with the last-used tab pre-selected from `localStorage`.
 - Each tab renders the components listed above; no visual regression vs Figma.
 - `EngagementLog`, the `REAL-TIME DATA / THREAT PROFILING / COUNTER-UAS EFFECTORS` badge strip, and any other legacy bottom-of-map UI are either placed per Figma or removed.
-- No change in data hooks used — `useMissionLoad`, `useMissionSockets`, `useMissionEvents` still power the tabs.
+- Data hooks: `useMissionLoad`, `useMissionSockets`, `useMissionEvents`, plus `useMissionDeviceStatesHydration` (device store from REST).
 
 ---
 
-#### Task 1c — Mission lifecycle (activate / stop / overlaps)
+#### Task 1c — Mission lifecycle (activate / stop / overlaps) **[SHIPPED — behaviour; Figma polish optional]**
 
-**Figma nodes needed:** Activate button state variants inside the shell header, Stop button variant, CoverageWarningModal (severity chip styling for CRITICAL / HIGH / LOW). `<FIGMA_NODE_URL>` required.
+**Figma nodes needed:** Activate button state variants inside the shell header, Stop button variant, CoverageWarningModal (severity chip styling for CRITICAL / HIGH / LOW). `<FIGMA_NODE_URL>` required for pixel pass.
 
 **From `old-ui/` (behaviour only):** `apiActivateMission` / `apiStopMission` + "block Activate when `overlaps.counts.CRITICAL > 0`" flow at [old-ui/.../MissionWorkspacePage.tsx](old-ui/src/app/pages/MissionWorkspacePage.tsx) L339-L344 and L878-L909. Do **not** copy the Activate button placement or styling from old-ui — the button lives wherever Figma puts it inside the shell header from Task 1b.
 
@@ -694,6 +712,8 @@ Acceptance:
 
 ### Task 9 — Polish: zone CRUD invalidation, `configs/by-mission` surface
 
+**Progress:** Item **4** (`deviceHealth.ts`, telemetry merge, Devices tab / health UI) is **shipped**. Items **1–3** (zone invalidation + `listZones` layering, `configs/by-mission` in Configure Radar) remain.
+
 **Prompt:**
 ```
 Task: Cleanup pass.
@@ -703,7 +723,7 @@ Read: docs/API_REFERENCE.md §B.3, §B.5
 1) Switch src/components/missions/MissionSelector.tsx to use useCreateZone from src/hooks/useZones.ts (so the ["mission", id] and ["zones", id] queries invalidate).
 2) Add listZones read on mission load and render existing zones via layers/zones.ts (don't rely solely on the /map/features aggregate).
 3) src/hooks/useDeviceConfigs.ts → GET /api/v1/devices/configs/by-mission/{id}; surface band_range + ip_port + attack_mode in ConfigureRadarHealthTabContent.
-4) Health rollup (§E.2): add deviceHealth computer in src/utils/deviceHealth.ts (ONLINE/DEGRADED/ALARM/OFFLINE) and colour the StatusBadge accordingly.
+4) Health rollup (§E.2): deviceHealth in src/utils/deviceHealth.ts — DONE for Devices tab; extend StatusBadge colouring in Configure Radar flows if still missing.
 
 Acceptance:
 - Creating a zone in the workspace immediately re-renders without a manual refresh
@@ -769,4 +789,5 @@ Already written but currently unused — will be consumed by the tasks above:
 - **P0 WS reducers + drone-flood fix (current pass).** Centralized `handleMissionEvent`; added `missionEventsBus`; bumped `MAX_EVENTS` to 500; extended `Target` with `rating`/`threat` and `DeviceStatusEntry` with azimuth fields; REST `useMissionEvents` is now a one-shot 15-minute timeline backfill (no longer seeds `targetsStore`), fixing the "200 historical drones on mission select" flood. `yarn build` green.
 - **Task A — Devices admin list.** Shipped (see Task A section for file list and follow-ups).
 - **Plan update (this pass).** Expanded Task 1 to three sub-deliverables (1a Toast provider, 1b Mission Workspace tabbed shell with Timeline / Devices / Detections / Commands / Intel tabs, 1c lifecycle + overlaps). Annotated Tasks 2 / 4 / 5 / 7 / 8 with their landing tab. Added deferred Task 10 — Command launch UI. Added a strict `old-ui/` scope guardrail to §7: references for APIs + behaviour only, visuals come from Figma + `driifTokens.ts`. Informed by review of legacy `old-ui/` (`MissionWorkspacePage.tsx`, `Toasts.tsx`, `CommandPanel.tsx`, `DetectionsPanel.tsx`, `TimelinePanel.tsx`, `DevicePanel.tsx`, `command.api.ts`, `device.api.ts`).
-- **Task 1b follow-on (this pass).** Right-rail mission workspace aligned with Detections; live detections list + `Target` fields `positionDerived` / `monitorDeviceId`; `MissionDetectionsList`; timeline Device/Location from `missionEventDisplay` (incl. zone-breach top-level `uav_lat`/`uav_lon`); KPI border fix; flat timeline tab; removed footer status badges; `Deselect` + `clearEvents` on exit; header status chip removed pending Task 1c. `t1-lifecycle` marked `in_progress`.
+- **Task 1b follow-on.** Right-rail mission workspace aligned with Detections; live detections list + `Target` fields `positionDerived` / `monitorDeviceId`; `MissionDetectionsList`; timeline Device/Location from `missionEventDisplay` (incl. zone-breach top-level `uav_lat`/`uav_lon`); KPI border fix; flat timeline tab; removed footer status badges; `Deselect` + `clearEvents` on exit. *(Subsequent pass completed Task 1c — see latest changelog entry.)*
+- **Task 1c + Devices + map parity (later pass).** Shipped activate/stop/overlaps + `CoverageWarningModal`; mission header actions and Intel overlaps. Devices tab: aim controls, diagnostics, live telemetry grid, `deviceHealth` integration; command audit UX. Map: ring-fill inner-radius fix (north line artefact); `readAzimuthFromDeviceStatePayload` in `deviceHealth.ts`; `useMissionDeviceStatesHydration` in `MissionWorkspace` for REST seeding/poll of mission device states. Plan frontmatter: `t1-lifecycle` → **completed**; `t0-radar-map-semantics` description updated; `t9-polish` → **in_progress** (health done, zones/configs pending). Added §1.1 / §1.2 progress snapshot.
