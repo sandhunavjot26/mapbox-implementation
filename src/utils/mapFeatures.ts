@@ -1,9 +1,10 @@
 /**
  * Transform API map features to layer-compatible GeoJSON.
- * API devices use detection_radius_m; assets layer expects coverageRadiusKm.
+ * API devices use detection_radius_m; assets layer expects coverageRadiusKm + radar Task 0 props.
  */
 
 import type { MapFeatureCollection, Zone } from "@/types/aeroshield";
+import { radarPropsFromMapFeatureProps } from "@/utils/radarAssetsGeoJSON";
 
 /** Extract device features and add coverageRadiusKm for assets layer */
 export function mapFeaturesToAssetsGeoJSON(
@@ -20,18 +21,22 @@ export function mapFeaturesToAssetsGeoJSON(
     const detectionRadiusM = props.detection_radius_m as number | undefined;
     const coverageRadiusKm =
       detectionRadiusM != null ? detectionRadiusM / 1000 : 2;
+    const status =
+      props.status === "ONLINE" || props.status === "WORKING"
+        ? "ACTIVE"
+        : "INACTIVE";
+    const radar = radarPropsFromMapFeatureProps(
+      props as Record<string, unknown>,
+      coverageRadiusKm,
+      status,
+    );
     return {
       ...f,
       properties: {
-        ...props,
+        ...radar,
         id: props.id,
         name: props.serial_number ?? props.id ?? "Device",
-        // Map API status to layer: ONLINE/WORKING->ACTIVE, else INACTIVE
-        status:
-          props.status === "ONLINE" || props.status === "WORKING"
-            ? "ACTIVE"
-            : "INACTIVE",
-        coverageRadiusKm,
+        type: "device",
       },
     };
   });

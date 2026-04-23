@@ -35,6 +35,10 @@ import type {
   DeviceOnlineEventPayload,
   DeviceOfflineEventPayload,
 } from "@/types/aeroshield";
+import {
+  telemetryFromDeviceState,
+  readAzimuthFromDeviceStatePayload,
+} from "@/utils/deviceHealth";
 
 type WsStatus = "connecting" | "open" | "closed" | "error";
 
@@ -338,6 +342,7 @@ export function useMissionSockets(): UseMissionSocketsResult {
         last_seen?: string;
         name?: string;
         op_status?: string | number;
+        state?: unknown;
       };
       if (
         (msg.type === "device_state_update" ||
@@ -346,17 +351,35 @@ export function useMissionSockets(): UseMissionSocketsResult {
         msg.device_id
       ) {
         const isOnline = msg.type !== "device_offline";
+        const tel =
+          msg.type === "device_state_update"
+            ? telemetryFromDeviceState(msg.state)
+            : {};
         setDeviceStatus({
           device_id: msg.device_id,
           monitor_device_id: msg.monitor_device_id,
           status: isOnline ? (msg.status ?? "ONLINE") : "OFFLINE",
-          last_seen: msg.last_seen ?? new Date().toISOString(),
+          last_seen:
+            (typeof tel.last_seen === "string" ? tel.last_seen : undefined) ??
+            msg.last_seen ??
+            new Date().toISOString(),
           name: msg.name,
-          op_status: msg.op_status,
+          op_status: tel.op_status ?? msg.op_status,
+          ...tel,
         });
+        if (msg.type === "device_state_update") {
+          const azi = readAzimuthFromDeviceStatePayload(msg.state);
+          if (azi) {
+            updateDeviceAzimuth(msg.device_id, {
+              azimuth_deg: azi.azimuth_deg,
+              elevation_deg: azi.elevation_deg,
+              monitor_device_id: msg.monitor_device_id,
+            });
+          }
+        }
       }
     },
-    [setDeviceStatus],
+    [setDeviceStatus, updateDeviceAzimuth],
   );
 
   const onCommand = useCallback(

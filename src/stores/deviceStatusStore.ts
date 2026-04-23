@@ -17,6 +17,18 @@ export interface DeviceStatusEntry {
   azimuth_deg?: number;
   elevation_deg?: number;
   azimuth_updated_at?: number;
+  /** Merged from `device_state_update.state` when present (B.3 device state). */
+  power_mode?: number;
+  battery_pct?: number;
+  temp_c?: number;
+  temperature_c?: number;
+  humidity_pct?: number;
+  rf_alarm?: boolean;
+  jammer_alarm?: boolean;
+  pa_alarm?: boolean;
+  gps_alarm?: boolean;
+  fan_alarm?: boolean;
+  link_alarm?: boolean;
   updatedAt: number;
 }
 

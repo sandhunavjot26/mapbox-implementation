@@ -24,7 +24,6 @@ import {
 import {
   addAssetLayers,
   setAssetLayersData,
-  assetsToGeoJSON,
   stopAssetAnimation,
   getCachedAssetTowerImage,
   setAssetBasemapVariant,
@@ -38,6 +37,7 @@ import {
   mapFeaturesToBorderGeoJSON,
   missionZonesToGeoJSON,
 } from "@/utils/mapFeatures";
+import { buildMergedRadarAssetsGeoJSON } from "@/utils/radarAssetsGeoJSON";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useMissionStore } from "@/stores/missionStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
@@ -421,27 +421,22 @@ export function MapContainer({
 
       const mf = mapFeaturesRef.current;
       const missionDevices = useMissionStore.getState().cachedMission?.devices;
+      const live = useDeviceStatusStore.getState().byDeviceId;
       let assetsGeoJSON: GeoJSON.FeatureCollection | undefined;
       if (missionDevices?.length) {
-        const statusStore = useDeviceStatusStore.getState().byDeviceId;
-        const deviceAssets: Asset[] = missionDevices.map((d) => {
-          const ws = statusStore[d.id];
-          const isActive = ws
-            ? ws.status === "ONLINE" || ws.status === "WORKING"
-            : d.status === "ONLINE" || d.status === "WORKING";
-          return {
-            id: d.id,
-            name: d.name ?? d.serial_number ?? d.id,
-            coordinates: [d.longitude, d.latitude] as [number, number],
-            coverageRadiusKm: (d.detection_radius_m ?? 2000) / 1000,
-            status: (isActive ? "ACTIVE" : "INACTIVE") as Asset["status"],
-            altitude: 0,
-            area: "",
-          };
-        });
-        assetsGeoJSON = assetsToGeoJSON(deviceAssets);
+        assetsGeoJSON = buildMergedRadarAssetsGeoJSON(
+          landingAssetsRef.current,
+          missionDevices,
+          live,
+        );
       } else if (mf) {
         assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mf);
+      } else {
+        assetsGeoJSON = buildMergedRadarAssetsGeoJSON(
+          landingAssetsRef.current,
+          undefined,
+          live,
+        );
       }
       await addAssetLayers(map, assetsGeoJSON, {
         basemapVariant: basemapVariantRef.current,
@@ -925,11 +920,20 @@ export function MapContainer({
     if (!map || !mapReady || !isIntroComplete) return;
     setAssetLayersData(
       map,
-      assetsForIntercept.length > 0
-        ? assetsToGeoJSON(assetsForIntercept)
-        : EMPTY_FC,
+      buildMergedRadarAssetsGeoJSON(
+        landingAssets,
+        missionId ? cachedMission?.devices : undefined,
+        useDeviceStatusStore.getState().byDeviceId,
+      ),
     );
-  }, [assetsForIntercept, mapReady, isIntroComplete]);
+  }, [
+    landingAssets,
+    cachedMission?.devices,
+    missionId,
+    byDeviceId,
+    mapReady,
+    isIntroComplete,
+  ]);
 
   // Update zones and border when mapFeatures or cachedMission changes.
   // Borders always show all missions; the active border merges into landing set.

@@ -317,6 +317,25 @@ export interface CommandOut {
   required_approvals: number;
   approved_count: number;
   last_error: string | null;
+  /** Present on audit list rows */
+  protocol?: string | null;
+  requested_by?: string | null;
+  request_payload?: Record<string, unknown> | null;
+  created_at?: string | null;
+  sent_at?: string | null;
+  completed_at?: string | null;
+}
+
+/** GET /api/v1/commands/{id}/responses */
+export interface CommandResponseRow {
+  id: string;
+  command_id: string;
+  response_datatype: number;
+  packet_no?: number | null;
+  monitor_device_id?: number;
+  payload?: Record<string, unknown> | null;
+  result?: string | null;
+  received_at?: string;
 }
 
 // --- Map GeoJSON (from GET /missions/{id}/map/features) ---
