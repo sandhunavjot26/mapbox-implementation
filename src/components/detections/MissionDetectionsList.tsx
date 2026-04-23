@@ -140,14 +140,14 @@ export function MissionDetectionsList({
             style={{
               borderRadius: RADIUS.fencePopover,
               border: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
-              background: "rgba(64, 64, 64, 0.45)",
+              background: COLOR.missionsCardBg,
               overflow: "hidden",
             }}
           >
             <div
               className="flex items-center justify-between px-2 py-1.5"
               style={{
-                background: "rgba(26, 26, 26, 0.7)",
+                background: COLOR.missionCreateFieldBg,
                 fontSize: "11px",
                 fontWeight: FONT.weightBold,
                 color: COLOR.missionsBodyText,
@@ -263,7 +263,10 @@ export function MissionDetectionsList({
                   return (
                     <tr
                       key={t.id}
-                      className="border-t border-slate-800/50 hover:bg-slate-800/20"
+                      className="hover:bg-[#4a4a4a]"
+                      style={{
+                        borderTop: `1px solid ${COLOR.missionCreateSummaryModalBorder}`,
+                      }}
                     >
                       <td className="px-2 py-1 align-top">{nameNode}</td>
                       <td className="px-2 py-1 align-top">{posNode}</td>

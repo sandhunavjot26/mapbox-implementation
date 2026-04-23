@@ -8,7 +8,12 @@
  */
 
 import { apiJson } from "./client";
-import type { Mission, MissionLoad, MapFeatureCollection } from "@/types/aeroshield";
+import type {
+  Mission,
+  MissionLoad,
+  MapFeatureCollection,
+  MissionOverlapsResult,
+} from "@/types/aeroshield";
 
 /** GET /api/v1/missions — list missions, optional ?q= search */
 export async function listMissions(q?: string): Promise<Mission[]> {
@@ -49,5 +54,29 @@ export async function getMapFeatures(missionId: string): Promise<MapFeatureColle
   return apiJson<MapFeatureCollection>(
     "device",
     `/api/v1/missions/${missionId}/map/features`
+  );
+}
+
+/** POST /api/v1/missions/{id}/activate */
+export async function activateMission(missionId: string): Promise<Mission> {
+  return apiJson<Mission>("device", `/api/v1/missions/${missionId}/activate`, {
+    method: "POST",
+  });
+}
+
+/** POST /api/v1/missions/{id}/stop */
+export async function stopMission(missionId: string): Promise<Mission> {
+  return apiJson<Mission>("device", `/api/v1/missions/${missionId}/stop`, {
+    method: "POST",
+  });
+}
+
+/** GET /api/v1/missions/{id}/overlaps */
+export async function getMissionOverlaps(
+  missionId: string,
+): Promise<MissionOverlapsResult> {
+  return apiJson<MissionOverlapsResult>(
+    "device",
+    `/api/v1/missions/${missionId}/overlaps`,
   );
 }

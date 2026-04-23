@@ -437,7 +437,7 @@ Exchange username + password for a JWT access token.
     ]
   }
   ```
-- **Use for**: the Coverage panel and the activation-blocker toast.
+- **Use for**: the Coverage panel and operator toasts/warnings. This endpoint does not gate `POST .../activate`; clients may warn on `CRITICAL` overlaps but activation is a separate `POST` (see B.4).
 
 ## B.5 Mission zones
 
