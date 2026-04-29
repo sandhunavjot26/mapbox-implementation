@@ -227,9 +227,8 @@ function ToastItem({
     cursor: "pointer",
     opacity: toast.exiting ? 0 : entered ? 1 : 0,
     transform: toast.exiting ? "translateY(-3px)" : "translateY(0)",
-    transition: `opacity ${toast.exiting ? FADE_OUT_MS : FADE_IN_MS}ms ease, transform ${
-      toast.exiting ? FADE_OUT_MS : FADE_IN_MS
-    }ms ease`,
+    transition: `opacity ${toast.exiting ? FADE_OUT_MS : FADE_IN_MS}ms ease, transform ${toast.exiting ? FADE_OUT_MS : FADE_IN_MS
+      }ms ease`,
     willChange: "opacity, transform",
   };
 

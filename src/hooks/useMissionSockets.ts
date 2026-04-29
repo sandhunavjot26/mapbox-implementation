@@ -92,7 +92,7 @@ function useWs(
         setStatus("closed");
         const delay = Math.min(
           RECONNECT_BASE_MS * Math.pow(2, attemptRef.current),
-          RECONNECT_MAX_MS
+          RECONNECT_MAX_MS,
         );
         attemptRef.current++;
         timeoutId = setTimeout(connect, delay);
@@ -139,7 +139,9 @@ export function useMissionSockets(): UseMissionSocketsResult {
   const applyThreatEscalation = useTargetsStore((s) => s.applyThreatEscalation);
   const addOrUpdateCommand = useCommandsStore((s) => s.addOrUpdateCommand);
   const setDeviceStatus = useDeviceStatusStore((s) => s.setDeviceStatus);
-  const updateDeviceAzimuth = useDeviceStatusStore((s) => s.updateDeviceAzimuth);
+  const updateDeviceAzimuth = useDeviceStatusStore(
+    (s) => s.updateDeviceAzimuth,
+  );
   const addMissionEvent = useMissionEventsStore((s) => s.addEvent);
   const setAttackMode = useAttackModeStore((s) => s.setAttackMode);
   const setEngageOverlay = useEngageOverlayStore((s) => s.setOverlay);
@@ -198,8 +200,9 @@ export function useMissionSockets(): UseMissionSocketsResult {
           break;
         }
         case "TRACK_UPDATE": {
-          const trackPayload =
-            payload as unknown as Parameters<typeof trackUpdatePayloadToTarget>[0];
+          const trackPayload = payload as unknown as Parameters<
+            typeof trackUpdatePayloadToTarget
+          >[0];
           if (
             trackPayload.target_uid &&
             trackPayload.lat != null &&
@@ -222,7 +225,10 @@ export function useMissionSockets(): UseMissionSocketsResult {
         }
         case "TRACK_RATED": {
           const p = payload as Partial<TrackRatedPayload>;
-          if (typeof p.target_uid === "string" && typeof p.status === "string") {
+          if (
+            typeof p.target_uid === "string" &&
+            typeof p.status === "string"
+          ) {
             applyTrackRating(p.target_uid, p as TrackRatedPayload);
           }
           break;
@@ -289,7 +295,9 @@ export function useMissionSockets(): UseMissionSocketsResult {
         case "MISSION_AUTO_JAM_STOP": {
           const mid = ev.mission_id ?? missionId;
           if (mid) {
-            void queryClient.invalidateQueries({ queryKey: missionsKeys.detail(mid) });
+            void queryClient.invalidateQueries({
+              queryKey: missionsKeys.detail(mid),
+            });
           }
           void queryClient.invalidateQueries({ queryKey: missionsKeys.all });
           break;
@@ -447,7 +455,8 @@ export function useMissionSockets(): UseMissionSocketsResult {
       }
 
       const packetNo = msg.packet_no ?? msg.command?.packet_no;
-      const resultPayload = msg.result ?? msg.command?.result ?? msg.payload?.result;
+      const resultPayload =
+        msg.result ?? msg.command?.result ?? msg.payload?.result;
 
       addOrUpdateCommand({
         id: commandId,
@@ -474,7 +483,8 @@ export function useMissionSockets(): UseMissionSocketsResult {
               : "COMMAND_TIMEOUT";
         addMissionEvent({
           id: `cmd-${commandId}-${status}`,
-          mission_id: msg.mission_id ?? msg.command?.mission_id ?? missionId ?? "",
+          mission_id:
+            msg.mission_id ?? msg.command?.mission_id ?? missionId ?? "",
           device_id: msg.device_id ?? msg.command?.device_id ?? null,
           event_type: eventType,
           ts: new Date().toISOString(),
@@ -489,16 +499,25 @@ export function useMissionSockets(): UseMissionSocketsResult {
         // ATTACK_MODE_QUERY succeeded: update attack mode store for device badge
         const cmdType = msg.command_type ?? msg.command?.command_type;
         const deviceId = msg.device_id ?? msg.command?.device_id;
-        if (status === "SUCCEEDED" && cmdType === "ATTACK_MODE_QUERY" && deviceId && resultPayload) {
+        if (
+          status === "SUCCEEDED" &&
+          cmdType === "ATTACK_MODE_QUERY" &&
+          deviceId &&
+          resultPayload
+        ) {
           setAttackMode(deviceId, resultPayload as Record<string, unknown>);
         }
 
         // ATTACK_MODE_SET succeeded: show Engage overlay near target
         if (status === "SUCCEEDED" && cmdType === "ATTACK_MODE_SET") {
-          const cmd = useCommandsStore.getState().commands.find((c) => c.id === commandId);
+          const cmd = useCommandsStore
+            .getState()
+            .commands.find((c) => c.id === commandId);
           const targetId = cmd?.engaged_target_id ?? undefined;
           if (targetId) {
-            const jamActive = resultPayload && (resultPayload.switch === 1 || resultPayload.sw === 1);
+            const jamActive =
+              resultPayload &&
+              (resultPayload.switch === 1 || resultPayload.sw === 1);
             setEngageOverlay({
               targetId,
               message: jamActive ? "Jam active" : "Command delivered",
@@ -508,7 +527,13 @@ export function useMissionSockets(): UseMissionSocketsResult {
         }
       }
     },
-    [missionId, addOrUpdateCommand, addMissionEvent, setAttackMode, setEngageOverlay],
+    [
+      missionId,
+      addOrUpdateCommand,
+      addMissionEvent,
+      setAttackMode,
+      setEngageOverlay,
+    ],
   );
 
   const eventsStatus = useWs(eventsUrl, onEvent);

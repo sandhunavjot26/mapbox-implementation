@@ -135,7 +135,7 @@ export async function addTargetLayers(
         "friendly-drone",
         "unknown-drone",
       ],
-      "icon-size": 0.2,
+      "icon-size": 0.22,
       "icon-rotate": ["get", "heading"],
       "icon-allow-overlap": true,
     },

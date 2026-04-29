@@ -287,7 +287,7 @@ export const RADIUS = {
 
 export const POSITION = {
   /** Logo (Frame 3): left=22, top=20 */
-  logoLeft: "22px",
+  logoLeft: "17px",
   logoTop: "20px",
 
   /** Nav panel (Frame 103): left=17, top=76, width=46, height=268 */
