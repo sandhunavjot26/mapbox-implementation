@@ -54,7 +54,7 @@ export default function DashboardPage() {
     "standard" | "standard-satellite"
   >("standard");
   const [mapLightPreset, setMapLightPreset] = useState<"day" | "night">(
-    "night",
+    "day",
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);

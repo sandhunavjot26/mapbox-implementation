@@ -529,7 +529,7 @@ export async function addAssetLayers(
     slot: RADAR_SLOT,
     layout: {
       "icon-image": "asset-tower",
-      "icon-size": 0.2,
+      "icon-size": 0.22,
       "icon-allow-overlap": true,
     },
     paint: {

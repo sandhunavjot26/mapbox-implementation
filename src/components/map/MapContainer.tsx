@@ -160,7 +160,7 @@ export function MapContainer({
   landingAssets = [],
   landingBorders = [],
   basemapVariant = "standard",
-  mapLightPreset = "night",
+  mapLightPreset = "day",
   onMapBackgroundClick,
 }: MapContainerProps) {
   const onMapBackgroundClickRef = useRef(onMapBackgroundClick);

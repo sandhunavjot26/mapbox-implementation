@@ -9,6 +9,9 @@ import Image from "next/image";
 import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 import { COP_GLASS_PANEL } from "@/components/cop-shell/shellStyles";
 
+/** Solid chrome over light basemap — logo, nav rail, settings, detection, bell */
+const COP_SOLID_BG = "#1A1A1A";
+
 const NAV_ITEMS = [
   { key: "search", src: "/icons/search.svg", label: "Search" },
   { key: "assets", src: "/icons/assets.svg", label: "Assets" },
@@ -45,18 +48,22 @@ export function CopShell({
   return (
     <div className="pointer-events-none absolute inset-0 z-11">
       <div
-        className="pointer-events-auto absolute"
+        className="pointer-events-auto absolute flex items-center justify-center"
         style={{
           left: POSITION.logoLeft,
           top: POSITION.logoTop,
           borderRadius: RADIUS.logo,
           overflow: "hidden",
+          background: COP_SOLID_BG,
+          border: COP_GLASS_PANEL.border,
+          boxShadow: COP_GLASS_PANEL.boxShadow,
+          padding: "6px 8px",
         }}
       >
         <Image
           src="/driif-logo-small.png"
           alt="Driif"
-          width={33}
+          width={28}
           height={26}
           priority
         />
@@ -69,11 +76,10 @@ export function CopShell({
           top: POSITION.navTop,
           width: POSITION.navWidth,
           minHeight: POSITION.navHeight,
-          background: COP_GLASS_PANEL.background,
+          background: COP_SOLID_BG,
           border: COP_GLASS_PANEL.border,
           borderRadius: RADIUS.panel,
           boxShadow: COP_GLASS_PANEL.boxShadow,
-          backdropFilter: COP_GLASS_PANEL.backdropFilter,
         }}
         aria-label="Primary"
       >
@@ -110,9 +116,8 @@ export function CopShell({
                 className="pointer-events-none absolute left-full top-1/2 z-20 -translate-y-1/2 rounded-[2px] border px-2.5 py-1.5 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
                 style={{
                   marginLeft: 8,
-                  background: COP_GLASS_PANEL.background,
+                  background: COP_SOLID_BG,
                   border: COP_GLASS_PANEL.border,
-                  backdropFilter: COP_GLASS_PANEL.backdropFilter,
                   boxShadow: "0 4px 12px rgba(0,0,0,0.45)",
                   color: COLOR.missionsTitleMuted,
                   fontFamily: `${FONT.family}, sans-serif`,
@@ -135,11 +140,10 @@ export function CopShell({
           left: POSITION.settingsLeft,
           bottom: POSITION.settingsBottom,
           width: POSITION.settingsWidth,
-          background: COP_GLASS_PANEL.background,
+          background: COP_SOLID_BG,
           border: COP_GLASS_PANEL.border,
           borderRadius: RADIUS.panel,
           boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-          backdropFilter: COP_GLASS_PANEL.backdropFilter,
         }}
       >
         {SETTINGS_ICONS.map((item) => (
@@ -171,11 +175,10 @@ export function CopShell({
           style={{
             width: POSITION.bellSize,
             height: POSITION.bellSize,
-            background: COP_GLASS_PANEL.background,
+            background: COP_SOLID_BG,
             border: COP_GLASS_PANEL.border,
             borderRadius: RADIUS.panel,
             boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-            backdropFilter: COP_GLASS_PANEL.backdropFilter,
           }}
           onClick={() => onDetection?.()}
         >
@@ -195,11 +198,10 @@ export function CopShell({
           style={{
             width: POSITION.bellSize,
             height: POSITION.bellSize,
-            background: COP_GLASS_PANEL.background,
+            background: COP_SOLID_BG,
             border: COP_GLASS_PANEL.border,
             borderRadius: RADIUS.panel,
             boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-            backdropFilter: COP_GLASS_PANEL.backdropFilter,
           }}
           onClick={onBell}
         >
