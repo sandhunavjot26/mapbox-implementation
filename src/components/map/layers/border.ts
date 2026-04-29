@@ -5,6 +5,7 @@
  */
 
 import mapboxgl from "mapbox-gl";
+import type { MapLightPreset } from "@/utils/mapboxBasemapConfig";
 
 const BORDER_SOURCE_ID = "mission-border";
 const BORDER_LABEL_SOURCE_ID = "mission-border-label-src";
@@ -20,6 +21,46 @@ const SHAPE_COLORS: Record<string, { fill: string; outline: string }> = {
 };
 
 const DEFAULT_BORDER_COLOR = "#22d3ee";
+
+/** High contrast on Standard / light basemap (outline purple is illegible on pale terrain). */
+const LABEL_DAY_TEXT_COLOR = "#141414";
+const LABEL_DAY_HALO = "rgba(255,255,255,0.95)";
+
+const LABEL_NIGHT_TEXT_COLOR: mapboxgl.ExpressionSpecification = [
+  "coalesce",
+  ["get", "outlineColor"],
+  DEFAULT_BORDER_COLOR,
+];
+
+/**
+ * Update mission name label paint when switching Light / Dark (Standard preset).
+ * Call after `setBorderLayer` and when only the light preset changes (no style reload).
+ */
+export function applyBorderLabelLightPreset(
+  map: mapboxgl.Map,
+  preset: MapLightPreset,
+): void {
+  if (!map.getLayer(BORDER_LABEL_LAYER_ID)) return;
+  if (preset === "day") {
+    map.setPaintProperty(BORDER_LABEL_LAYER_ID, "text-color", LABEL_DAY_TEXT_COLOR);
+    map.setPaintProperty(BORDER_LABEL_LAYER_ID, "text-halo-color", LABEL_DAY_HALO);
+    map.setPaintProperty(BORDER_LABEL_LAYER_ID, "text-halo-width", 2);
+    map.setPaintProperty(BORDER_LABEL_LAYER_ID, "text-halo-blur", 0.25);
+  } else {
+    map.setPaintProperty(
+      BORDER_LABEL_LAYER_ID,
+      "text-color",
+      LABEL_NIGHT_TEXT_COLOR,
+    );
+    map.setPaintProperty(
+      BORDER_LABEL_LAYER_ID,
+      "text-halo-color",
+      "rgba(0,0,0,0.85)",
+    );
+    map.setPaintProperty(BORDER_LABEL_LAYER_ID, "text-halo-width", 1.2);
+    map.setPaintProperty(BORDER_LABEL_LAYER_ID, "text-halo-blur", 0);
+  }
+}
 
 /**
  * Infer the drawing tool used from the number of ring vertices.
@@ -100,6 +141,7 @@ function toLabelFeatures(
 export function setBorderLayer(
   map: mapboxgl.Map,
   features: GeoJSON.Feature<GeoJSON.Polygon>[],
+  mapLightPreset: MapLightPreset = "day",
 ): void {
   const enriched = enrichFeatureColors(features);
   const fc: GeoJSON.FeatureCollection = {
@@ -114,6 +156,7 @@ export function setBorderLayer(
         toLabelFeatures(enriched),
       );
     }
+    applyBorderLabelLightPreset(map, mapLightPreset);
     return;
   }
 
@@ -173,15 +216,14 @@ export function setBorderLayer(
       "text-anchor": "bottom",
     },
     paint: {
-      "text-color": [
-        "coalesce",
-        ["get", "outlineColor"],
-        DEFAULT_BORDER_COLOR,
-      ],
-      "text-halo-color": "rgba(0,0,0,0.8)",
-      "text-halo-width": 1.2,
+      "text-color": LABEL_DAY_TEXT_COLOR,
+      "text-halo-color": LABEL_DAY_HALO,
+      "text-halo-width": 2,
+      "text-halo-blur": 0.25,
       "text-emissive-strength": 1,
       "text-color-use-theme": "disabled",
     },
   });
+
+  applyBorderLabelLightPreset(map, mapLightPreset);
 }

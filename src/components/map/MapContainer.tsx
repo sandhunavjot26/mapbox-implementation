@@ -30,7 +30,10 @@ import {
 } from "./layers/assets";
 import { addTargetLayers, updateTargetLayersData } from "./layers/targets";
 import { addZonesLayer, setZonesLayerData } from "./layers/zones";
-import { setBorderLayer } from "./layers/border";
+import {
+  applyBorderLabelLightPreset,
+  setBorderLayer,
+} from "./layers/border";
 import {
   mapFeaturesToAssetsGeoJSON,
   mapFeaturesToZonesGeoJSON,
@@ -450,9 +453,9 @@ export function MapContainer({
       }
       if (mf) {
         const border = mapFeaturesToBorderGeoJSON(mf);
-        if (border) setBorderLayer(map, [border]);
+        if (border) setBorderLayer(map, [border], mapLightPresetRef.current);
       } else if (landingBordersRef.current.length > 0) {
-        setBorderLayer(map, landingBordersRef.current);
+        setBorderLayer(map, landingBordersRef.current, mapLightPresetRef.current);
       }
       await addTargetLayers(
         map,
@@ -856,6 +859,7 @@ export function MapContainer({
     } else {
       appliedLightPresetRef.current = mapLightPreset;
       map.setConfig("basemap", basemapFrag);
+      applyBorderLabelLightPreset(map, mapLightPreset);
     }
   }, [basemapVariant, mapLightPreset, isIntroComplete]);
 
@@ -963,12 +967,13 @@ export function MapContainer({
         properties: { ...activeBorder.properties, missionId },
       });
     }
-    setBorderLayer(map, allBorders);
+    setBorderLayer(map, allBorders, mapLightPreset);
   }, [
     mapFeatures,
     landingBorders,
     missionId,
     cachedMission?.zones,
+    mapLightPreset,
     mapReady,
     isIntroComplete,
   ]);
@@ -1097,8 +1102,8 @@ export function MapContainer({
     if (!map || !mapReady || !isIntroComplete) return;
     if (missionId) return;
     setZonesLayerData(map, EMPTY_FC);
-    setBorderLayer(map, landingBorders);
-  }, [missionId, landingBorders, mapReady, isIntroComplete]);
+    setBorderLayer(map, landingBorders, mapLightPreset);
+  }, [missionId, landingBorders, mapLightPreset, mapReady, isIntroComplete]);
 
   // 2D / 3D toggle (only after intro completes; terrain added in moveend)
   useEffect(() => {
