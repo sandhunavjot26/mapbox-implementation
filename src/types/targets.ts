@@ -4,8 +4,26 @@
  * Classification: default UNKNOWN; client-side reclassification only (no backend support).
  */
 
+import type { TrackRatedPriority, TrackRatedStatus } from "@/types/aeroshield";
+
 // UI renders FRIENDLY/ENEMY only; UNKNOWN kept for API compat and treated as ENEMY in the overlay (PRD §12.4)
 export type TargetClassification = "FRIENDLY" | "ENEMY" | "UNKNOWN";
+
+/** Latest TRACK_RATED from wire or mission load fold — does not replace tri-state `classification` */
+export interface TargetRating {
+  status: TrackRatedStatus;
+  priority: TrackRatedPriority | null;
+  ratedBy?: string;
+  ratedAt: number;
+}
+
+/** THREAT_ESCALATION from events WebSocket (§E.1) */
+export interface TargetThreat {
+  level: "HIGH" | "CRITICAL";
+  score: number;
+  reasons: string[];
+  stampedAt: number;
+}
 
 export interface Target {
   id: string;
@@ -31,4 +49,13 @@ export interface Target {
   rcCoords?: [number, number];
   /** True when backend signals TRACK_LOST — target is removed or greyed */
   lost?: boolean;
+  /** §E.1 TRACK_RATED — last write wins; separate from FRIENDLY/ENEMY/UNKNOWN */
+  rating?: TargetRating;
+  /** §E.1 THREAT_ESCALATION */
+  threat?: TargetThreat;
+  /** From DETECTED uav when backend derived coordinates from range + azimuth. */
+  positionDerived?: boolean;
+  targetUidSynthesised?: boolean;
+  /** Vendor-reported id (groups with mission devices in Detections list). */
+  monitorDeviceId?: number;
 }

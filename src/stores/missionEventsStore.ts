@@ -14,13 +14,23 @@ export interface MissionEventEntry {
   ts: string;
   payload: Record<string, unknown> | null;
   receivedAt: number;
+  /**
+   * When true, UI must not show a toast for this row (e.g. REST timeline backfill).
+   * Omitted = false. WebSocket `addEvent` does not set this.
+   */
+  suppressToast?: boolean;
 }
 
-const MAX_EVENTS = 100;
+const MAX_EVENTS = 500;
+
+type AddEventInput = Omit<MissionEventEntry, "receivedAt" | "suppressToast"> & {
+  /** If true, skip alert toast (bulk REST backfill, etc.) */
+  silent?: boolean;
+};
 
 interface MissionEventsState {
   events: MissionEventEntry[];
-  addEvent: (event: Omit<MissionEventEntry, "receivedAt">) => void;
+  addEvent: (event: AddEventInput) => void;
   clearEvents: () => void;
 }
 
@@ -29,7 +39,12 @@ export const useMissionEventsStore = create<MissionEventsState>((set) => ({
 
   addEvent: (event) =>
     set((state) => {
-      const entry: MissionEventEntry = { ...event, receivedAt: Date.now() };
+      const { silent, ...rest } = event;
+      const entry: MissionEventEntry = {
+        ...rest,
+        receivedAt: Date.now(),
+        suppressToast: silent === true,
+      };
       const exists = state.events.some((e) => e.id === event.id);
       const next = exists
         ? state.events.map((e) => (e.id === event.id ? entry : e))

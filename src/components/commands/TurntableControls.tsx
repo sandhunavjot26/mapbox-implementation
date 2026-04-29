@@ -118,14 +118,14 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
     <div className="space-y-2">
       {error && (
         <div className="flex items-center justify-between gap-2 bg-red-950/50 border border-red-500/50 px-2 py-1">
-          <span className="text-red-400 text-[10px] font-mono truncate flex-1">{error}</span>
+          <span className="text-red-400 text-[11px] font-mono truncate flex-1">{error}</span>
           <button type="button" onClick={() => setError(null)} className="text-slate-400 hover:text-slate-200 text-xs shrink-0" aria-label="Dismiss">×</button>
         </div>
       )}
 
       {/* D-pad section */}
       <div>
-        <div className="text-[10px] font-mono text-slate-500 mb-1">Direction</div>
+        <div className="text-[11px] font-mono text-slate-500 mb-1">Direction</div>
         <div className="grid grid-cols-3 gap-0.5 w-[72px]">
           {DIRECTION_GRID.map(({ dir, label }) => (
             <button
@@ -133,7 +133,7 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
               type="button"
               onClick={() => handleDirection(dir)}
               disabled={pending}
-              className="w-6 h-6 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-6 h-6 text-[11px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
               title={dir === 0 ? "Stop" : `Direction ${dir}`}
             >
               {label}
@@ -141,7 +141,7 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
           ))}
         </div>
         <div className="flex items-center gap-2 mt-1">
-          <span className="text-[10px] font-mono text-slate-500">Speed</span>
+          <span className="text-[11px] font-mono text-slate-500">Speed</span>
           <input
             type="range"
             min={0}
@@ -150,14 +150,14 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
             onChange={(e) => setSpeed(Number(e.target.value))}
             className="flex-1 h-1.5 accent-cyan-500"
           />
-          <span className="text-[10px] font-mono text-slate-400 w-6">{speed}</span>
+          <span className="text-[11px] font-mono text-slate-400 w-6">{speed}</span>
         </div>
       </div>
 
       {/* Point section */}
       <div className="border-t border-slate-700/50 pt-2">
-        <div className="text-[10px] font-mono text-slate-500 mb-1">Point (azimuth / elevation)</div>
-        <div className="grid grid-cols-2 gap-2 text-[10px] font-mono">
+        <div className="text-[11px] font-mono text-slate-500 mb-1">Point (azimuth / elevation)</div>
+        <div className="grid grid-cols-2 gap-2 text-[11px] font-mono">
           <div>
             <label className="flex items-center gap-1 text-slate-500">
               <input type="checkbox" checked={hEnable} onChange={(e) => setHEnable(e.target.checked)} className="rounded" />
@@ -169,7 +169,7 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
               max={360}
               value={horizontal}
               onChange={(e) => setHorizontal(Number(e.target.value))}
-              className="w-full mt-0.5 px-1.5 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[10px]"
+              className="w-full mt-0.5 px-1.5 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[11px]"
             />
           </div>
           <div>
@@ -183,7 +183,7 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
               max={90}
               value={vertical}
               onChange={(e) => setVertical(Number(e.target.value))}
-              className="w-full mt-0.5 px-1.5 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[10px]"
+              className="w-full mt-0.5 px-1.5 py-0.5 bg-slate-800 border border-slate-600 text-slate-300 text-[11px]"
             />
           </div>
         </div>
@@ -191,7 +191,7 @@ export function TurntableControls({ asset, missionId }: TurntableControlsProps) 
           type="button"
           onClick={handlePoint}
           disabled={pending}
-          className="mt-1 w-full px-2 py-1 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
+          className="mt-1 w-full px-2 py-1 text-[11px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
         >
           {pointPending ? "Moving…" : "Point"}
         </button>

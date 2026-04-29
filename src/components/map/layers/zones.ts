@@ -133,7 +133,7 @@ export function addZonesLayer(
         "TL-",
         ["to-string", ["coerce", ["get", "priority"], 0]],
       ] as unknown as string,
-      "text-size": 11,
+      "text-size": 12,
       "text-font": ["DIN Pro Medium", "Arial Unicode MS Regular"],
       "text-allow-overlap": false,
     },

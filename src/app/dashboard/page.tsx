@@ -5,19 +5,17 @@ import { useRouter } from "next/navigation";
 import dynamic from "next/dynamic";
 import Image from "next/image";
 import { CopShell } from "@/components/cop-shell/CopShell";
-import { DetectionsPanel } from "@/components/detections/DetectionsPanel";
+import { OverallDetectionPanel } from "@/components/detections/OverallDetectionPanel";
 import { CopTopBar } from "@/components/cop-shell/CopTopBar";
 import { MissionSelector } from "@/components/missions/MissionSelector";
 import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
-import {
-  subscribeToIntercepts,
-  getInterceptStats,
-} from "@/stores/mapActionsStore";
+import { MissionEventToasts } from "@/components/alerts/MissionEventToasts";
+import { DevicesInventoryOverlay } from "@/components/devices/DevicesInventoryOverlay";
 import { useAuthStore } from "@/stores/authStore";
 import { logout } from "@/lib/api/auth";
 import { useMissionStore } from "@/stores/missionStore";
+import { useMissionEventsStore } from "@/stores/missionEventsStore";
 import { useTargetsStore } from "@/stores/targetsStore";
-import { useWsStatusStore } from "@/stores/wsStatusStore";
 import { useLandingMissionAssets, useLandingBorders, useMapFeatures } from "@/hooks/useMissions";
 import { COLOR, POSITION } from "@/styles/driifTokens";
 
@@ -52,35 +50,24 @@ const EntityHoverPopup = dynamic(
 export default function DashboardPage() {
   const router = useRouter();
   const [isAuthorized, setIsAuthorized] = useState(false);
-  const [assetsCollapsed, setAssetsCollapsed] = useState(false);
-  const [trackingCollapsed, setTrackingCollapsed] = useState(false);
   const [mapMode, setMapMode] = useState<"2D" | "3D">("2D");
   const [basemapVariant, setBasemapVariant] = useState<
     "standard" | "standard-satellite"
   >("standard");
   const [mapLightPreset, setMapLightPreset] = useState<"day" | "night">(
-    "night",
+    "day",
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
+  const [devicesOpen, setDevicesOpen] = useState(false);
   const [detectionsOpen, setDetectionsOpen] = useState(false);
-  const [activeNavKey, setActiveNavKey] = useState<string | null>(null);
   const [mapDismissLocked, setMapDismissLocked] = useState(false);
-  const [interceptStats, setInterceptStats] = useState({
-    neutralized: 0,
-    confirmed: 0,
-    successRate: 0,
-  });
-
   const token = useAuthStore((s) => s.getToken());
   const clearAuth = useAuthStore((s) => s.clearAuth);
   const activeMissionId = useMissionStore((s) => s.activeMissionId);
   const setActiveMission = useMissionStore((s) => s.setActiveMission);
   const setCachedMission = useMissionStore((s) => s.setCachedMission);
   const clearTargets = useTargetsStore((s) => s.clearTargets);
-
-  const wsEventsStatus = useWsStatusStore((s) => s.eventsStatus);
-  const wsDevicesStatus = useWsStatusStore((s) => s.devicesStatus);
-  const wsCommandsStatus = useWsStatusStore((s) => s.commandsStatus);
+  const clearMissionEvents = useMissionEventsStore((s) => s.clearEvents);
 
   const { data: mapFeatures } = useMapFeatures(
     activeMissionId,
@@ -89,11 +76,17 @@ export default function DashboardPage() {
   const { data: landingMissionAssets } = useLandingMissionAssets();
   const landingBorders = useLandingBorders();
 
+  /** Deep link from `/dashboard?setMission=<uuid>` (e.g. devices → open on map). */
   useEffect(() => {
-    return subscribeToIntercepts(() => {
-      setInterceptStats(getInterceptStats());
-    });
-  }, []);
+    if (typeof window === "undefined") return;
+    const u = new URL(window.location.href);
+    const mid = u.searchParams.get("setMission");
+    if (!mid) return;
+    setActiveMission(mid);
+    setCachedMission(null);
+    u.searchParams.delete("setMission");
+    window.history.replaceState(null, "", u.toString());
+  }, [setActiveMission, setCachedMission]);
 
   useEffect(() => {
     if (!token) {
@@ -111,29 +104,37 @@ export default function DashboardPage() {
   }, [setActiveMission, setCachedMission, clearTargets]);
 
   const onShellNav = useCallback((key: string) => {
+    if (key === "assets") {
+      setDevicesOpen(true);
+      setMissionsOpen(false);
+      return;
+    }
     if (key === "missions") {
       setMissionsOpen(true);
-      setActiveNavKey("missions");
+      setDevicesOpen(false);
       return;
     }
     setMissionsOpen(false);
-    setActiveNavKey(key);
+    setDevicesOpen(false);
   }, []);
 
   const onShellClose = useCallback(() => {
     if (activeMissionId) {
       exitMission();
+      setDetectionsOpen(false);
       return;
     }
     setMissionsOpen(false);
-    setActiveNavKey(null);
+    setDevicesOpen(false);
+    setDetectionsOpen(false);
   }, [activeMissionId, exitMission]);
 
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
   const onMapBackgroundClick = useCallback(() => {
     if (mapDismissLocked) return;
     setMissionsOpen(false);
-    setActiveNavKey(null);
+    setDevicesOpen(false);
+    setDetectionsOpen(false);
   }, [mapDismissLocked]);
 
   if (!isAuthorized) {
@@ -186,28 +187,24 @@ export default function DashboardPage() {
       <EntityHoverPopup />
 
       <CopTopBar
-        interceptStats={interceptStats}
         mapMode={mapMode}
         onMapMode={setMapMode}
         basemapVariant={basemapVariant}
         onBasemapVariant={setBasemapVariant}
         mapLightPreset={mapLightPreset}
         onMapLightPreset={setMapLightPreset}
-        showWs={!!activeMissionId}
-        ws={{
-          eventsStatus: wsEventsStatus,
-          devicesStatus: wsDevicesStatus,
-          commandsStatus: wsCommandsStatus,
-        }}
         onLogout={logout}
       />
 
       <CopShell
-        activeNavKey={missionsOpen ? "missions" : activeNavKey}
+        activeNavKey={
+          missionsOpen ? "missions" : devicesOpen ? "assets" : null
+        }
         onNav={onShellNav}
         hasMission={!!activeMissionId}
         onBell={onShellClose}
         onDetection={() => setDetectionsOpen((v) => !v)}
+        detectionsOpen={detectionsOpen}
       />
 
       {detectionsOpen && (
@@ -218,7 +215,7 @@ export default function DashboardPage() {
             top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
           }}
         >
-          <DetectionsPanel />
+          <OverallDetectionPanel variant="overlay" />
         </div>
       )}
 
@@ -233,23 +230,49 @@ export default function DashboardPage() {
             onMapDismissLockChange={setMapDismissLocked}
             onClose={() => {
               setMissionsOpen(false);
-              setActiveNavKey(null);
               setMapDismissLocked(false);
             }}
           />
         </div>
       )}
 
-      {activeMissionId && (
-        <div className="absolute inset-0 z-[8] flex min-h-0 min-w-0 pointer-events-none">
-          <MissionWorkspace
-            missionId={activeMissionId}
-            assetsCollapsed={assetsCollapsed}
-            trackingCollapsed={trackingCollapsed}
-            onAssetsToggle={() => setAssetsCollapsed((c) => !c)}
-            onTrackingToggle={() => setTrackingCollapsed((c) => !c)}
+      {devicesOpen && (
+        <div
+          className="pointer-events-auto absolute z-[12]"
+          style={{ left: POSITION.missionsLeft, top: POSITION.missionsTop }}
+        >
+          <DevicesInventoryOverlay
+            onFocusMissionOnMap={(missionId) => {
+              if (missionId) {
+                clearTargets();
+                setActiveMission(missionId);
+                setCachedMission(null);
+              }
+              setDevicesOpen(false);
+            }}
+            onMapDismissLockChange={setMapDismissLocked}
           />
         </div>
+      )}
+
+      {activeMissionId && (
+        <>
+          <MissionEventToasts />
+          <div
+            className="pointer-events-auto absolute z-[11] flex min-h-0 min-w-0 flex-col"
+            style={{
+              right: POSITION.bellRight,
+              top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
+              bottom: POSITION.zoomBottom,
+              width: "min(510px, calc(100vw - 32px))",
+            }}
+          >
+            <MissionWorkspace
+              missionId={activeMissionId}
+              onDeselect={exitMission}
+            />
+          </div>
+        </>
       )}
 
       <footer
@@ -257,7 +280,7 @@ export default function DashboardPage() {
         aria-label="Product attribution"
       >
         <div className="flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-3 pt-10">
-          <div className="flex items-center justify-center gap-1.5 text-center text-[11px] font-mono tracking-wide text-slate-400">
+          <div className="flex items-center justify-center gap-1.5 text-center text-[11px] font-mono tracking-wide text-slate">
             <span>VectorWings · Precision in motion | Powered by DRIIF</span>
             <Image
               src="/driif-logo-small.png"

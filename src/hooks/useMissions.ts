@@ -17,6 +17,9 @@ import {
   loadMission,
   createMission,
   getMapFeatures,
+  activateMission,
+  stopMission,
+  getMissionOverlaps,
 } from "@/lib/api/missions";
 import { resolveMissionCardStatus } from "@/utils/missionListUi";
 import { devicesToAssets } from "@/utils/missionAssets";
@@ -27,6 +30,7 @@ export const missionsKeys = {
   list: (q?: string) => [...missionsKeys.all, "list", q ?? ""] as const,
   detail: (id: string) => [...missionsKeys.all, "detail", id] as const,
   mapFeatures: (id: string) => [...missionsKeys.all, "mapFeatures", id] as const,
+  overlaps: (id: string) => [...missionsKeys.all, "overlaps", id] as const,
   landingAssets: ["missions", "landingAssets"] as const,
 };
 
@@ -54,6 +58,47 @@ export function useCreateMission() {
   return useMutation({
     mutationFn: createMission,
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: missionsKeys.all });
+    },
+  });
+}
+
+/** GET /api/v1/missions/{id}/overlaps — coverage / jammer overlap warnings */
+export function useMissionOverlaps(
+  missionId: string | null | undefined,
+  enabled = true,
+) {
+  return useQuery({
+    queryKey: missionsKeys.overlaps(missionId ?? ""),
+    queryFn: () => getMissionOverlaps(missionId!),
+    enabled: !!missionId && enabled,
+    staleTime: 20 * 1000,
+  });
+}
+
+/** POST /api/v1/missions/{id}/activate */
+export function useActivateMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (missionId: string) => activateMission(missionId),
+    onSuccess: (_data, missionId) => {
+      queryClient.invalidateQueries({ queryKey: missionsKeys.detail(missionId) });
+      queryClient.invalidateQueries({ queryKey: missionsKeys.mapFeatures(missionId) });
+      queryClient.invalidateQueries({ queryKey: missionsKeys.overlaps(missionId) });
+      queryClient.invalidateQueries({ queryKey: missionsKeys.all });
+    },
+  });
+}
+
+/** POST /api/v1/missions/{id}/stop */
+export function useStopMission() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (missionId: string) => stopMission(missionId),
+    onSuccess: (_data, missionId) => {
+      queryClient.invalidateQueries({ queryKey: missionsKeys.detail(missionId) });
+      queryClient.invalidateQueries({ queryKey: missionsKeys.mapFeatures(missionId) });
+      queryClient.invalidateQueries({ queryKey: missionsKeys.overlaps(missionId) });
       queryClient.invalidateQueries({ queryKey: missionsKeys.all });
     },
   });

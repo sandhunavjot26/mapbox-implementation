@@ -172,7 +172,7 @@ export function TrackingPanel({
             return isHighThreat(t, inter?.state === "neutralized");
           }) && (
             <span
-              className="text-[10px] font-mono text-red-400 bg-red-950 px-2 py-0.5 animate-pulse whitespace-nowrap"
+              className="text-[11px] font-mono text-red-400 bg-red-950 px-2 py-0.5 animate-pulse whitespace-nowrap"
             >
               INBOUND
             </span>
@@ -185,7 +185,7 @@ export function TrackingPanel({
                 key={f}
                 type="button"
                 onClick={() => setFilter(f)}
-                className={`px-2 py-1 text-[10px] font-mono uppercase transition-colors ${
+                className={`px-2 py-1 text-[11px] font-mono uppercase transition-colors ${
                   filter === f
                     ? "bg-cyan-600/80 text-slate-100"
                     : "text-slate-500 hover:text-slate-300 hover:bg-slate-800"
@@ -257,25 +257,25 @@ export function TrackingPanel({
                 </div>
                 <div className="flex items-center gap-1 flex-wrap justify-end">
                   {highThreat && (
-                    <span className="text-[10px] font-mono text-red-400 bg-red-950 px-1.5 py-0.5 animate-pulse">
+                    <span className="text-[11px] font-mono text-red-400 bg-red-950 px-1.5 py-0.5 animate-pulse">
                       INBOUND
                     </span>
                   )}
                   {intercept && (
                     <span
-                      className={`text-[10px] font-mono uppercase ${interceptStateStyles[intercept.state]}`}
+                      className={`text-[11px] font-mono uppercase ${interceptStateStyles[intercept.state]}`}
                     >
                       {intercept.state}
                     </span>
                   )}
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 ${tagColor}`}>
+                  <span className={`text-[11px] font-mono px-1.5 py-0.5 ${tagColor}`}>
                     {target.distanceKm.toFixed(1)} KM
                   </span>
-                  <span className={`text-[10px] font-mono px-1.5 py-0.5 ${tagColor}`}>
+                  <span className={`text-[11px] font-mono px-1.5 py-0.5 ${tagColor}`}>
                     {target.altitude} FT
                   </span>
                   <span
-                    className={`text-[10px] font-mono px-1.5 py-0.5 ${
+                    className={`text-[11px] font-mono px-1.5 py-0.5 ${
                       isNeutralized
                         ? "text-slate-500 bg-slate-700"
                         : classificationStyles[target.classification]
@@ -286,7 +286,7 @@ export function TrackingPanel({
                 </div>
               </div>
               <div
-                className={`grid grid-cols-2 gap-x-2 gap-y-1 text-[10px] font-mono ${
+                className={`grid grid-cols-2 gap-x-2 gap-y-1 text-[11px] font-mono ${
                   isNeutralized ? "text-slate-600" : "text-slate-500"
                 }`}
               >

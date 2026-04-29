@@ -3,7 +3,12 @@
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { assignDevices, listDevices } from "@/lib/api/devices";
+import {
+  assignDevices,
+  listDevices,
+  patchDevice,
+} from "@/lib/api/devices";
+import type { DevicePatch } from "@/types/aeroshield";
 import { missionsKeys } from "@/hooks/useMissions";
 
 export const devicesKeys = {
@@ -12,6 +17,7 @@ export const devicesKeys = {
     mission_id?: string;
     device_type?: string;
     status?: string;
+    protocol?: string;
   }) =>
     [
       ...devicesKeys.all,
@@ -19,6 +25,7 @@ export const devicesKeys = {
       params?.mission_id ?? "",
       params?.device_type ?? "",
       params?.status ?? "",
+      params?.protocol ?? "",
     ] as const,
 };
 
@@ -27,6 +34,7 @@ export function useDevicesList(
     mission_id?: string;
     device_type?: string;
     status?: string;
+    protocol?: string;
   },
   enabled = true,
 ) {
@@ -35,6 +43,43 @@ export function useDevicesList(
     queryFn: () => listDevices(params),
     enabled,
     staleTime: 30 * 1000,
+  });
+}
+
+export function useUpdateDevice() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({
+      deviceId,
+      body,
+      previousMissionId,
+    }: {
+      deviceId: string;
+      body: DevicePatch;
+      previousMissionId?: string | null;
+    }) => patchDevice(deviceId, body),
+    onSuccess: (data, vars) => {
+      queryClient.invalidateQueries({ queryKey: devicesKeys.all });
+      queryClient.invalidateQueries({
+        queryKey: ["devices", "detail", vars.deviceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["devices", "state", vars.deviceId],
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["devices", "config", vars.deviceId],
+      });
+      const mids = new Set<string>();
+      if (vars.previousMissionId) mids.add(vars.previousMissionId);
+      if (data.mission_id) mids.add(data.mission_id);
+      mids.forEach((id) => {
+        queryClient.invalidateQueries({ queryKey: missionsKeys.detail(id) });
+        queryClient.invalidateQueries({ queryKey: missionsKeys.mapFeatures(id) });
+      });
+      queryClient.invalidateQueries({
+        queryKey: ["deviceStates", "mission"],
+      });
+    },
   });
 }
 

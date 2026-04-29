@@ -142,7 +142,7 @@ export function MissionReviewLaunchWorkspace({
                       color: COLOR.missionsTitleMuted,
                       fontFamily: `${FONT.family}, sans-serif`,
                       fontSize: FONT.sizeSm,
-                      lineHeight: "16px",
+                      lineHeight: "17px",
                       textDecoration: acknowledged ? "none" : "underline",
                     }}
                   >
@@ -204,7 +204,7 @@ export function MissionReviewLaunchWorkspace({
               color: COLOR.statusDanger,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             {createError}
@@ -223,7 +223,7 @@ export function MissionReviewLaunchWorkspace({
             fontFamily: `${FONT.family}, sans-serif`,
             fontSize: FONT.sizeMd,
             fontWeight: FONT.weightMedium,
-            lineHeight: "20px",
+            lineHeight: "21px",
             minHeight: SPACING.missionCreateFooterBtnMinHeight,
             paddingLeft: SPACING.missionCreateBlockGapMd,
             paddingRight: SPACING.missionCreateBlockGapMd,

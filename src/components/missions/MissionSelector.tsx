@@ -340,7 +340,7 @@ export function MissionSelector({
                     color: COLOR.missionsBodyText,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeMd,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                   }}
                 />
                 <Image
@@ -360,7 +360,7 @@ export function MissionSelector({
                   color: COLOR.missionsCreateBtnText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeMd,
-                  lineHeight: "20px",
+                  lineHeight: "21px",
                 }}
               >
                 Create Mission
@@ -385,7 +385,7 @@ export function MissionSelector({
                   color: COLOR.statusDanger,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 Failed to load missions
@@ -398,7 +398,7 @@ export function MissionSelector({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 Loading...
@@ -430,7 +430,7 @@ export function MissionSelector({
                           color: COLOR.missionsBodyText,
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeMd,
-                          lineHeight: "20px",
+                          lineHeight: "21px",
                         }}
                       >
                         {m.name}
@@ -441,7 +441,7 @@ export function MissionSelector({
                           color: COLOR.missionsTitleMuted,
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeSm,
-                          lineHeight: "16px",
+                          lineHeight: "17px",
                         }}
                       >
                         {formatMissionListCode(m.id)}
@@ -453,7 +453,7 @@ export function MissionSelector({
                             color: COLOR.missionsTitleMuted,
                             fontFamily: `${FONT.family}, sans-serif`,
                             fontSize: FONT.sizeSm,
-                            lineHeight: "16px",
+                            lineHeight: "17px",
                           }}
                         >
                           {createdLine}
@@ -467,7 +467,7 @@ export function MissionSelector({
                         color: tagColor,
                         fontFamily: `${FONT.family}, sans-serif`,
                         fontSize: FONT.sizeSm,
-                        lineHeight: "16px",
+                        lineHeight: "17px",
                       }}
                     >
                       {missionStatusTagLabel(kind)}
@@ -483,7 +483,7 @@ export function MissionSelector({
                   color: COLOR.missionsSecondaryText,
                   fontFamily: `${FONT.family}, sans-serif`,
                   fontSize: FONT.sizeSm,
-                  lineHeight: "16px",
+                  lineHeight: "17px",
                 }}
               >
                 No missions. Create one to start.

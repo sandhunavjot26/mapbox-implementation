@@ -71,7 +71,7 @@ export function ConfigureRadarHealthTabContent() {
                     color: HEALTH_NAME_COLOR,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                   }}
                 >
                   {item.name}
@@ -81,7 +81,7 @@ export function ConfigureRadarHealthTabContent() {
                     color: "rgba(255, 255, 255, 0.6)",
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeSm,
-                    lineHeight: "16px",
+                    lineHeight: "17px",
                   }}
                 >
                   {item.detail}
@@ -101,9 +101,9 @@ export function ConfigureRadarHealthTabContent() {
                 paddingBottom: "2px",
                 color: HEALTH_PILL_TEXT,
                 fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: "11px",
+                fontSize: "12px",
                 fontWeight: FONT.weightMedium,
-                lineHeight: "12px",
+                lineHeight: "13px",
                 whiteSpace: "nowrap",
               }}
             >

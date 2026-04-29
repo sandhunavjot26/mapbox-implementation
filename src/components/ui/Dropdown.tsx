@@ -40,6 +40,7 @@ export function Dropdown({
   iconAlt = "",
 }: DropdownProps) {
   const [open, setOpen] = useState(false);
+  const [hoveredValue, setHoveredValue] = useState<string | null>(null);
   const rootRef = useRef<HTMLDivElement | null>(null);
 
   useEffect(() => {
@@ -53,7 +54,36 @@ export function Dropdown({
     return () => window.removeEventListener("mousedown", handlePointerDown);
   }, []);
 
+  useEffect(() => {
+    if (!open) setHoveredValue(null);
+  }, [open]);
+
   const selectedOption = options.find((option) => option.value === value) ?? options[0];
+
+  const optionVisualStyle = (
+    optionValue: string,
+    active: boolean
+  ): CSSProperties | undefined => {
+    const hovered = hoveredValue === optionValue;
+    const o = optionStyle ?? {};
+    const so = selectedOptionStyle ?? {};
+    const baseActive = active ? { ...o, ...so } : { ...o };
+    if (active) {
+      return {
+        ...baseActive,
+        background: hovered
+          ? "rgba(230, 230, 230, 0.14)"
+          : (so as CSSProperties).background ?? "rgba(230, 230, 230, 0.08)",
+      };
+    }
+    if (hovered) {
+      return {
+        ...baseActive,
+        background: "rgba(230, 230, 230, 0.1)",
+      };
+    }
+    return baseActive;
+  };
 
   return (
     <div className="relative" ref={rootRef}>
@@ -63,7 +93,7 @@ export function Dropdown({
         className={`flex h-8 w-full items-center justify-between overflow-hidden rounded-[2px] border px-3 text-left ${className}`}
         style={buttonStyle}
       >
-        <span className={`truncate text-[14px] leading-5 ${textClassName}`} style={textStyle}>
+        <span className={`truncate text-[15px] leading-5 ${textClassName}`} style={textStyle}>
           {selectedOption?.label ?? ""}
         </span>
         <Image
@@ -77,7 +107,7 @@ export function Dropdown({
 
       {open && (
         <div
-          className={`absolute left-0 right-0 top-[calc(100%+4px)] z-20 overflow-hidden rounded-[2px] border shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${menuClassName}`}
+          className={`absolute left-0 right-0 top-[calc(100%+4px)] z-20 flex max-h-60 flex-col gap-1 overflow-y-auto rounded-[2px] border p-1 shadow-[0_10px_24px_rgba(0,0,0,0.28)] ${menuClassName}`}
           style={menuStyle}
         >
           {options.map((option) => {
@@ -91,8 +121,10 @@ export function Dropdown({
                   onChange(option.value);
                   setOpen(false);
                 }}
-                className={`flex h-8 w-full items-center px-3 text-left text-[14px] leading-5 transition-colors ${optionClassName}`}
-                style={active ? { ...optionStyle, ...selectedOptionStyle } : optionStyle}
+                onMouseEnter={() => setHoveredValue(option.value)}
+                onMouseLeave={() => setHoveredValue((h) => (h === option.value ? null : h))}
+                className={`flex w-full min-h-[36px] items-center rounded-[2px] text-left text-[15px] leading-5 transition-[background-color,color] duration-100 ${optionClassName}`}
+                style={optionVisualStyle(option.value, active)}
               >
                 {option.label}
               </button>

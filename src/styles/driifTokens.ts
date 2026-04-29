@@ -287,7 +287,7 @@ export const RADIUS = {
 
 export const POSITION = {
   /** Logo (Frame 3): left=22, top=20 */
-  logoLeft: "22px",
+  logoLeft: "17px",
   logoTop: "20px",
 
   /** Nav panel (Frame 103): left=17, top=76, width=46, height=268 */
@@ -324,6 +324,9 @@ export const POSITION = {
   missionsWidth: "360px",
   missionsHeight: "auto",
 
+  /** Devices inventory overlay (map) — wide table, filters */
+  devicesInventoryWidth: "700px",
+
   /** Create Mission panel (Figma node 853:9815): left=79, top=76, 448px wide */
   createMissionLeft: "79px",
   createMissionTop: "76px",
@@ -351,33 +354,33 @@ export const POSITION = {
 // ---------------------------------------------------------------------------
 
 export const FONT = {
-  family: "Space Grotesk",
-  mono: "Geist Mono",
-  sizeXs: "10px",
-  sizeSm: "12px",
-  sizeMd: "14px",
+  family: "var(--font-geist-sans)",
+  mono: "var(--font-geist-mono)",
+  sizeXs: "11px",
+  sizeSm: "13px",
+  sizeMd: "15px",
   /**
    * Step titles: Create Mission, Create Fence, Select Assets, Review & Launch
    * (aligns Mission list heading — was 14px in some screens, 18px in others)
    */
-  missionWorkspaceTitleSize: "18px",
-  missionWorkspaceTitleLineHeight: "26px",
+  missionWorkspaceTitleSize: "19px",
+  missionWorkspaceTitleLineHeight: "27px",
   /** Uppercase section labels (Pre-launch checklist, Mission summary) */
-  missionWorkspaceSectionLabelSize: "10px",
-  missionWorkspaceSectionLabelLineHeight: "16px",
+  missionWorkspaceSectionLabelSize: "11px",
+  missionWorkspaceSectionLabelLineHeight: "17px",
   missionWorkspaceSectionLabelLetterSpacing: "0.06em",
   /** Summary row uppercase label (MISSION, RADAR, …) */
   missionWorkspaceSummaryLabelLetterSpacing: "0.04em",
   /** Create Fence empty-state hint */
-  missionWorkspaceEmptyHintSize: "13px",
+  missionWorkspaceEmptyHintSize: "14px",
   /** Inline validation under fence fields */
-  missionFormFieldErrorTextSize: "11px",
+  missionFormFieldErrorTextSize: "12px",
   /** Figma 853:10163 — checklist row title + mission summary value (12px / 16px, w400) */
-  missionReviewLine12Size: "12px",
-  missionReviewLine12LineHeight: "16px",
+  missionReviewLine12Size: "13px",
+  missionReviewLine12LineHeight: "17px",
   /** Figma 853:10163 — checklist subtitle detail (10px / 12px, w400) */
-  missionReviewDetail10Size: "10px",
-  missionReviewDetail10LineHeight: "12px",
+  missionReviewDetail10Size: "11px",
+  missionReviewDetail10LineHeight: "13px",
   weightNormal: "400",
   weightMedium: "500",
   weightBold: "700",

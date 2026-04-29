@@ -24,18 +24,23 @@ import {
 import {
   addAssetLayers,
   setAssetLayersData,
-  assetsToGeoJSON,
   stopAssetAnimation,
+  getCachedAssetTowerImage,
+  setAssetBasemapVariant,
 } from "./layers/assets";
 import { addTargetLayers, updateTargetLayersData } from "./layers/targets";
 import { addZonesLayer, setZonesLayerData } from "./layers/zones";
-import { setBorderLayer } from "./layers/border";
+import {
+  applyBorderLabelLightPreset,
+  setBorderLayer,
+} from "./layers/border";
 import {
   mapFeaturesToAssetsGeoJSON,
   mapFeaturesToZonesGeoJSON,
   mapFeaturesToBorderGeoJSON,
   missionZonesToGeoJSON,
 } from "@/utils/mapFeatures";
+import { buildMergedRadarAssetsGeoJSON } from "@/utils/radarAssetsGeoJSON";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useMissionStore } from "@/stores/missionStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
@@ -98,8 +103,8 @@ function calculateDistanceKm(a: [number, number], b: [number, number]): number {
   const x =
     Math.sin(dLat / 2) ** 2 +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLng / 2) ** 2;
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLng / 2) ** 2;
   return 2 * EARTH_RADIUS_KM * Math.atan2(Math.sqrt(x), Math.sqrt(1 - x));
 }
 
@@ -158,7 +163,7 @@ export function MapContainer({
   landingAssets = [],
   landingBorders = [],
   basemapVariant = "standard",
-  mapLightPreset = "night",
+  mapLightPreset = "day",
   onMapBackgroundClick,
 }: MapContainerProps) {
   const onMapBackgroundClickRef = useRef(onMapBackgroundClick);
@@ -419,29 +424,26 @@ export function MapContainer({
 
       const mf = mapFeaturesRef.current;
       const missionDevices = useMissionStore.getState().cachedMission?.devices;
+      const live = useDeviceStatusStore.getState().byDeviceId;
       let assetsGeoJSON: GeoJSON.FeatureCollection | undefined;
       if (missionDevices?.length) {
-        const statusStore = useDeviceStatusStore.getState().byDeviceId;
-        const deviceAssets: Asset[] = missionDevices.map((d) => {
-          const ws = statusStore[d.id];
-          const isActive = ws
-            ? ws.status === "ONLINE" || ws.status === "WORKING"
-            : d.status === "ONLINE" || d.status === "WORKING";
-          return {
-            id: d.id,
-            name: d.name ?? d.serial_number ?? d.id,
-            coordinates: [d.longitude, d.latitude] as [number, number],
-            coverageRadiusKm: (d.detection_radius_m ?? 2000) / 1000,
-            status: (isActive ? "ACTIVE" : "INACTIVE") as Asset["status"],
-            altitude: 0,
-            area: "",
-          };
-        });
-        assetsGeoJSON = assetsToGeoJSON(deviceAssets);
+        assetsGeoJSON = buildMergedRadarAssetsGeoJSON(
+          landingAssetsRef.current,
+          missionDevices,
+          live,
+        );
       } else if (mf) {
         assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mf);
+      } else {
+        assetsGeoJSON = buildMergedRadarAssetsGeoJSON(
+          landingAssetsRef.current,
+          undefined,
+          live,
+        );
       }
-      await addAssetLayers(map, assetsGeoJSON);
+      await addAssetLayers(map, assetsGeoJSON, {
+        basemapVariant: basemapVariantRef.current,
+      });
 
       const missionZones = useMissionStore.getState().cachedMission?.zones;
       if (missionZones?.length) {
@@ -451,9 +453,9 @@ export function MapContainer({
       }
       if (mf) {
         const border = mapFeaturesToBorderGeoJSON(mf);
-        if (border) setBorderLayer(map, [border]);
+        if (border) setBorderLayer(map, [border], mapLightPresetRef.current);
       } else if (landingBordersRef.current.length > 0) {
-        setBorderLayer(map, landingBordersRef.current);
+        setBorderLayer(map, landingBordersRef.current, mapLightPresetRef.current);
       }
       await addTargetLayers(
         map,
@@ -684,6 +686,18 @@ export function MapContainer({
         antialias: true,
       });
 
+      map.on("styleimagemissing", (e) => {
+        if (e.id !== "asset-tower") return;
+        const img = getCachedAssetTowerImage();
+        if (img && !map.hasImage("asset-tower")) {
+          try {
+            map.addImage("asset-tower", img);
+          } catch {
+            // ignore
+          }
+        }
+      });
+
       map.on("style.load", () => {
         console.log("Style loaded");
       });
@@ -845,8 +859,13 @@ export function MapContainer({
     } else {
       appliedLightPresetRef.current = mapLightPreset;
       map.setConfig("basemap", basemapFrag);
+      applyBorderLabelLightPreset(map, mapLightPreset);
     }
   }, [basemapVariant, mapLightPreset, isIntroComplete]);
+
+  useEffect(() => {
+    setAssetBasemapVariant(basemapVariant);
+  }, [basemapVariant]);
 
   // Smooth interpolation: lerp display positions toward target positions (~20fps)
   const displayCoordsRef = useRef<Record<string, [number, number]>>({});
@@ -905,11 +924,20 @@ export function MapContainer({
     if (!map || !mapReady || !isIntroComplete) return;
     setAssetLayersData(
       map,
-      assetsForIntercept.length > 0
-        ? assetsToGeoJSON(assetsForIntercept)
-        : EMPTY_FC,
+      buildMergedRadarAssetsGeoJSON(
+        landingAssets,
+        missionId ? cachedMission?.devices : undefined,
+        useDeviceStatusStore.getState().byDeviceId,
+      ),
     );
-  }, [assetsForIntercept, mapReady, isIntroComplete]);
+  }, [
+    landingAssets,
+    cachedMission?.devices,
+    missionId,
+    byDeviceId,
+    mapReady,
+    isIntroComplete,
+  ]);
 
   // Update zones and border when mapFeatures or cachedMission changes.
   // Borders always show all missions; the active border merges into landing set.
@@ -939,12 +967,13 @@ export function MapContainer({
         properties: { ...activeBorder.properties, missionId },
       });
     }
-    setBorderLayer(map, allBorders);
+    setBorderLayer(map, allBorders, mapLightPreset);
   }, [
     mapFeatures,
     landingBorders,
     missionId,
     cachedMission?.zones,
+    mapLightPreset,
     mapReady,
     isIntroComplete,
   ]);
@@ -1073,8 +1102,8 @@ export function MapContainer({
     if (!map || !mapReady || !isIntroComplete) return;
     if (missionId) return;
     setZonesLayerData(map, EMPTY_FC);
-    setBorderLayer(map, landingBorders);
-  }, [missionId, landingBorders, mapReady, isIntroComplete]);
+    setBorderLayer(map, landingBorders, mapLightPreset);
+  }, [missionId, landingBorders, mapLightPreset, mapReady, isIntroComplete]);
 
   // 2D / 3D toggle (only after intro completes; terrain added in moveend)
   useEffect(() => {
@@ -1110,7 +1139,7 @@ export function MapContainer({
           <p className="text-red-400 font-mono text-xs tracking-wide mb-2">
             {error}
           </p>
-          <p className="text-slate-500 font-mono text-[10px]">
+          <p className="text-slate-500 font-mono text-[11px]">
             Get a token at mapbox.com/account/access-tokens
           </p>
         </div>

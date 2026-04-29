@@ -86,7 +86,7 @@ export function SelectAssetsWorkspace({
           style={{
             ...fieldTextStyle,
             fontSize: FONT.sizeMd,
-            lineHeight: "20px",
+            lineHeight: "21px",
           }}
         />
       </label>
@@ -98,7 +98,7 @@ export function SelectAssetsWorkspace({
               color: COLOR.statusDanger,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "16px",
+              lineHeight: "17px",
               paddingBottom: SPACING.missionCreateBlockGapMd,
             }}
           >
@@ -111,7 +111,7 @@ export function SelectAssetsWorkspace({
               color: COLOR.missionsSecondaryText,
               fontFamily: `${FONT.family}, sans-serif`,
               fontSize: FONT.sizeXs,
-              lineHeight: "16px",
+              lineHeight: "17px",
             }}
           >
             Loading...
@@ -156,7 +156,7 @@ export function SelectAssetsWorkspace({
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeMd,
                           fontWeight: FONT.weightMedium,
-                          lineHeight: "20px",
+                          lineHeight: "21px",
                         }}
                       >
                         {deviceDisplayName(device)}
@@ -168,7 +168,7 @@ export function SelectAssetsWorkspace({
                           color: COLOR.missionsSecondaryText,
                           fontFamily: `${FONT.family}, sans-serif`,
                           fontSize: FONT.sizeXs,
-                          lineHeight: "16px",
+                          lineHeight: "17px",
                         }}
                       >
                         <span

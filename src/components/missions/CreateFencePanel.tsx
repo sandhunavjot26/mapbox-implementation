@@ -37,7 +37,7 @@ export function CreateFencePanel({
                 color: COLOR.missionsBodyText,
                 fontFamily: `${FONT.family}, sans-serif`,
                 fontSize: FONT.missionWorkspaceEmptyHintSize,
-                lineHeight: "20px",
+                lineHeight: "21px",
               }}
             >
               No fences added yet. Use the draw tools to create one.
@@ -61,7 +61,7 @@ export function CreateFencePanel({
                     color: COLOR.missionsBodyText,
                     fontFamily: `${FONT.family}, sans-serif`,
                     fontSize: FONT.sizeMd,
-                    lineHeight: "20px",
+                    lineHeight: "21px",
                   }}
                 >
                   {fence.name}

@@ -35,6 +35,28 @@ export interface MissionLoad extends Mission {
   devices: Device[];
 }
 
+/** GET /api/v1/missions/{id}/overlaps — jammer/coverage overlap warnings */
+export type MissionOverlapSeverity = "CRITICAL" | "HIGH" | "LOW";
+
+export interface MissionOverlapWarning {
+  severity: MissionOverlapSeverity;
+  kind: string;
+  device_a_id: string;
+  device_a_name: string;
+  device_b_id: string;
+  device_b_name: string;
+  overlap_radius_m?: number;
+  overlap_area_m2?: number;
+}
+
+export interface MissionOverlapsResult {
+  mission_id: string;
+  device_count?: number;
+  warning_count?: number;
+  counts: { CRITICAL: number; HIGH: number; LOW: number };
+  warnings: MissionOverlapWarning[];
+}
+
 // --- Zones (TL-1/TL-2) ---
 export interface Zone {
   id: string;
@@ -81,13 +103,55 @@ export interface Device {
   serial_number: string;
   mission_id: string | null;
   device_type: DeviceType;
+  /** Protocol model name, e.g. `AS_2.0G` (GET/PATCH in §B.2) */
+  protocol?: string | null;
   color: string | null;
   latitude: number;
   longitude: number;
   status: DeviceStatus;
   detection_radius_m: number | null;
   jammer_radius_m: number | null;
+  breach_green_m?: number | null;
+  breach_yellow_m?: number | null;
+  breach_red_m?: number | null;
+  detection_beam_deg?: number | null;
+  jammer_beam_deg?: number | null;
   monitor_device_id?: number;
+}
+
+/** Partial PATCH body for `PATCH /api/v1/devices/{id}`. Omitted = unchanged. */
+export type DevicePatch = Partial<{
+  name: string;
+  color: string | null;
+  mission_id: string | null;
+  device_type: DeviceType;
+  protocol: string;
+  latitude: number;
+  longitude: number;
+  status: DeviceStatus;
+  detection_radius_m: number;
+  jammer_radius_m: number;
+  breach_green_m: number;
+  breach_yellow_m: number;
+  breach_red_m: number;
+  detection_beam_deg: number | null;
+  jammer_beam_deg: number | null;
+}>;
+
+/** `GET /api/v1/protocols` item (§B.11) */
+export interface ProtocolOut {
+  id: string;
+  name: string;
+  display_name: string;
+  description?: string;
+  edge_plugin: string;
+  capabilities: string[];
+  enabled: boolean;
+  default_breach_green_m?: number;
+  default_breach_yellow_m?: number;
+  default_breach_red_m?: number;
+  default_detection_beam_deg?: number;
+  default_jammer_beam_deg?: number;
 }
 
 // --- Mission Events (DETECTED, COMMAND_SENT, JAM_STARTED, etc.) ---
@@ -140,6 +204,89 @@ export interface DetectedUavPayload {
   return_lat?: number;
   drone_type?: number;
   drone_number?: number;
+  /** Backend derived lat/lon from range + azimuth (see old-ui / detection-service). */
+  position_derived?: boolean;
+  target_uid_synthesised?: boolean;
+  monitor_device_id?: number;
+}
+
+/** §E.1 — TRACK_RATED (operator + system:swarm-tag) */
+export type TrackRatedStatus =
+  | "CONFIRMED"
+  | "DISMISSED"
+  | "FALSE_POSITIVE"
+  | "UNRATED";
+export type TrackRatedPriority = "LOW" | "MEDIUM" | "HIGH" | "CRITICAL";
+
+export interface TrackRatedPayload {
+  target_uid: string;
+  target_name?: string;
+  status: TrackRatedStatus;
+  priority: TrackRatedPriority | null;
+  rated_by?: string;
+}
+
+/** §E.1 — THREAT_ESCALATION */
+export interface ThreatEscalationPayload {
+  target_uid: string;
+  target_name?: string;
+  level: "HIGH" | "CRITICAL";
+  score: number;
+  reasons: string[];
+}
+
+/** §E.1 — NFZ_BREACH_PREDICTED */
+export interface NfzBreachPredictedPayload {
+  target_uid: string;
+  target_name?: string;
+  head: [number, number];
+  n_fixes: number;
+}
+
+/** §E.1 — BREACH_RING_ENTERED */
+export type BreachRing = "GREEN" | "YELLOW" | "RED";
+
+export interface BreachRingEnteredPayload {
+  target_uid: string;
+  target_name?: string;
+  ring: BreachRing;
+  position: [number, number];
+  radar_id?: string;
+  radar_name?: string;
+}
+
+/** §E.1 — DEVICE_AZIMUTH (change-based) */
+export interface DeviceAzimuthPayload {
+  device_id: string;
+  monitor_device_id?: number;
+  azimuth_deg: number;
+  elevation_deg?: number;
+  delta_deg?: number;
+}
+
+/** §E.1 — DEVICE_ONLINE / DEVICE_OFFLINE (mission_event stream) */
+export interface DeviceOnlineEventPayload {
+  device_id: string;
+  monitor_device_id?: number;
+  serial_number?: string;
+  name?: string;
+}
+
+export interface DeviceOfflineEventPayload extends DeviceOnlineEventPayload {
+  last_seen_age_seconds?: number;
+  threshold_seconds?: number;
+}
+
+/** §B.9 / B.8 — SWARM_DETECTED */
+export interface SwarmDetectedPayload {
+  source: string;
+  swarm_id: string;
+  label?: string;
+  severity: string;
+  approach_bearing_deg?: number;
+  target_uids: string[];
+  notes?: string;
+  size: number;
 }
 
 // --- Command policies (Section 9) ---
@@ -170,6 +317,25 @@ export interface CommandOut {
   required_approvals: number;
   approved_count: number;
   last_error: string | null;
+  /** Present on audit list rows */
+  protocol?: string | null;
+  requested_by?: string | null;
+  request_payload?: Record<string, unknown> | null;
+  created_at?: string | null;
+  sent_at?: string | null;
+  completed_at?: string | null;
+}
+
+/** GET /api/v1/commands/{id}/responses */
+export interface CommandResponseRow {
+  id: string;
+  command_id: string;
+  response_datatype: number;
+  packet_no?: number | null;
+  monitor_device_id?: number;
+  payload?: Record<string, unknown> | null;
+  result?: string | null;
+  received_at?: string;
 }
 
 // --- Map GeoJSON (from GET /missions/{id}/map/features) ---

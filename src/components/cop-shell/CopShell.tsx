@@ -6,8 +6,11 @@
  */
 
 import Image from "next/image";
-import { COLOR, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
+import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 import { COP_GLASS_PANEL } from "@/components/cop-shell/shellStyles";
+
+/** Solid chrome over light basemap — logo, nav rail, settings, detection, bell */
+const COP_SOLID_BG = "#1A1A1A";
 
 const NAV_ITEMS = [
   { key: "search", src: "/icons/search.svg", label: "Search" },
@@ -30,6 +33,8 @@ export type CopShellProps = {
   onBell: () => void;
   /** Top-right detection control (left of notifications) */
   onDetection?: () => void;
+  /** Whether the overall detections panel is open (accessibility). */
+  detectionsOpen?: boolean;
 };
 
 export function CopShell({
@@ -38,23 +43,28 @@ export function CopShell({
   hasMission,
   onBell,
   onDetection,
+  detectionsOpen = false,
 }: CopShellProps) {
   return (
     <div className="pointer-events-none absolute inset-0 z-11">
       <div
-        className="pointer-events-auto absolute"
+        className="pointer-events-auto absolute flex items-center justify-center"
         style={{
           left: POSITION.logoLeft,
           top: POSITION.logoTop,
           borderRadius: RADIUS.logo,
           overflow: "hidden",
+          background: COP_SOLID_BG,
+          border: COP_GLASS_PANEL.border,
+          boxShadow: COP_GLASS_PANEL.boxShadow,
+          padding: "6px 8px",
         }}
       >
         <Image
           src="/vectorwings.png"
           alt="Driif"
-          width={50}
-          height={50}
+          width={28}
+          height={26}
           priority
         />
       </div>
@@ -66,41 +76,60 @@ export function CopShell({
           top: POSITION.navTop,
           width: POSITION.navWidth,
           minHeight: POSITION.navHeight,
-          background: COP_GLASS_PANEL.background,
+          background: COP_SOLID_BG,
           border: COP_GLASS_PANEL.border,
           borderRadius: RADIUS.panel,
           boxShadow: COP_GLASS_PANEL.boxShadow,
-          backdropFilter: COP_GLASS_PANEL.backdropFilter,
         }}
         aria-label="Primary"
       >
         {NAV_ITEMS.map((item) => {
           const active = activeNavKey === item.key;
           return (
-            <button
+            <div
               key={item.key}
-              type="button"
-              title={item.label}
-              aria-label={item.label}
-              aria-pressed={active}
-              onClick={() => onNav(item.key)}
-              className="flex items-center justify-center shrink-0 transition-colors"
-              style={{
-                width: SPACING.iconRowHeight,
-                height: SPACING.iconRowHeight,
-                padding: SPACING.iconButtonPad,
-                borderRadius: RADIUS.panel,
-                background: active ? COLOR.iconButtonBg : "transparent",
-              }}
+              className="group relative flex shrink-0 flex-col items-center"
             >
-              <Image
-                src={item.src}
-                alt=""
-                width={20}
-                height={20}
-                className="opacity-90"
-              />
-            </button>
+              <button
+                type="button"
+                aria-label={item.label}
+                aria-pressed={active}
+                onClick={() => onNav(item.key)}
+                className="flex items-center justify-center transition-colors"
+                style={{
+                  width: SPACING.iconRowHeight,
+                  height: SPACING.iconRowHeight,
+                  padding: SPACING.iconButtonPad,
+                  borderRadius: RADIUS.panel,
+                  background: active ? COLOR.iconButtonBg : "transparent",
+                }}
+              >
+                <Image
+                  src={item.src}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className="opacity-90"
+                />
+              </button>
+              <span
+                className="pointer-events-none absolute left-full top-1/2 z-20 -translate-y-1/2 rounded-[2px] border px-2.5 py-1.5 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+                style={{
+                  marginLeft: 8,
+                  background: COP_SOLID_BG,
+                  border: COP_GLASS_PANEL.border,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.45)",
+                  color: COLOR.missionsTitleMuted,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeSm,
+                  lineHeight: "17px",
+                  whiteSpace: "nowrap",
+                }}
+                role="tooltip"
+              >
+                {item.label}
+              </span>
+            </div>
           );
         })}
       </nav>
@@ -111,11 +140,10 @@ export function CopShell({
           left: POSITION.settingsLeft,
           bottom: POSITION.settingsBottom,
           width: POSITION.settingsWidth,
-          background: COP_GLASS_PANEL.background,
+          background: COP_SOLID_BG,
           border: COP_GLASS_PANEL.border,
           borderRadius: RADIUS.panel,
           boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-          backdropFilter: COP_GLASS_PANEL.backdropFilter,
         }}
       >
         {SETTINGS_ICONS.map((item) => (
@@ -142,15 +170,15 @@ export function CopShell({
           type="button"
           title="Detection"
           aria-label="Detection"
+          aria-expanded={detectionsOpen}
           className="flex shrink-0 items-center justify-center p-2"
           style={{
             width: POSITION.bellSize,
             height: POSITION.bellSize,
-            background: COP_GLASS_PANEL.background,
+            background: COP_SOLID_BG,
             border: COP_GLASS_PANEL.border,
             borderRadius: RADIUS.panel,
             boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-            backdropFilter: COP_GLASS_PANEL.backdropFilter,
           }}
           onClick={() => onDetection?.()}
         >
@@ -170,11 +198,10 @@ export function CopShell({
           style={{
             width: POSITION.bellSize,
             height: POSITION.bellSize,
-            background: COP_GLASS_PANEL.background,
+            background: COP_SOLID_BG,
             border: COP_GLASS_PANEL.border,
             borderRadius: RADIUS.panel,
             boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-            backdropFilter: COP_GLASS_PANEL.backdropFilter,
           }}
           onClick={onBell}
         >

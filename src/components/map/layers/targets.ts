@@ -135,7 +135,7 @@ export async function addTargetLayers(
         "friendly-drone",
         "unknown-drone",
       ],
-      "icon-size": 0.3,
+      "icon-size": 0.22,
       "icon-rotate": ["get", "heading"],
       "icon-allow-overlap": true,
     },
@@ -161,7 +161,9 @@ export function updateTargetLayersData(
   if (targetsSource) targetsSource.setData(targetsToGeoJSON(targets));
 
   if (SHOW_DRONE_TRAILS) {
-    const trailsSource = map.getSource("target-trails") as mapboxgl.GeoJSONSource;
+    const trailsSource = map.getSource(
+      "target-trails",
+    ) as mapboxgl.GeoJSONSource;
     if (trailsSource && positionHistory) {
       trailsSource.setData(trailsToGeoJSON(positionHistory, targets));
     }

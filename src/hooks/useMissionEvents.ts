@@ -1,57 +1,74 @@
 /**
- * Mission events — REST fallback when WebSocket unavailable.
- * GET /api/v1/missions/{id}/events?event_type=DETECTED — poll 5s
+ * Mission events — REST one-shot timeline backfill when the events WebSocket is not open yet.
+ * Does **not** write to `targetsStore` (live tracks are WS-only in `useMissionSockets`).
+ * GET /api/v1/missions/{id}/events?from_ts=... — last 15 minutes, one fetch (no poll).
  */
 
 import { useQuery } from "@tanstack/react-query";
-import { listMissionEvents } from "@/lib/api/missionEvents";
-import { useTargetsStore, uavPayloadToTarget } from "@/stores/targetsStore";
 import { useEffect } from "react";
+import { listMissionEvents } from "@/lib/api/missionEvents";
+import { useMissionEventsStore } from "@/stores/missionEventsStore";
+
+const TIMELINE_BACKFILL_MS = 15 * 60 * 1000;
 
 export const missionEventsKeys = {
   all: (missionId: string) => ["missionEvents", missionId] as const,
+  timelineBackfill: (missionId: string) =>
+    [...missionEventsKeys.all(missionId), "timelineBackfill"] as const,
 };
 
-/** Poll DETECTED events; sync to targets store. Use when WebSocket unavailable (REST fallback). */
+/**
+ * When `useFallback` is true (events WS not "open" yet), fetches recent mission events
+ * and merges them into the timeline store. Deduplication is by event id in `missionEventsStore`.
+ */
 export function useMissionEvents(
   missionId: string | null,
   enabled: boolean,
   useFallback: boolean
 ) {
+  const addEvent = useMissionEventsStore((s) => s.addEvent);
+
   const { data, isSuccess } = useQuery({
-    queryKey: missionEventsKeys.all(missionId ?? ""),
-    queryFn: () =>
-      listMissionEvents(missionId!, {
-        event_type: "DETECTED",
-        limit: 200,
-      }),
-    enabled: !!missionId && enabled && useFallback,
-    refetchInterval: 5000, // 5s poll per AeroShield doc
-    staleTime: 2000,
+    queryKey: missionEventsKeys.timelineBackfill(missionId ?? ""),
+    queryFn: () => {
+      const from = new Date(Date.now() - TIMELINE_BACKFILL_MS).toISOString();
+      return listMissionEvents(missionId!, {
+        from_ts: from,
+        limit: 500,
+      });
+    },
+    enabled: Boolean(missionId) && enabled && useFallback,
+    refetchOnMount: true,
+    refetchInterval: false,
+    staleTime: 60_000,
   });
 
-  const setTargets = useTargetsStore((s) => s.setTargets);
-
   useEffect(() => {
-    if (!isSuccess || !data) return;
-    const targets = data
-      .filter((e) => e.event_type === "DETECTED" && e.payload)
-      .map((e) => {
-        const payload = e.payload as { uav?: Record<string, unknown> };
-        const uav = payload?.uav;
-        if (!uav) return null;
-        return uavPayloadToTarget(
-          uav as unknown as Parameters<typeof uavPayloadToTarget>[0],
-          e.device_id,
-          e.id
-        );
-      })
-      .filter((t): t is NonNullable<typeof t> => t !== null);
-    // Deduplicate by id — same target_uid can appear in multiple events; keep last (most recent)
-    const byId = new Map<string, (typeof targets)[0]>();
-    for (const t of targets) byId.set(t.id, t);
-    setTargets([...byId.values()]);
-  }, [data, isSuccess, setTargets]);
+    if (!isSuccess || !data?.length) return;
+    const cutoff = Date.now() - TIMELINE_BACKFILL_MS;
+    const recent = data.filter((e) => {
+      const t = Date.parse(e.ts);
+      return !Number.isNaN(t) && t >= cutoff;
+    });
+    const sorted = [...recent].sort(
+      (a, b) => new Date(b.ts).getTime() - new Date(a.ts).getTime(),
+    );
+    for (const e of sorted) {
+      const pl = e.payload;
+      addEvent({
+        id: e.id,
+        mission_id: e.mission_id,
+        device_id: e.device_id,
+        event_type: e.event_type,
+        ts: e.ts,
+        payload: pl && Object.keys(pl).length > 0 ? pl : null,
+        silent: true,
+      });
+    }
+  }, [data, isSuccess, addEvent]);
 
   return { data, isSuccess };
 }
+
+/** Alias — same as `useMissionEvents` (timeline-only REST backfill; no target seeding). */
+export const useMissionEventsBackfill = useMissionEvents;

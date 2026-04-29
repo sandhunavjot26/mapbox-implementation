@@ -53,13 +53,13 @@ export class ErrorBoundary extends Component<
                 : "Component Error"}
             </span>
           </div>
-          <p className="text-slate-500 text-[10px] font-mono mt-1">
+          <p className="text-slate-500 text-[11px] font-mono mt-1">
             {this.state.error?.message ?? "An unexpected error occurred."}
           </p>
           <button
             type="button"
             onClick={() => this.setState({ hasError: false, error: undefined })}
-            className="mt-2 px-2 py-1 text-[10px] font-mono text-cyan-400 border border-cyan-500/50 hover:bg-cyan-950/30 transition-colors"
+            className="mt-2 px-2 py-1 text-[11px] font-mono text-cyan-400 border border-cyan-500/50 hover:bg-cyan-950/30 transition-colors"
           >
             Retry
           </button>

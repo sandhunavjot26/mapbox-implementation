@@ -61,7 +61,7 @@ export function DateTimeField({
         className="flex h-8 w-full items-center justify-between overflow-hidden rounded-[2px] border px-3 text-left"
         style={buttonStyle}
       >
-        <span className="truncate text-[14px] leading-5" style={textStyle}>
+        <span className="truncate text-[15px] leading-5" style={textStyle}>
           {value}
         </span>
         <Image

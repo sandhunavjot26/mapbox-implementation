@@ -73,9 +73,10 @@ function lngLatToViewport(lngLat: mapboxgl.LngLat): { x: number; y: number } {
 }
 
 /** Project [lng, lat] to viewport coordinates (for overlays) */
-export function projectLngLatToViewport(
-  lngLat: [number, number],
-): { x: number; y: number } {
+export function projectLngLatToViewport(lngLat: [number, number]): {
+  x: number;
+  y: number;
+} {
   if (!mapInstance) return { x: 0, y: 0 };
   const point = mapInstance.project(new mapboxgl.LngLat(lngLat[0], lngLat[1]));
   const rect = mapInstance.getContainer().getBoundingClientRect();

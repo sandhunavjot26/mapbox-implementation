@@ -92,7 +92,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
     <div className="space-y-2 pt-2 border-t border-slate-700/50">
       {commandError && (
         <div className="flex items-center justify-between gap-2 bg-red-950/50 border border-red-500/50 px-2 py-1.5">
-          <span className="text-red-400 text-[10px] font-mono truncate flex-1">
+          <span className="text-red-400 text-[11px] font-mono truncate flex-1">
             {commandError}
           </span>
           <button
@@ -112,7 +112,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
             key={opt.id}
             type="button"
             onClick={() => handleClassify(opt.id)}
-            className={`flex-1 px-2 py-1 text-[10px] font-mono border transition-colors ${
+            className={`flex-1 px-2 py-1 text-[11px] font-mono border transition-colors ${
               target.classification === opt.id
                 ? opt.id === "ENEMY"
                   ? "border-red-500/80 bg-red-950/40 text-red-400"
@@ -132,7 +132,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
           type="button"
           onClick={handleTrack}
           disabled={commandPending}
-          className="flex-1 px-2 py-1 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
+          className="flex-1 px-2 py-1 text-[11px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
         >
           Track
         </button>
@@ -140,7 +140,7 @@ export function TargetPopupControls({ target }: TargetPopupControlsProps) {
           type="button"
           onClick={handleEngage}
           disabled={target.classification !== "ENEMY" || commandPending}
-          className="flex-1 px-2 py-1 text-[10px] font-mono border border-red-500/60 text-red-400 hover:border-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+          className="flex-1 px-2 py-1 text-[11px] font-mono border border-red-500/60 text-red-400 hover:border-red-400 hover:bg-red-950/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
         >
           Engage
         </button>
@@ -194,7 +194,7 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
     <div className="space-y-2 pt-2 border-t border-slate-700/50">
       {commandError && (
         <div className="flex items-center justify-between gap-2 bg-red-950/50 border border-red-500/50 px-2 py-1.5">
-          <span className="text-red-400 text-[10px] font-mono truncate flex-1">
+          <span className="text-red-400 text-[11px] font-mono truncate flex-1">
             {commandError}
           </span>
           <button
@@ -216,7 +216,7 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
             type="button"
             onClick={() => handleAssetCommand(cmd.id)}
             disabled={commandPending}
-            className="px-2 py-1 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
+            className="px-2 py-1 text-[11px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors disabled:opacity-50"
           >
             {cmd.label}
           </button>
@@ -224,7 +224,7 @@ export function AssetPopupControls({ asset }: AssetPopupControlsProps) {
         <button
           type="button"
           onClick={() => setShowBandEditor(true)}
-          className="px-2 py-1 text-[10px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors"
+          className="px-2 py-1 text-[11px] font-mono border border-slate-600 text-slate-300 hover:border-cyan-500/70 hover:text-cyan-400 hover:bg-slate-800/80 transition-colors"
         >
           Band Range
         </button>
