@@ -61,7 +61,7 @@ export function CopShell({
         }}
       >
         <Image
-          src="/driif-logo-small.png"
+          src="/vectorwings.png"
           alt="Driif"
           width={28}
           height={26}

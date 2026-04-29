@@ -73,10 +73,10 @@ export default function LoginPage() {
           {/* Logo & subtitle */}
           <div className="flex flex-col gap-6">
             <Image
-              src="/driif-logo.png"
+              src="/vector-wings-full.png"
               alt="DRIIF"
-              width={96}
-              height={32}
+              width={130}
+              height={60}
               priority
             />
             <p className="text-base text-slate-300 leading-5">
@@ -216,16 +216,28 @@ export default function LoginPage() {
             )}
 
             {/* Sign in button */}
-            <button
-              type="submit"
-              disabled={isLoading}
-              className="w-full px-4 py-3 font-bold text-base uppercase shadow-sm
-                focus:outline-none focus:ring-2 focus:ring-[#E7FF25]/50 focus:ring-offset-2 focus:ring-offset-[#0a0a0a]
-                transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
-              style={{ backgroundColor: "#E7FF25", color: "#0a0a0a" }}
-            >
-              {isLoading ? "Signing in..." : "Sign in"}
-            </button>
+            <div className="flex flex-col gap-3">
+              <button
+                type="submit"
+                disabled={isLoading}
+                className="w-full px-4 py-3 font-bold text-base uppercase shadow-sm
+                  focus:outline-none focus:ring-2 focus:ring-[#E7FF25]/50 focus:ring-offset-2 focus:ring-offset-[#0a0a0a]
+                  transition-opacity hover:opacity-90 active:opacity-80 disabled:opacity-50 disabled:cursor-not-allowed"
+                style={{ backgroundColor: "#E7FF25", color: "#0a0a0a" }}
+              >
+                {isLoading ? "Signing in..." : "Sign in"}
+              </button>
+              <div className="flex items-center justify-center gap-1.5 text-sm text-slate-500">
+                <span>Powered by DRIIF</span>
+                <Image
+                  src="/driif-logo-small.png"
+                  alt=""
+                  width={48}
+                  height={18}
+                  className="h-4 w-auto shrink-0"
+                />
+              </div>
+            </div>
           </form>
         </div>
       </div>
