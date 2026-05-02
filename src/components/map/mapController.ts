@@ -1,6 +1,7 @@
 import mapboxgl from "mapbox-gl";
 import type { Asset } from "@/types/assets";
 import type { Target } from "@/types/targets";
+import { ASSETS_COVERAGE_DRAPE_SOURCE } from "@/components/map/layers/assets";
 
 // Map reference singleton
 let mapInstance: mapboxgl.Map | null = null;
@@ -159,6 +160,12 @@ export function selectEntity(
   const id = "id" in data ? data.id : "";
   if (entityType === "asset" && mapInstance.getSource("assets")) {
     mapInstance.setFeatureState({ source: "assets", id }, { selected: true });
+    if (mapInstance.getSource(ASSETS_COVERAGE_DRAPE_SOURCE)) {
+      mapInstance.setFeatureState(
+        { source: ASSETS_COVERAGE_DRAPE_SOURCE, id },
+        { selected: true },
+      );
+    }
     selectedAssetId = id;
   } else if (entityType === "target" && mapInstance.getSource("targets")) {
     mapInstance.setFeatureState({ source: "targets", id }, { selected: true });
@@ -248,6 +255,12 @@ export function clearSelection() {
       { source: "assets", id: selectedAssetId },
       { selected: false },
     );
+    if (mapInstance.getSource(ASSETS_COVERAGE_DRAPE_SOURCE)) {
+      mapInstance.setFeatureState(
+        { source: ASSETS_COVERAGE_DRAPE_SOURCE, id: selectedAssetId },
+        { selected: false },
+      );
+    }
   }
   if (selectedTargetId && mapInstance.getSource("targets")) {
     mapInstance.setFeatureState(
@@ -279,6 +292,12 @@ export function selectAsset(assetId: string) {
       { source: "assets", id: assetId },
       { selected: true },
     );
+    if (mapInstance.getSource(ASSETS_COVERAGE_DRAPE_SOURCE)) {
+      mapInstance.setFeatureState(
+        { source: ASSETS_COVERAGE_DRAPE_SOURCE, id: assetId },
+        { selected: true },
+      );
+    }
     selectedAssetId = assetId;
   }
 }

@@ -1,6 +1,6 @@
 ---
 name: operator-api-gap-plan
-overview: Operator-first gap closure between `docs/API_REFERENCE.md` and the current Next.js + Mapbox COP. Ships approvals, swarms, friendlies, annotations, zone-breach roster, AAR export, mission activate/stop + overlaps, extended event filters, and idempotency / friendly-override retry — each as a self-contained, Figma-driven Cursor prompt.
+overview: "Single master plan: operator-first gap closure for the Next.js + Mapbox COP. Primary API contract: docs/API_GUIDE.md (verify paths/permissions there); docs/API_REFERENCE.md for appendix tables aligned with the same backend. Ships mission lifecycle, then approvals/friendly retry/friendlies/swarms/annotations/breaches/timeline/polish, plus foundation HTTP/types, workspace chrome (Task 1d: Settings WS + map legend/toggles + FAB legend drawer — done), shared **InlineLoadIndicator** for list/map loading UX (`t-ux-loader-legend-polish` done), situational-awareness features, DVR/admin-style tracks — each as a self-contained, Figma-driven Cursor prompt. **COP Settings/Account overlays + bell chrome:** `t-cop-dashboard-chrome` (completed). oldui/ = behaviour/API/WS only; visuals = Figma + driifTokens."
 todos:
   - id: ta-devices-admin
     content: Devices admin list page (filters, Edit modal, Assign/Un-assign dialog, Open drawer) — built from old-UI screenshots, no Figma yet
@@ -9,10 +9,10 @@ todos:
     content: Centralize mission_event WS reducers and extend MissionEvent payload types (plus REST backfill = timeline only, WS authoritative for targets)
     status: completed
   - id: t0-radar-map-semantics
-    content: "Task 0 — Radar map semantics (shipped + follow-ups): live azimuth, wedges, breach rings, gradients; ring-fill north-spike fix; shared readAzimuthFromDeviceStatePayload; REST hydration (useMissionDeviceStatesHydration) for parity with old-ui; devices-tab aim/diagnostics/live grid — still open: protocol default_* merge in GeoJSON"
+    content: "Task 0 — Radar map semantics: live azimuth + client kinematics (sparse WS parity); wedges (detection white gradient + jammer amber); omnidirectional boresight cue + D20 FE sweep; breach rings + filled threat annuli; protocol default_* merged in GeoJSON; ring-fill north-spike fix; REST/WS azimuth hydration; Devices tab aim/diagnostics — polish: Figma token pass for radar colours; map legend/layer toggles (Task 1d) shipped; RadarModeChip (Task 11)"
     status: completed
   - id: t1-lifecycle
-    content: "Mission lifecycle (activate/stop/overlaps) + Workspace tab shell + ToastProvider — 1a–1c shipped (CoverageWarningModal, mutations, header actions, Intel overlaps section)"
+    content: Mission lifecycle (activate/stop/overlaps) + Workspace tab shell + ToastProvider — 1a–1c shipped (CoverageWarningModal, mutations, header actions, Intel overlaps section)
     status: completed
   - id: t2-approvals
     content: Pending Approvals queue with approve/reject and WS-driven refresh
@@ -39,13 +39,46 @@ todos:
     content: "Polish — partial: deviceHealth.ts + telemetry merge + Devices tab health UI shipped; still pending: zone CRUD invalidation + listZones layers, configs/by-mission in ConfigureRadar health tab"
     status: in_progress
   - id: t10-command-launch-ui
-    content: "Command launch UI (structured forms + dynamic schema forms) — deferred; scaffold only in Task 1b"
+    content: Command launch UI (structured forms + dynamic schema forms) — deferred; scaffold only in Task 1b
+    status: pending
+  - id: t-pref-foundation
+    content: "Task P — Foundation: apiJsonWithHeaders + apiBlob; mission site_id + sites API; TS gaps (CommandRequest, Zone.zone_type, Mission timestamps/site_id, CommandOut.latency_ms, Device rotation/jam); optional GET Cache-Control + cache-bust query parity with oldui axios"
+    status: completed
+  - id: t1d-ws-legend
+    content: "Task 1d — [DONE] WS in Settings; map legend + layer toggles (mapLayerGroups, MapLegendPanel FAB+right drawer @ bellRight, useMapLayerToggles, aeroshield.missionMap.layers); radar-sweep split for detection/jammer"
+    status: completed
+  - id: t-cop-dashboard-chrome
+    content: "COP dashboard chrome (2026-05): SettingsOverlay (map + WsStatusIndicator); AccountOverlay (username in authStore, logout); CopShell onSettingsStackSelect; flyout spacing tokens; single notifications control opens OverallDetectionPanel; bell/logo inset parity (bellRight/bellTop); CopTopBar removed; detection icon removed"
+    status: completed
+  - id: t-ux-loader-legend-polish
+    content: "UX: InlineLoadIndicator (shared) + devices-overlay list loading; MapLegendPanel FAB @ bellRight, drawer from right, no map dim, icon hidden when open; loaders swapped (MissionSelector, MissionCreateSiteSelect, SelectAssetsWorkspace, EditDeviceModal, DeviceDetailDrawer, dashboard MapContainer dynamic)"
+    status: completed
+  - id: t11-situational
+    content: "Task 11 — Situational: overlap preview util + Intel overlap pill/panel; command latency overlay; jams panel; command audit panel; voice alerts (eventSeverity, eventSpeech, voiceAlertConfig, useVoiceAlerts + Figma)"
+    status: pending
+  - id: t12-dvr
+    content: Task 12 — DVR playback (dvr.api + useDvrPlayback + useDvrTimeline + Figma) when licensed/scoped
+    status: pending
+  - id: t13-post-op
+    content: "Task 13 — Post-operator polish: mission PDF export, azimuth dial + pitch side view math, zone action plan logic, threat.ts + radioBands.ts, rebootTracker, change-password (Figma per control)"
+    status: pending
+  - id: t14-admin-cmdr
+    content: "Task 14 — Admin/commander track (optional): ROE catalogue + DSL, playbooks, sites/boundary, commander overview + live feed — separate rollout; Figma per surface"
     status: pending
 isProject: false
 ---
 
-
 # Operator-Scope API Gap Plan — AeroShield COP
+
+## 0. Master plan (canonical doc)
+
+**This file is the single master implementation plan.** Other files are supporting references only:
+
+- [.cursor/plans/api_and_oldui_gap_review.plan.md](api_and_oldui_gap_review.plan.md) — prompts merged here; keep file only if you want a duplicate Figma registry, otherwise rely on §6 tasks below.
+- [.cursor/plans/oldui-api-gap.md](oldui-api-gap.md) — phased checklist / PRD mapping; cross-check against this master for status.
+- [.cursor/plans/driif-implementation-plan.md](driif-implementation-plan.md) — deep component inventory vs `oldui/`; use when scoping Task 11+.
+
+**API docs:** Prefer **section numbers and paths from [docs/API_GUIDE.md](../../docs/API_GUIDE.md)** when implementing (integrator-complete, V2.2.x). Use [docs/API_REFERENCE.md](../../docs/API_REFERENCE.md) where this plan still cites §B/§C — align query params and responses with API_GUIDE if the two differ.
 
 ## 1. Executive summary
 
@@ -68,24 +101,35 @@ isProject: false
 | Mission Workspace UI | — | **Shipped:** same shell as before **plus** Activate / Stop / overlaps flow, `CoverageWarningModal`, inline mission rename; **Devices tab** — aim controls (`MissionDeviceAimControls`), diagnostics, live telemetry grid, health rollups (`deviceHealth.ts`), command audit hooks | Figma pixel pass where nodes exist; Command launch UI still Task 10 |
 | Alerts / toasts | — | `ToastProvider` + `useToast()` (stack cap, auto-dismiss); command/mission errors routed through toasts where wired | Extend coverage to every mutation; visual Figma pass |
 
-Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permissions), protocol catalogue, policy editor, command trace + cleanup.
+Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permissions), protocol catalogue, policy editor, command trace + cleanup — except **Task 14** (optional commander/admin track) when product scopes it.
+
+**Note:** Column "API coverage" cites `API_REFERENCE.md` section IDs for historical continuity; verify exact paths and fields in **`docs/API_GUIDE.md`** when implementing.
 
 ### 1.1 Completed in recent passes (rolling summary)
 
 - **P0, Task A, Task 0 (core), Task 1 (1a–1c):** Central mission-event WS reducers; devices admin list; radar map semantics (azimuth-driven wedges, gradients, breach rings); `ToastProvider` / `useToast`; tabbed `MissionWorkspaceTabs`; **Activate / Stop**, `GET overlaps`, **`CoverageWarningModal`** (blocks activate on CRITICAL), Intel “Coverage overlaps” section.
-- **Map / radar:** Live bearing from `deviceStatusStore`; **north “spike” removed** — ring-fill bands use a non-zero inner radius so the polygon is a true annulus (degenerate inner ring at the asset drew radial spokes). Sweep / sector geometry avoids center spokes where applicable.
+- **Map / radar:** Live bearing from `deviceStatusStore` plus **`radarAzimuthKinematics`** ([src/utils/radarAzimuthKinematics.ts](../../src/utils/radarAzimuthKinematics.ts)) — extrapolates rotation between sparse samples like old-ui `useRadarKinematics` (duplicate azimuth ignores wall-clock silence so wedges do not snap back every ~1.5s). **north “spike” removed** — ring-fill bands use a non-zero inner radius (true annulus). Breach **fills** + lines; detection wedge **white** gradient + jammer **amber**; omnidirectional beam uses narrow **boresight** wedge; **D20** protocol uses FE-only sweep when turntable azimuth absent. **`GET /protocols`** defaults folded into GeoJSON via [radarAssetsGeoJSON.ts](../../src/utils/radarAssetsGeoJSON.ts).
 - **Device state parity with old UI:** [`useMissionDeviceStatesHydration`](src/hooks/useMissionDeviceStatesHydration.ts) runs [`useDeviceStates`](src/hooks/useDeviceStates.ts) on the mission workspace and merges `GET .../devices/states/by-mission/{id}` into [`deviceStatusStore`](src/stores/deviceStatusStore.ts) (telemetry + [`readAzimuthFromDeviceStatePayload`](src/utils/deviceHealth.ts)) so wedges and panels populate on load and stay in sync when another client moves the turntable and WS is quiet.
 - **Devices tab (behavioural old-ui parity):** [`MissionDeviceAimControls`](src/components/missions/MissionDeviceAimControls.tsx), [`MissionDeviceDiagnostics`](src/components/missions/MissionDeviceDiagnostics.tsx), [`MissionDeviceLiveStateGrid`](src/components/missions/MissionDeviceLiveStateGrid.tsx), [`deviceHealth.ts`](src/utils/deviceHealth.ts) rollups; WS path still merges `device_state_update.state` via [`useMissionSockets`](src/hooks/useMissionSockets.ts).
 - **Misc:** Command error / 409 detail handling improvements; toast spacing token fix.
+- **Task P — Foundation [DONE]:** [`apiJsonWithHeaders`](src/lib/api/client.ts) / [`apiBlob`](src/lib/api/client.ts), GET `_ts` + no-cache; [`listMissionEventsWithTotal`](src/lib/api/missionEvents.ts) + export helpers; create-mission [`site_id`](src/components/missions/MissionSelector.tsx) + [`isMissionBorderInsideSite`](src/utils/missionBorderInSite.ts) + `aop` + radar PATCH-after-assign; types in [`aeroshield.ts`](src/types/aeroshield.ts). Frontmatter `t-pref-foundation` **completed**.
+- **COP dashboard chrome (2026-05) [done for current scope]:** [SettingsOverlay](src/components/cop-shell/SettingsOverlay.tsx) — map display controls; labeled [WsStatusIndicator](src/components/status/WsStatusIndicator.tsx) (events / devices / commands). [AccountOverlay](src/components/cop-shell/AccountOverlay.tsx) — persisted `username` in [authStore](src/stores/authStore.ts) + logout; `CopTopBar` removed. [CopShell](src/components/cop-shell/CopShell.tsx) — `onSettingsStackSelect` (gear vs user flyouts aligned with `driifTokens`); single top-right notifications control toggles overall detections overlay (standalone detection icon removed); `POSITION.bellRight` / `bellTop` match logo side/top inset. Frontmatter **`t-cop-dashboard-chrome`** → **completed**.
+- **Task 1d — map chrome [DONE]:** [MapLegendPanel](src/components/map/MapLegendPanel.tsx) + [mapLayerGroups.ts](src/components/map/mapLayerGroups.ts) / [useMapLayerToggles.ts](src/hooks/useMapLayerToggles.ts) — zones / detection / jammer / breach toggles, `aeroshield.missionMap.layers` + collapsible legend (**`aeroshield:map-legend-expanded`**). **Legend UI (2026-05):** layers **FAB** at **`POSITION.bellRight`**, vertically centered; **drawer slides in from the right** (aligned with bell/detections gutter); **no map dimming**; **close** control in header; **FAB hidden** while open; [MapContainer](src/components/map/MapContainer.tsx) applies `layout.visibility` after `mountOperationalLayers` and on toggle; [assets.ts](src/components/map/layers/assets.ts) `radar-sweep-detection` / `radar-sweep-jammer`. Frontmatter **`t1d-ws-legend`** → **completed**.
+- **Devices / COP loading UX [DONE]:** [InlineLoadIndicator](src/components/ui/InlineLoadIndicator.tsx) — shared spinner + label (`align` optional). [DevicesInventoryOverlay](src/components/devices/DevicesInventoryOverlay.tsx) shows **loading assets** until `useDevicesList` resolves (no empty flash). Swapped inline “Loading…” for **InlineLoadIndicator** in [MissionSelector](src/components/missions/MissionSelector.tsx), [MissionCreateSiteSelect](src/components/missions/MissionCreateSiteSelect.tsx), [SelectAssetsWorkspace](src/components/missions/SelectAssetsWorkspace.tsx), [EditDeviceModal](src/components/devices/EditDeviceModal.tsx), [DeviceDetailDrawer](src/components/devices/DeviceDetailDrawer.tsx), [dashboard MapContainer `dynamic` fallback](src/app/dashboard/page.tsx). Frontmatter **`t-ux-loader-legend-polish`** → **completed**.
 
 ### 1.2 Still pending (high level)
 
 | Bucket | Items |
 |--------|--------|
-| **Tasks 2–8, 10** | Approvals queue (2); friendly 409 + idempotency (3); Friendlies (4); Swarms + halos (5); `POST /annotations` persistence (6); zone-breach active roster (7); Timeline V2 + export (8); Command launch UI (10). |
-| **Task 9 (remainder)** | Zone CRUD → invalidate queries + render zones from `listZones` (not only `/map/features`); surface **`configs/by-mission`** in Configure Radar; any leftover cache polish. *(Health rollup in `deviceHealth.ts` is already used in Devices tab.)* |
-| **Task 0 (remainder)** | Protocol catalogue merge: `default_detection_beam_deg` / `default_jammer_beam_deg` / `default_breach_*` when device fields are null. |
-| **Design** | Figma pass for toasts, shell, lifecycle modal where formal nodes exist (behaviour is shipped). |
+| **Task 1d (workspace chrome)** | **[DONE]** WS in Settings; map legend + layer toggles; legend **FAB + right drawer** (`bellRight`), no backdrop dim. Optional: Figma-only pixel pass on `MapLegendPanel` / loaders. |
+| **Tasks 2–8, 10** | Approvals (2); friendly 409 + idempotency (3); Friendlies (4); Swarms + halos (5); `POST /annotations` (6); zone-breach roster (7); Timeline V2 + export (8); Command launch UI (10). |
+| **Task 9 (remainder)** | Zone CRUD invalidation + `listZones` layers; **`configs/by-mission`** in Configure Radar; cache polish. |
+| **Task 0 (remainder)** | **Figma / token pass** for radar ring + wedge colours only (behaviour shipped). **Task 11** `RadarModeChip` (rotation × jam). |
+| **Task 11 (situational)** | Overlap preview util + Intel overlap pill/detail; command latency overlay; jams panel; full command audit panel; voice alerts stack (utils + `useVoiceAlerts` + Figma). See §6. |
+| **Task 12 (DVR)** | `dvr.api` + playback/timeline hooks + Figma scrubber (licensed / when scoped). |
+| **Task 13 (post-operator)** | Mission PDF via `apiBlob`; azimuth dial + pitch side-view math; zone action plan; `threat.ts` / `radioBands.ts`; `rebootTracker`; change-password. |
+| **Task 14 (optional admin/commander)** | ROE catalogue + DSL, playbooks, sites/boundary, commander overview — separate rollout. |
+| **Design** | Figma pass for shipped behaviours where nodes exist. |
 
 ## 2. Data / control flow after the plan
 
@@ -143,24 +187,33 @@ flowchart LR
 
 ## 4. Execution order
 
-Ordered so each task depends only on earlier ones. Each task = **one Cursor prompt = one PR**.
+Ordered for **mission lifecycle first**, then **operator safety loop**, then **intel/timeline**, then **foundation/chrome** where parallel makes sense, then **extended situational / DVR / admin** tracks.
+
+Each task = **one Cursor prompt = one PR** (split only if you need smaller reviews).
 
 0. **Task A — Devices admin list** **[DONE]**
-1. **P0 — Centralize WS reducers** **[DONE]** (plus drone-flood follow-up: REST backfill is timeline-only; WS is authoritative for targets)
-2. **Task 0 — Radar map semantics (pick before Task 1).** Align Mapbox asset layers with **old-ui behaviour** (not chrome): detection/jammer coverage as **sector or full disk** from **`deviceStatusStore.azimuth_deg`** + beam width (`detection_beam_deg` / `jammer_beam_deg` or protocol defaults per [old-ui/src/app/utils/beam.ts](old-ui/src/app/utils/beam.ts)); **remove** the decorative `requestAnimationFrame` sweep (or gate behind an explicit demo flag). **Separate** breach threat rings (`breach_*_m`) from detection/jammer radius when mission/device payloads expose those fields (see [old-ui/src/app/components/MissionMap.tsx](old-ui/src/app/components/MissionMap.tsx) breach vs `showRadii` blocks). Sweep **freezes** when azimuth stops updating (stopped turntable). Devices-tab direction controls = later; this task only consumes live state. **Lands in:** [src/components/map/layers/assets.ts](src/components/map/layers/assets.ts) + wiring from [src/stores/deviceStatusStore.ts](src/stores/deviceStatusStore.ts) / [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts).
-3. **Task 1 — Mission lifecycle + Workspace tab shell + Toast alerts.** **[DONE]** Three sub-deliverables shipped:
-   - **1a** — Toast/Alert provider (3s auto-dismiss, max 10 stacked)
-   - **1b** — Mission Workspace tabbed shell (Timeline / Devices / Detections / Commands / Intel)
-   - **1c** — `POST activate` / `POST stop` / `GET overlaps` + CoverageWarningModal, activate button lives in the shell header
-4. Approvals queue (closes the biggest safety gap) → lands in the Commands tab
-5. Friendly-drone override retry on 409 + command idempotency keys
-6. Friendlies panel → lands in the Intel tab
-7. Swarms panel + halo rings on map → lands in the Intel tab
-8. Operator annotations persistence (TRACK_RATED via `POST /annotations`)
-9. Zone-breach active roster tile → lands in the Intel tab
-10. Mission timeline V2 (extended filters, counts, pagination, AAR export) → lands in the Timeline tab
-11. Polish: zone CRUD cache invalidation, `configs/by-mission` rendering
-12. **Task 10 — Command launch UI (deferred)** — full structured command forms + dynamic `payload_schema` forms. Task 1b only scaffolds a placeholder "New command" entry.
+1. **P0 — Centralize WS reducers** **[DONE]** (REST backfill = timeline-only; WS authoritative for targets)
+2. **Task 0 — Radar map semantics** **[DONE]** (behaviour complete; radar-only polish = Figma colours + optional legend/RadarModeChip per §6 Task 0)
+3. **Task 1 — Mission lifecycle + Workspace tab shell + Toast** **[DONE]** (1a–1c)
+4. **Task P — Foundation (HTTP + types + site_id)** **[DONE]**. Prerequisite for Task 8 helpers is satisfied: `apiJsonWithHeaders`, `apiBlob`, GET cache-bust (oldui parity), `listMissionEventsWithTotal` + export URLs, create-mission `site_id` + border-in-site + `aop` + radar PATCH-after-assign, TS gaps per Task P prompt. **Remaining product work:** consume totals/export in **Task 8** (Timeline); mission PDF in **Task 13**.
+5. **Task 1d — WS + map legend / layer toggles** **[DONE]** (WS in Settings; toggles in MapContainer — see §1.1).
+6. **Task 2 — Approvals queue** → Commands tab
+7. **Task 3 — Friendly 409 retry + idempotency**
+8. **Task 4 — Friendlies** → Intel tab
+9. **Task 5 — Swarms + halos** → Intel tab + map
+10. **Task 6 — Annotations** (`POST /annotations`)
+11. **Task 7 — Zone-breach roster** → Intel tab
+12. **Task 8 — Timeline V2** (uses Task P `apiJsonWithHeaders` + `apiBlob`; Task P **[DONE]**) → Timeline tab
+13. **Task 9 — Polish** (zones invalidation, `configs/by-mission`, etc.)
+14. **Task 11 — Situational awareness** (overlaps UI depth, latency, jams, audit, voice) — can split into sub-PRs; mostly Intel / shell / map
+15. **Task 10 — Command launch UI (deferred)** → Commands tab
+16. **Task 12 — DVR** — when licensed/scoped
+17. **Task 13 — Post-operator polish** (PDF, dial, pitch, zone action plan, threat utils, reboot, password)
+18. **Task 14 — Admin / commander** — optional separate program
+
+**Flow you asked for:** lifecycle (Task 1) stays **before** approvals (Task 2). **Task P** is **[DONE]**; **Task 1d** is **[DONE]**; **COP Settings / Account / bell chrome** under **`t-cop-dashboard-chrome`** **[DONE]**.
+
+**Where to start (current repo):** **Task P** and **Task 1d** are **[DONE]** ([`MissionSelector.handleCreate`](src/components/missions/MissionSelector.tsx): `site_id`, border-in-site, `aop`, radar PATCH-after-assign; map legend in [`MapContainer`](src/components/map/MapContainer.tsx)). **Next default:** **Task 2 — Approvals queue** (or Task 8 for Timeline + exports UI consuming `listMissionEventsWithTotal`).
 
 ## 5. Cursor prompt templates (copy-paste ready)
 
@@ -170,10 +223,11 @@ Every prompt uses the same format so you can fire them sequentially.
 Read the skill at C:\Users\sandh\.cursor\skills-cursor\canvas\SKILL.md only if I ask for a canvas.
 
 Context files (read first):
-- docs/API_REFERENCE.md sections listed below
+- docs/API_GUIDE.md (primary — verify paths, permissions, payload shapes)
+- docs/API_REFERENCE.md (where this plan cites §B/§C appendix tables)
 - src/lib/api/client.ts, src/stores/authStore.ts
 - src/styles/driifTokens.ts (tokens — use these for colors/spacing/radii)
-- existing reference components listed below
+- Behaviour only from oldui/src/app/... (no layout/styling copy) — paths listed per task in §6
 
 Figma:
 - Node URL: <FIGMA_URL>
@@ -181,12 +235,12 @@ Figma:
 
 Task: <one-liner>
 
-Endpoints to integrate (from docs/API_REFERENCE.md):
+Endpoints to integrate (confirm in API_GUIDE, then implement):
 - <method> <path> → <lib file to add/extend>
 
 Deliverables:
 - <file list>
-- Types in src/types/aeroshield.ts
+- Types in src/types/aeroshield.ts (or adjacent modules)
 - TanStack Query hook in src/hooks/...
 - UI component under src/components/...
 - Wire into dashboard page + existing shell
@@ -351,20 +405,23 @@ Acceptance:
 
 #### Shipped (current repo)
 
-- **[src/utils/radarAssetsGeoJSON.ts](src/utils/radarAssetsGeoJSON.ts)** — Device → GeoJSON properties: `device_type` roles, `detection_beam_deg` / `jammer_beam_deg` (fallbacks 360° / 30°), `breach_*` → km, `buildMergedRadarAssetsGeoJSON` (landing + mission devices + live status).
-- **[src/utils/mapFeatures.ts](src/utils/mapFeatures.ts)** — Map `/map/features` device rows get the same radar properties via `radarPropsFromMapFeatureProps`.
-- **[src/components/map/MapContainer.tsx](src/components/map/MapContainer.tsx)** — Initial + incremental asset source from `buildMergedRadarAssetsGeoJSON`; no fake bearing animation.
-- **[src/components/map/layers/assets.ts](src/components/map/layers/assets.ts)** — Live **`deviceStatusStore.azimuth_deg`** drives sector **centre bearing**; **360°** beams omit wedge polygons (omnidirectional); **&lt;360°** uses concentric **gradient bands** (legacy opacities): **green** (`RADAR_SWEEP_FILL`) for detection, **amber** for jammer (slightly scaled opacity); draw order jammer slices then detection so green reads on top. Optional **breach** line layers (green/yellow dashed, red solid) when `breach_*_m` validate. Warm annuli + orange dashed range rings scale to detection radius or jammer-only radius; lock-on distance uses detection radius when applicable else jammer. **Ring-fill bands** use a small **non-zero inner ratio** (~0.02) so the inner boundary is a circle, not a point — avoids a **north-pointing radial line** artefact from degenerate polygons.
-- **REST + WS azimuth** — [`readAzimuthFromDeviceStatePayload`](src/utils/deviceHealth.ts) is shared by [`useMissionSockets`](src/hooks/useMissionSockets.ts) (`device_state_update`) and [`useMissionDeviceStatesHydration`](src/hooks/useMissionDeviceStatesHydration.ts) (mission `states/by-mission` poll).
+- **[src/utils/radarAssetsGeoJSON.ts](src/utils/radarAssetsGeoJSON.ts)** — Device → GeoJSON: roles, **`detection_beam_deg` / `jammer_beam_deg`** with **`GET /protocols`** defaults when device fields null (`default_detection_beam_deg`, `default_jammer_beam_deg`, `default_breach_*_m`), **`effectiveBreachRingsKm`**, `protocol` string on features for map behaviour, `buildMergedRadarAssetsGeoJSON`.
+- **[src/utils/mapFeatures.ts](src/utils/mapFeatures.ts)** — `/map/features` device rows via `radarPropsFromMapFeatureProps` (same protocol merge path).
+- **[src/utils/radarAzimuthKinematics.ts](src/utils/radarAzimuthKinematics.ts)** — Client-side rotation between sparse **`azimuth_deg`** samples (port of old-ui [`useRadarKinematics.ts`](oldui/src/app/hooks/useRadarKinematics.ts)): inferred °/s + rAF advancement; **skip ingest when bearing unchanged** (no `tsDelta < 1500` trap — avoids periodic snap-back); drift/rate-change re-anchor preserved.
+- **[src/components/map/MapContainer.tsx](src/components/map/MapContainer.tsx)** — Asset source from `buildMergedRadarAssetsGeoJSON` + protocols catalogue; **no FE-fake turntable azimuth for AS_2.0G** (motion comes from backend samples + kinematics extrapolation only). **D20** uses FE sweep in layer (see below).
+- **[src/components/map/layers/assets.ts](src/components/map/layers/assets.ts)** — **`resolveSweepAzimuth`**: smoothed azimuth from kinematics (and **D20** synthetic sweep when protocol is D20); **detection** wedge = **white** gradient polygons; **jammer** wedge = **amber** gradient; **360°** detection ⇒ narrow **boresight** wedge (~40°) for operator cue (differs from old-ui E.6 note where AS_2.0G footprint was drawn as full ring only — intentional Driif/map readability choice). **Breach**: stepped red/yellow/green **fills** + dashed/solid **lines**. Decorative warm annuli + orange dashed rings; lock-on radius rule unchanged. **Ring-fill** inner ratio ~0.02 — **north spike** fix.
+- **REST + WS azimuth** — [`readAzimuthFromDeviceStatePayload`](src/utils/deviceHealth.ts); [`useMissionSockets`](src/hooks/useMissionSockets.ts); [`useMissionDeviceStatesHydration`](src/hooks/useMissionDeviceStatesHydration.ts).
 
 #### Task 0 improvements still open (not blocking later tasks)
 
-1. **Protocol catalogue merge** — Fold `GET /protocols` `default_detection_beam_deg`, `default_jammer_beam_deg`, `default_breach_*_m` into feature build when device fields are null (parity with old-ui `protocolDefaults`).
-2. ~~**Devices tab / commands**~~ — **Shipped:** `MissionDeviceAimControls` + related tabs; map consumes store azimuth from WS **and** REST hydration.
-3. **Figma / token pass** — Ring and wedge colours are Driif/legacy constants, not a formal Figma node swap.
-4. **Edge cases** — e.g. `detection_radius_m` missing on detection-role device (current fallback km); validate against your simulators.
+1. ~~**Protocol catalogue merge**~~ — **Shipped** in `radarAssetsGeoJSON` / `radarPropsFromMapFeatureProps` when `protocols` list is passed from MapContainer / mergers.
+2. ~~**Devices tab / commands**~~ — **Shipped:** aim controls + map store parity.
+3. **Figma / token pass** — Formal tokens for radar ring + wedge fills/strokes vs inline constants in `assets.ts`.
+4. **Optional parity / UX** — **Task 11:** [`RadarModeChip`](oldui/src/app/components/RadarModeChip.tsx) (rotation × jam summary). **Task 13:** AzimuthDial / pitch side view (devices workspace).
+5. **Edge cases** — `detection_radius_m` missing → current km fallback; occasional payloads omitting `azimuth_deg` could reset kinematics (prune path); tighten only if observed in production sims.
+6. **Code hygiene (optional)** — Back-port kinematics **duplicate-sample-only skip** to [`oldui/.../useRadarKinematics.ts`](oldui/src/app/hooks/useRadarKinematics.ts) for consistency; optional **60 fps** sweep source updates while rotating (today heavy geo refresh ~30 fps throttle).
 
-**Original intent (behavioural):** No motion implied without backend azimuth; separate breach vs detection/jammer radii per [old-ui MissionMap](old-ui/src/app/components/MissionMap.tsx) + [beam.ts](old-ui/src/app/utils/beam.ts) + [threat `effectiveBreachRings`](old-ui/src/app/utils/threat.ts).
+**Behavioural baseline:** Separate breach vs detection/jammer radii per [MissionMap.tsx](oldui/src/app/components/MissionMap.tsx) + [beam.ts](oldui/src/app/utils/beam.ts) + [effectiveBreachRings](oldui/src/app/utils/threat.ts); **smooth wedge motion** matches old-ui kinematics hook behaviour after the duplicate-reading fix above.
 
 ---
 
@@ -495,64 +552,123 @@ Acceptance (combined):
 - yarn build green; no lints.
 ```
 
+### Task P — Foundation (HTTP helpers, types, site_id, GET parity) **[DONE]**
+
+**When:** **[DONE]** (2026-05-02). Was: before **Task 8** at latest; could run in parallel with Tasks **2–7**.
+
+**Why:** [`apiJson`](src/lib/api/client.ts) now delegates to **`apiJsonWithHeaders`** (returns headers for `X-Total-Count`, `Content-Disposition`). **`apiBlob`** supports CSV/NDJSON/PDF-style downloads. GET requests use **`Cache-Control` / `Pragma` no-cache** and **`_ts`** query param (same intent as [oldui/src/app/api/client.ts](oldui/src/app/api/client.ts)).
+
+**Create mission (COP) — shipped in Task P pass (2026-05-02)** — [`MissionSelector.handleCreate`](src/components/missions/MissionSelector.tsx) POSTs `{ name, aop, border_geojson, site_id }` where **`border_geojson` is the first fence**; additional fences become zones via `POST .../zones`. **`site_id`** is required in UI when sites exist; **vertices of the mission border are validated** client-side inside the selected site polygon ([`isMissionBorderInsideSite`](src/utils/missionBorderInSite.ts)). **Planning metadata** — command unit, mission type, schedule are summarized into **`aop`** via `buildMissionAopFromCreateForm`. **Radar drafts** — after assign, **`applyRadarConfigureDraftsAfterCreate`** runs `PATCH /devices/{id}` for allowed fields. **Follow-ups:** product confirmation if backend expects nullable `site_id`; full polygon “within” checks if server rejects complex shapes beyond vertex sampling.
+
+**Prompt:**
+```
+Task: Foundation — extend API client and core types (Task P).
+
+Read first:
+- docs/API_GUIDE.md — sites, missions create, events list/export (headers), auth change-password if needed later
+- docs/API_REFERENCE.md — any § cited in Task 8 for events
+- src/lib/api/client.ts, src/types/aeroshield.ts
+- oldui/src/app/api/client.ts (GET interceptors only — behaviour reference)
+
+Deliverables:
+1) Add apiJsonWithHeaders<T>(service, path, opts) → { data: T; headers: Headers } and apiBlob(...) for binary downloads. Keep apiJson() backward-compatible.
+2) Optional: on apiFetch GET requests, set Cache-Control/Pragma no-cache and append _ts=Date.now() query param (match oldui axios behaviour) if you confirm no backend breakage.
+3) Add src/lib/api/sites.ts (or extend missions) for listing sites / site boundary per API_GUIDE; add **site_id** to `createMission` payload + `Mission` types; **MissionSelector** / CreateMissionForm: site picker (required if backend rejects null site); validate **border_geojson inside site** before POST if API enforces.
+3b) **Create-flow honesty:** map Command unit / mission type / schedule to API fields if spec exists, or label UI as “local preview only”; after assign, **apply radar configure drafts** via `PATCH /devices/{id}` for fields §B.2 allows, or hide configure step until real.
+4) Type gaps: CommandRequest — monitor_device_id, idempotency_key, override_friendly; Zone — zone_type enum; Mission — site_id, activated_at, stopped_at; CommandOut — latency_ms bag; Device — rotation_state, jam_state (for radar mode / latency UX later).
+
+Acceptance:
+- apiJsonWithHeaders parses JSON body and returns headers on paginated event list (or other GET that returns X-Total-Count)
+- apiBlob can save a PDF/CSV blob with filename from Content-Disposition when present
+- yarn build green; no lints
+```
+
+### Task 1d — Workspace / map chrome **[DONE]**
+
+**When:** Any time after Task **1c**; **parallel** with Tasks 2–7.
+
+**Shipped:**
+- **WS connection status** — [SettingsOverlay](src/components/cop-shell/SettingsOverlay.tsx) + [WsStatusIndicator](src/components/status/WsStatusIndicator.tsx) + [useWsStatusStore](src/stores/wsStatusStore.ts).
+- **COP shell** — [AccountOverlay](src/components/cop-shell/AccountOverlay.tsx), [CopShell](src/components/cop-shell/CopShell.tsx) (`onSettingsStackSelect`), notifications → detections, `driifTokens` alignment — **`t-cop-dashboard-chrome`**.
+- **Map legend + layer toggles** — [MapLegendPanel](src/components/map/MapLegendPanel.tsx), [mapLayerGroups.ts](src/components/map/mapLayerGroups.ts), [useMapLayerToggles.ts](src/hooks/useMapLayerToggles.ts) (`aeroshield.missionMap.layers`); [MapContainer](src/components/map/MapContainer.tsx) calls [applyMapLayerGroupVisibility](src/components/map/mapLayerGroups.ts) after `mountOperationalLayers` and when toggles change; sweep split: `radar-sweep-detection` / `radar-sweep-jammer` in [assets.ts](src/components/map/layers/assets.ts). **Legend interaction:** FAB at **`POSITION.bellRight`** (same right gutter as bell / detections); **drawer enters from the right**; **no full-map dim**; header **close**; **FAB hidden** when drawer open; **`aeroshield:map-legend-expanded`** for legend subsection only (replaces old card `map-controls-expanded` pattern).
+
+Frontmatter **`t1d-ws-legend`** → **completed**. Optional follow-up: Figma-only pixel pass on `MapLegendPanel`.
+
 ### Task 2 — Approvals queue (live, WS-driven)
 
-**Lands in:** Commands tab (slot above `RecentCommands`, rendered by `CommandsTab.tsx` from Task 1b).
+**Lands in:** Commands tab (slot above `RecentCommands`, rendered by `CommandsTab.tsx` from Task 1b). Mount `RecentCommands` in the same tab if not already present (component exists but may be unwired).
 
-**Figma nodes:** Pending approvals list with approve/reject actions, reason input modal.
+**Figma nodes:** Pending approvals list with approve/reject actions, reason input modal(s).
+
+**Oldui parity (merged from `oldui/` review):**
+- **Workflow gate:** `GET /api/v1/policies` → `approvalsEnabled = policies.some(p => Number(p.required_approvals || 0) > 0)` ([`MissionWorkspacePage.tsx`](../../oldui/src/app/pages/MissionWorkspacePage.tsx) ~994–1007). If false, show copy like oldui: no approval workflow active (still show queue empty vs hidden—pick one; oldui hides the approvals sub-tab content behind this + `command:approve`).
+- **Optional cross-mission queue:** oldui [`ApprovalsPage.tsx`](../../oldui/src/app/pages/ApprovalsPage.tsx) uses `GET /api/v1/commands?status=PENDING_APPROVAL&limit=200` (no `mission_id`), prettifies mission/user IDs, richer approve prompt (`target_uid`, `drone_rating` in message). **Defer or fold into COP** as `/dashboard/approvals` + CopShell link if product wants supervisor parity.
+- **Approve + reject reasons:** **Reject** requires non-empty reason (backend `min_length=1`). **Approve** uses **optional** note (oldui prompt)—both recorded in audit. Implement **ApproveReasonDialog** (optional) + **RejectReasonDialog** (required), not reject-only.
+- **Approve API body:** oldui sends `{ reason: reason || null }` on approve; align `approveCommand` with **API_GUIDE** (`null` vs `""`).
+- **5s polling:** oldui `ApprovalsPanel` polls `load()` every **5s** in addition to WS—mirror as `refetchInterval: 5000` (or equivalent) so queue updates without relying on WS alone.
+- **Post-mutation refresh:** oldui passes `onChanged={initialLoad}` (broader mission/workspace refetch). COP: at minimum invalidate `["commands", missionId, "PENDING_APPROVAL"]` + any mission detail/commands queries you rely on; escalate to mission refetch if audit rows lag.
+- **Perf:** wrap `ApprovalsPanel` in `React.memo` (oldui does)—parent re-renders on mission WS traffic.
+- **Tab badge (optional):** oldui Commands tab shows `!` when `approvalsEnabled && canApprove`; consider badge on “Commands” workspace tab for parity.
+- **`commandsStore` vs React Query:** `useMissionSockets` already updates `commandsStore` on `command_update`; Task 2 **must** also `invalidateQueries` for the TanStack key used by `useApprovalsQueue` so the panel refetches.
 
 **Prompt:**
 ```
 Task: Build the Pending Approvals queue and wire approve/reject.
 
-Read: docs/API_REFERENCE.md §C.1, §C.2, §C.4
+Read: docs/API_GUIDE.md (commands — list, approve, reject) and docs/API_REFERENCE.md §C.1, §C.2, §C.4 if needed
+Behaviour reference (no layout copy): oldui/src/app/components/ApprovalsPanel.tsx, oldui/src/app/pages/MissionWorkspacePage.tsx (approvalsEnabled + onChanged), oldui/src/app/pages/ApprovalsPage.tsx (optional cross-mission)
 Figma: <FIGMA_NODE_URL> — call get_design_context first.
 
-Endpoints (client already exists):
-- GET  /api/v1/commands?mission_id={id}&status=PENDING_APPROVAL
-- POST /api/v1/commands/{id}/approve
-- POST /api/v1/commands/{id}/reject
+Endpoints (extend client if needed for approve body shape):
+- GET  /api/v1/policies — derive approvalsEnabled (required_approvals > 0 on any row)
+- GET  /api/v1/commands?mission_id={id}&status=PENDING_APPROVAL (or list by mission_id + client filter like oldui ApprovalsPanel)
+- POST /api/v1/commands/{id}/approve — optional reason per API_GUIDE (match oldui null vs string)
+- POST /api/v1/commands/{id}/reject — required reason
 
 Deliverables:
-- src/hooks/useApprovalsQueue.ts — useQuery(status=PENDING_APPROVAL), refetch on WS command_update
-- src/hooks/useApproveCommand.ts / useRejectCommand.ts — mutations (invalidate queue + commandsStore)
-- src/components/commands/ApprovalsPanel.tsx — uses driifTokens; row: command_type • device name • approved_count/required_approvals progress • Approve / Reject buttons (hide if user lacks command:approve perm — read authStore.permissions)
-- src/components/commands/RejectReasonDialog.tsx — required reason textarea
-- Slot into CopShell right rail above RecentCommands
-
-Wire WS: extend the command_update handler in useMissionSockets to
-  queryClient.invalidateQueries(["commands", missionId, "PENDING_APPROVAL"])
-when status ∈ {PENDING_APPROVAL, SENDING, SUCCEEDED, REJECTED}.
+- useApprovalsEnabledFromPolicies (or inline in parent) + conditional empty/warning state
+- src/hooks/useApprovalsQueue.ts — useQuery, refetchInterval 5000, refetch on WS command_update
+- src/hooks/useApproveCommand.ts / useRejectCommand.ts — mutations (invalidate queue + related keys)
+- src/components/commands/ApprovalsPanel.tsx — driifTokens; memo; rows show command_type • device • approved_count/required_approvals; Approve (optional note) / Reject (required reason); hide actions if no command:approve
+- ApproveReasonDialog (optional note) + RejectReasonDialog (required)
+- Wire RecentCommands under Approvals in Commands tab
+- useMissionSockets: queryClient.invalidateQueries(["commands", missionId, "PENDING_APPROVAL"]) when command WS status ∈ {PENDING_APPROVAL, SENDING, SUCCEEDED, REJECTED, ...} per API
 
 Acceptance:
-- Operator with only command:request sees the queue but Approve/Reject buttons are absent
-- Two-approval policy: first approve increments counter; second flips status to SENDING; WS update removes row live
-- Reject shows the reason on the RecentCommands row
+- Operator with only command:request sees queue; Approve/Reject hidden
+- Policies with no required_approvals > 0 → workflow message or empty state per spec above
+- Two-approval policy increments then sends; WS + poll both refresh list
+- Reject requires reason; approve optional note matches backend
+- No linter errors
 ```
 
 ### Task 3 — Friendly-drone 409 retry + idempotency keys on `POST /commands`
 
+**Oldui parity (merged):**
+- **Jam 409 UX:** [`MissionDeviceAimControls.fireJam`](../../src/components/missions/MissionDeviceAimControls.tsx) already implements `friendly_drone_active` with **`window.confirm`**. Task 3 **replaces** that path with **`FriendlyLockoutDialog`** + shared helper (same friendlies list / override retry).
+- **Call-site scope:** [`engageJamCommand`](../../src/lib/engageJamCommand.ts) fires **ATTACK_MODE_SET**, not JAM—only add friendly retry where **`JAM_START` / `JAM_STOP`** (or doc-equivalent) are sent. **PopupControls** / **TurntableControls** / **BandRangeEditor** are not automatic JAM paths unless you add JAM there; **do not** list them generically—enumerate **actual JAM emitters** only (today: primarily Devices tab jam toggle; add map/popup JAM if present).
+- **NOOP / idempotency:** oldui surfaces `res.status === "NOOP"` for duplicate/idempotent **`ATTACK_MODE_SET`** (info toast “Already in … mode”). COP `fireAttackMode` currently always success-toasts—add **NOOP** handling there and anywhere else the backend returns NOOP. Add **`idempotency_key`** on POST per doc for **auto-fired** commands; leave null for manual operator commands unless API says otherwise.
+
 **Prompt:**
 ```
-Task: Handle 409 friendly_drone_active retry and add idempotency keys.
+Task: Handle 409 friendly_drone_active retry (modal), NOOP responses, and idempotency keys.
 
 Read: docs/API_REFERENCE.md §C.2 step 4, §D.0, Appendix "Commands — idempotency", §F.
+Behaviour: oldui CommandPanel / MissionWorkspacePage ATTACK_MODE_SET NOOP; src/components/missions/MissionDeviceAimControls.tsx (replace confirm)
 Figma: <FIGMA_NODE_URL for "Friendly drone in area" modal> — call get_design_context first.
 
 Files:
-- src/types/aeroshield.ts → extend CommandRequest with optional idempotency_key, payload.override_friendly?:boolean
-- src/lib/formatCommandError.ts → detect { error: "friendly_drone_active", friendlies: [...] } in 409 body (ApiClientError should already carry body)
-- src/components/commands/FriendlyLockoutDialog.tsx (new) — lists friendlies, "Override and send" button
-- Call sites to retry-on-409 with override_friendly:true:
-    - src/lib/engageJamCommand.ts
-    - src/components/commands/PopupControls.tsx
-    - src/components/commands/BandRangeEditor.tsx (only if command_type is jam-family)
-- Generate idempotency_key for auto-fired commands (none today) and leave null for operator commands per §Commands-idempotency doc.
+- src/types/aeroshield.ts → CommandRequest: optional idempotency_key; payload.override_friendly
+- src/lib/formatCommandError.ts → friendly_drone_active + friendlies[] on 409
+- src/components/commands/FriendlyLockoutDialog.tsx — list friendlies; Override and send
+- Replace window.confirm jam path in MissionDeviceAimControls with dialog + shared retry helper
+- fireAttackMode (and similar): if out.status === "NOOP", toast info not success
+- idempotency_key: generate only for auto-fired commands per doc; verify manual = null in devtools
 
 Acceptance:
-- First JAM_START against a protected UID shows modal; "Override and send" POSTs with override_friendly:true
-- Commands list shows the override written into COMMAND_REQUESTED event
-- Operator commands still have idempotency_key=null (verified in devtools)
+- JAM 409 shows modal; override sends override_friendly:true
+- NOOP attack/jam path shows non-deceptive toast
+- Manual commands omit idempotency_key unless spec requires
 ```
 
 ### Task 4 — Friendlies panel
@@ -561,11 +677,16 @@ Acceptance:
 
 **Figma nodes:** Friendlies list + "Add friendly" form + inline edit row.
 
+**Oldui parity (merged):**
+- **Types:** oldui [`Friendly`](../../oldui/src/app/api/device.api.ts) includes **`band`: `"2.4G" | "5.8G" | "OTHER" | null`** in addition to `freq_khz` / `notes`. Extend **FriendlyOut** (and list UI chips) to match **API_GUIDE** if the backend still returns `band`.
+- **Taggable targets:** oldui [`FriendliesPanel`](../../oldui/src/app/components/FriendliesPanel.tsx) excludes tracks whose name contains **`[JAMMED]`** and excludes **target_uid** already in active friendlies when offering “mark from live tracks”.
+
 **Prompt:**
 ```
 Task: Friendly drones registry panel (per mission).
 
-Read: docs/API_REFERENCE.md §B.10
+Read: docs/API_REFERENCE.md §B.10, docs/API_GUIDE.md friendlies shape
+Behaviour: oldui/src/app/components/FriendliesPanel.tsx, oldui/src/app/api/device.api.ts (Friendly band)
 Figma: <FIGMA_NODE_URL> — call get_design_context first.
 
 Endpoints (new file):
@@ -575,15 +696,15 @@ Endpoints (new file):
   - patchFriendly(missionId, friendlyId, body)  // includes {active:false} to unmark
 
 Deliverables:
-- src/types/aeroshield.ts → FriendlyOut / FriendlyCreate / FriendlyPatch
+- src/types/aeroshield.ts → FriendlyOut / FriendlyCreate / FriendlyPatch (include band if API has it)
 - src/hooks/useFriendlies.ts (queries + mutations, invalidation)
-- src/components/friendlies/FriendliesPanel.tsx (driifTokens, matches AssetsPanel visual language)
-- src/components/friendlies/FriendlyForm.tsx — fields target_uid, label, freq_khz, notes
-- Add a "Friendly" quick-tag action in src/components/map/overlays/DroneOverlayCard.tsx (creates a friendly from the current target)
+- src/components/friendlies/FriendliesPanel.tsx — list + unmark confirm; taggable tracks exclude [JAMMED] and existing friendlies
+- src/components/friendlies/FriendlyForm.tsx — target_uid, label, freq_khz, notes, band if applicable
+- DroneOverlayCard: quick-tag friendly from current target
 
 Acceptance:
-- Registering a friendly with matching freq blocks a subsequent JAM_START (relies on Task 3 for the 409 retry UX)
-- Deactivate (active:false) removes the lockout
+- Friendly with matching freq triggers JAM 409 (Task 3); active:false clears lockout
+- Band chip / fields match API
 ```
 
 ### Task 5 — Swarms panel + halo rings + WS trigger
@@ -592,40 +713,46 @@ Acceptance:
 
 **Figma nodes:** Swarms list with severity chips, "Tag swarm" form, Closed filter; swarm halo ring on map.
 
+**Oldui parity (merged):**
+- **Bulk-tag logic:** oldui [`SwarmsPanel`](../../oldui/src/app/components/SwarmsPanel.tsx) takes **tracks, zones, devices**, per-target **ratings** map, and **`friendlyUids`**—uses **[`scoreTrack`](../../oldui/src/app/utils/threat.ts)** + **[`findLargestCluster`](../../oldui/src/app/utils/swarmCluster.ts)** so operator-bumped **HIGH/CRITICAL** ratings drive the “tag cluster” / counter (not raw auto-score only), and **friendlies are excluded** from bulk selection. Port or reimplement this behaviour in COP; do not ship CRUD + halos only without this intel parity.
+
 **Prompt:**
 ```
-Task: Swarm tagging and auto-swarm rendering.
+Task: Swarm tagging, cluster scoring parity with oldui, auto-swarm rendering.
 
-Read: docs/API_REFERENCE.md §B.9 (especially the WS-trigger client-behaviour note)
+Read: docs/API_REFERENCE.md §B.9 (WS-trigger note)
+Behaviour: oldui/src/app/components/SwarmsPanel.tsx, oldui/src/app/utils/threat.ts, oldui/src/app/utils/swarmCluster.ts
 Figma: <FIGMA_NODE_URL> — call get_design_context first.
 
 Endpoints (new file):
-- src/lib/api/swarms.ts
-  - listSwarms(missionId, include_closed)
-  - createSwarm(missionId, body)  // source is stamped 'operator' by backend regardless
-  - patchSwarm(missionId, swarmId, {closed, closed_reason, label, severity, approach_bearing_deg, target_uids, notes})
+- src/lib/api/swarms.ts — list/create/patch as in plan
 
 Deliverables:
 - src/types/aeroshield.ts → SwarmOut, SwarmCreate, SwarmPatch, SwarmSeverity
-- src/hooks/useSwarms.ts — useQuery with refetchInterval 10s (per doc); ALSO invalidate on WS SWARM_DETECTED (subscribe via a tiny bus that useMissionSockets publishes to in Task 0)
-- src/components/swarms/SwarmsPanel.tsx — cards with severity color, member chips, close button, "new" pulse when refetch triggered by WS
-- src/components/swarms/TagSwarmDialog.tsx — multi-select target_uids from current targets, severity, approach_bearing_deg (degrees picker), notes
-- src/components/map/layers/swarms.ts — render a dashed halo polygon around the members' bounding circle per swarm (color by severity); use SwarmOut[]
-- Register layer in MapContainer
+- src/lib/api/swarms.ts → list/create/patch (see prior Task 5 spec)
+- src/utils/threat.ts + src/utils/swarmCluster.ts (or equivalent) wired into SwarmsPanel for bulk-tag / suggested cluster
+- Pass ratings + friendlyUids + zones + devices into panel props (from stores/hooks)
+- src/hooks/useSwarms.ts — refetchInterval 10s (per doc) + missionEventsBus SWARM_DETECTED invalidation
+- SwarmsPanel, TagSwarmDialog, src/components/map/layers/swarms.ts, MapContainer registration
 
 Acceptance:
-- After tagging a swarm, each member drone recolours to HIGH threat within <1 s (TRACK_RATED side-effect delivered by Task 0)
-- AUTO swarm posted by detection-service appears as a new card + map halo within ~1 s of SWARM_DETECTED WS event
-- Closing a swarm removes the halo and chips; re-detection within ~20 s adds a fresh card (redetected badge optional)
+- Operator-set HIGH priority affects who is eligible for bulk swarm tag (matches oldui intent)
+- Friendlies excluded from auto cluster
+- WS + list + halos behave as in prior plan acceptance criteria
 ```
 
 ### Task 6 — Persist operator annotations (TRACK_RATED + NFZ_BREACH_PREDICTED)
 
+**Oldui parity (merged):**
+- **Fold on load:** oldui [`MissionWorkspacePage`](../../oldui/src/app/pages/MissionWorkspacePage.tsx) performs a **dedicated** `GET .../events?event_type=TRACK_RATED&limit=500` (all-time fold), not only folding from the general timeline fetch. Mirror: after mission open, fetch **TRACK_RATED** annotations/events per **API_GUIDE** and merge **latest per `target_uid`** into `targetsStore` / rating fields.
+- **POST shape:** oldui [`apiCreateMissionEvent`](../../oldui/src/app/api/device.api.ts) → **`POST .../annotations`** with `{ event_type, payload, device_id? }` (browser must not POST to internal `/events`).
+
 **Prompt:**
 ```
-Task: Write operator ratings to the server so they survive reloads.
+Task: Persist operator ratings + predicted breaches via annotations.
 
-Read: docs/API_REFERENCE.md §B.8b, §E.1 TRACK_RATED & NFZ_BREACH_PREDICTED
+Read: docs/API_REFERENCE.md §B.8b, §E.1 TRACK_RATED & NFZ_BREACH_PREDICTED, docs/API_GUIDE.md annotations
+Behaviour: oldui MissionWorkspacePage (TRACK_RATED limit=500 fold), oldui device.api apiCreateMissionEvent
 Figma: not needed (reuses existing rating control)
 
 Endpoints:
@@ -633,20 +760,13 @@ Endpoints:
 
 Deliverables:
 - src/lib/api/annotations.ts → postAnnotation(missionId, {event_type, device_id?, payload})
-- src/hooks/useRateTarget.ts → mutation that:
-    1) optimistic update to targetsStore (existing reclassify)
-    2) POST annotation with event_type=TRACK_RATED and payload {target_uid, status, priority}
-    3) on success do nothing extra (WS will re-broadcast and confirm)
-    4) on error roll back and toast
-- Replace the current in-memory-only rating calls in:
-    - src/components/map/overlays/DroneOverlayCard.tsx
-    - src/components/detections/DetectionsPanel.tsx
-    - src/components/panels/TrackingPanel.tsx
-- On mission load, after the initial events fetch, fold the latest TRACK_RATED per target_uid into targetsStore (per doc note in §E.1)
+- useRateTarget mutation: optimistic targetsStore; POST; rollback on error
+- Replace in-memory rating in DroneOverlayCard, DetectionsPanel, TrackingPanel
+- On mission load: explicit fetch of TRACK_RATED (limit 500 or per API) + fold latest per target_uid into targetsStore
 
 Acceptance:
-- Rate a target as CONFIRMED / HIGH, reload page → target still shows CONFIRMED/HIGH
-- Second browser tab sees the rating within <1 s (WS rebroadcast)
+- Reload preserves rating; second tab gets WS within ~1s
+- Fold matches oldui all-time behaviour, not only last timeline page
 ```
 
 ### Task 7 — Zone-breach active roster tile
@@ -687,7 +807,8 @@ Acceptance:
 ```
 Task: Upgrade mission events list to the V1-appendix contract.
 
-Read: docs/API_REFERENCE.md Appendix "Events audit" + "AAR export"
+Read: docs/API_GUIDE.md (mission events, export, pagination headers) + docs/API_REFERENCE.md Appendix "Events audit" + "AAR export"
+Prerequisite: **Task P** **[DONE]** — use `apiJsonWithHeaders`, `apiBlob` here instead of extending client.ts ad hoc.
 Figma: <FIGMA_NODE_URL> — call get_design_context first.
 
 Endpoints:
@@ -698,9 +819,8 @@ Endpoints:
 - GET /api/v1/missions/{id}/events.ndjson (download)
 
 Deliverables:
-- src/lib/api/client.ts → expose response headers from apiFetch when needed (return {data, response} variant or a separate helper)
-- src/lib/api/missionEvents.ts → extend listMissionEvents params: event_type (CSV), device_id, target_uid, zone_id, source, limit, offset; return {items, total}
-- add getEventCounts, getEventTypes, downloadEventsCsv, downloadEventsNdjson (streaming: fetch → blob → save via <a download>)
+- src/lib/api/missionEvents.ts → extend listMissionEvents with apiJsonWithHeaders where total count required; params: event_type (CSV), device_id, target_uid, zone_id, source, limit, offset; return {items, total}
+- add getEventCounts, getEventTypes; downloadEventsCsv, downloadEventsNdjson via apiBlob (Task P)
 - src/hooks/useMissionEventsAudit.ts — paginated query with total
 - src/components/panels/MissionTimeline.tsx → replace current panel with filter bar + paginated list + "Showing X of Y"
 - Export menu buttons: CSV / NDJSON
@@ -755,15 +875,93 @@ Acceptance:
 
 **Explicit non-goals for Task 10:** admin policy editor, protocol catalogue UI, command trace / cleanup. Those remain out of the operator scope.
 
+### Task 11 — Situational awareness (overlaps, latency, jams, audit, voice)
+
+**When:** After Tasks **1–7** (Intel shell exists); **parallel** with Task **8–9** where possible. Split into multiple PRs if needed.
+
+**Lands in:** Intel tab (overlap pill / detail — extends Task 1c overlap list); **Commands** or **shell** (latency overlay, audit); **map** (overlap lines if spec’d); **global** (voice settings + optional header mute).
+
+**`oldui/` behaviour references (no UI copy):**
+- [oldui/src/app/utils/overlapPreview.ts](oldui/src/app/utils/overlapPreview.ts), [oldui/src/app/components/CoverageOverlapIndicator.tsx](oldui/src/app/components/CoverageOverlapIndicator.tsx), [oldui/src/app/components/OverlapPanel.tsx](oldui/src/app/components/OverlapPanel.tsx)
+- [oldui/src/app/components/CommandLatencyOverlay.tsx](oldui/src/app/components/CommandLatencyOverlay.tsx) — tone thresholds, auto-collapse
+- [oldui/src/app/components/JamsPanel.tsx](oldui/src/app/components/JamsPanel.tsx) — haversine, history buffer
+- [oldui/src/app/components/CommandAuditPanel.tsx](oldui/src/app/components/CommandAuditPanel.tsx) — `humaniseFailureReason`, `relTime`, poll interval
+- [oldui/src/app/utils/eventSeverity.ts](oldui/src/app/utils/eventSeverity.ts), [oldui/src/app/utils/eventSpeech.ts](oldui/src/app/utils/eventSpeech.ts), [oldui/src/app/utils/voiceAlertConfig.ts](oldui/src/app/utils/voiceAlertConfig.ts), [oldui/src/app/hooks/useVoiceAlerts.ts](oldui/src/app/hooks/useVoiceAlerts.ts), [oldui/src/app/components/VoiceAlertsModal.tsx](oldui/src/app/components/VoiceAlertsModal.tsx) — settings UI from Figma only
+- [oldui/src/app/hooks/useRadarKinematics.ts](oldui/src/app/hooks/useRadarKinematics.ts) — **map parity:** logic lives in [src/utils/radarAzimuthKinematics.ts](../../src/utils/radarAzimuthKinematics.ts) (duplicate-bearing skip differs slightly from legacy hook — avoids snap-back loop). [oldui/src/app/components/RadarModeChip.tsx](oldui/src/app/components/RadarModeChip.tsx) — **still optional** (rotation×jam chip) if desired before Task 13
+
+**Prompt:**
+```
+Task: Task 11 — Situational awareness bundle (split into sub-PRs if large).
+
+Read: docs/API_GUIDE.md for overlaps, commands audit, mission events; existing useMissionOverlaps + useMissionSockets command_update
+Figma: one node per visible control (overlap pill, latency popover, jams card, audit table, voice modal, header mute) — get_design_context each.
+
+Deliverables (logic-first, Figma for chrome):
+1) Port overlapPreview.ts + overlapKey/severity rollup; wire Intel overlap pill + optional detail panel to useMissionOverlaps + map pair highlight
+2) Command latency: extract latency from WS command_update; bands <100 / 100–300 / >300 ms; auto-collapse ~5s; overlay component
+3) JamsPanel logic: haversine to nearest jammer, rolling history cap from oldui JamsPanel
+4) CommandAuditPanel logic: humaniseFailureReason + listMissionCommandsAudit + device name maps + 5s poll
+5) Voice: port eventSeverity, eventSpeech, voiceAlertConfig, useVoiceAlerts; wire speak() from useMissionSockets mission events; settings + toggle from Figma
+
+Acceptance: each sub-feature matches oldui behaviour where applicable; no copied oldui layout; permissions and toasts consistent with §7
+```
+
+### Task 12 — DVR playback (licensed / when scoped)
+
+**Read:** `docs/API_GUIDE.md` § DVR (`.../dvr/state`, `.../dvr/events` NDJSON).
+
+**References:** [oldui/src/app/api/dvr.api.ts](oldui/src/app/api/dvr.api.ts), [useDvrPlayback.ts](oldui/src/app/hooks/useDvrPlayback.ts), [useDvrTimeline.ts](oldui/src/app/hooks/useDvrTimeline.ts), [DvrScrubber.tsx](oldui/src/app/components/DvrScrubber.tsx), [DvrTimeline.tsx](oldui/src/app/components/DvrTimeline.tsx) — **behaviour + stream handling only**.
+
+**Prompt:**
+```
+Task: Task 12 — DVR replay.
+
+Read: docs/API_GUIDE.md DVR endpoints; confirm licensing/scope with team.
+Port dvr.api to src/lib/api/dvr.ts using apiFetch + NDJSON stream reading. Port useDvrPlayback and useDvrTimeline (interpolation, 10Hz ticker, prefetch). DVR mode feeds targetsStore/deviceStatusStore from snapshots instead of live WS. Figma: scrubber + LIVE/DVR toggle — get_design_context first.
+
+Acceptance: scrub/play/speed parity with oldui behaviour; no visual copy from oldui
+```
+
+### Task 13 — Post-operator polish (PDF, radar geometry, threat, reboot, password)
+
+**Prompt:**
+```
+Task: Task 13 — Post-operator polish (pick one or more per PR).
+
+Read: docs/API_GUIDE.md for PDF/AAR export path; auth change-password if exposed.
+- Mission PDF / AAR: use apiBlob from Task P; idle/pending/success/error state — Figma control
+- AzimuthDial + PitchSideView: port pure SVG/trig from oldui AzimuthDial.tsx / PitchSideView.tsx — Figma layout
+- ZoneActionPlanForm: port toggle/emit state from oldui ZoneActionPlanForm — integrate zone editor — Figma
+- threat.ts + radioBands.ts → src/utils (pure)
+- rebootTracker.ts — WS-driven reboot detection — toast optional
+- Change password modal — validation + POST per API_GUIDE — Figma
+
+oldui paths are behaviour-only; do not copy layouts.
+```
+
+### Task 14 — Admin / commander track (optional, separate program)
+
+**Prompt:**
+```
+Task: Task 14 — Admin or commander surfaces (scope explicitly before starting).
+
+Read: docs/API_GUIDE.md — ROE rules/policies/decisions, playbooks if any, sites, commander overview, optional WS patterns.
+Port hook/API patterns from oldui: useRoeCatalogue.ts, Roe*.tsx (logic), playbooks.api.ts, useSiteBoundary.ts, useCommanderLiveWs.ts, CommanderOverviewMap.tsx (behaviour).
+Each screen needs its own Figma node; do not ship oldui admin chrome.
+
+Acceptance: RBAC per API_GUIDE; no admin routes in operator-only builds if product requires separation
+```
+
 ## 7. Cross-cutting guardrails (apply to every task)
 
-- **`old-ui/` scope (STRICT):** `old-ui/` is a reference for **APIs, WS reducers, data fields shown, and behavioural contracts ONLY**. All visual design (layout, grids, colors, spacing, radii, typography, motion) comes from **Figma + [src/styles/driifTokens.ts](src/styles/driifTokens.ts)** per [.cursor/rules/design.md](.cursor/rules/design.md) and [.cursor/rules/figma-build.md](.cursor/rules/figma-build.md). **Never copy `old-ui/` component layouts, grids, Tailwind class strings, or styling verbatim.** If a Figma node is not provided for a sub-task, pause and ask — do not invent designs.
+- **API contract:** verify paths, permissions, and payload shapes in **[docs/API_GUIDE.md](../../docs/API_GUIDE.md)** first; use [docs/API_REFERENCE.md](../../docs/API_REFERENCE.md) where this plan cites legacy § labels.
+- **`oldui/` scope (STRICT):** [oldui/](oldui/) is a reference for **APIs, WS reducers, data fields shown, and behavioural contracts ONLY**. All visual design (layout, grids, colors, spacing, radii, typography, motion) comes from **Figma + [src/styles/driifTokens.ts](src/styles/driifTokens.ts)** per [.cursor/rules/design.md](.cursor/rules/design.md) and [.cursor/rules/figma-build.md](.cursor/rules/figma-build.md). **Never copy `oldui/` component layouts, grids, Tailwind class strings, or styling verbatim.** If a Figma node is not provided for a sub-task, pause and ask — do not invent designs.
 - **Auth:** always go through `apiFetch` in [src/lib/api/client.ts](src/lib/api/client.ts); it handles Bearer + base URL.
 - **Permissions:** read `authStore.permissions` before rendering action buttons. Hide, don't disable, per §F.
 - **Error mapping:** extend [src/lib/formatCommandError.ts](src/lib/formatCommandError.ts) for the new error codes (`friendly_drone_active`, `command_not_valid_for_device_type`, `command_not_supported_by_protocol`).
 - **Tokens:** all new UI pulls from [src/styles/driifTokens.ts](src/styles/driifTokens.ts) so the Figma designs stay consistent.
 - **Query keys:** use tuple keys `["commands", missionId, status]`, `["swarms", missionId]`, `["friendlies", missionId]`, `["zone-breaches", missionId]`, `["events", missionId, filters]` — makes WS-triggered invalidation trivial.
-- **No admin endpoints** touched in this plan (IAM, protocols, policies, command delete/cleanup) — queued for a separate admin plan.
+- **Admin / IAM:** Tasks **2–11** stay operator-focused. **Task 14** may introduce admin/commander surfaces — keep RBAC aligned with API_GUIDE; defer IAM CRUD to a separate program unless product folds it in.
 
 ## 8. Unused client code to keep or retire
 
@@ -779,15 +977,28 @@ Already written but currently unused — will be consumed by the tasks above:
 
 ## 9. Open items to confirm
 
+- **Task P / create mission:** Client requires a **parent site** when the sites list is non-empty; confirm with backend whether **`site_id` may be null** in edge cases. Radar draft apply + **`aop`** summary are implemented; vertex-based border-in-site check may not catch every server-side “not contained” rejection for concave borders.
 - **Task A:** `CONNECTION_MODE` (Edge-connector / Direct radar) is not in the documented `DeviceCreate`/`DeviceOut` schema. Confirm the backend field name before wiring the PATCH — otherwise we render the control read-only and skip it on submit. *(Still open; Task A shipped without it.)*
 - **Task A:** `Open` drawer shape — the old UI had no screenshot for this. Plan assumed a right-side live-state drawer; that is what shipped. Ping if you'd rather it navigate to a dedicated route.
-- **Tasks 1–9:** Figma file URL / node IDs for each panel (I've left `<FIGMA_NODE_URL>` placeholders).
+- **Task 2 (optional product scope):** oldui ships a **cross-mission** `/approvals` page (`GET /commands?status=PENDING_APPROVAL&limit=200`). COP can defer or add `/dashboard/approvals` + nav for supervisor parity — not required for in-mission Task 2.
+- **Task 2:** Confirm **approve** endpoint accepts `reason: null` vs `""` vs omitted — align `approveCommand` with API_GUIDE and oldui `reason || null`.
+- **Tasks 1–9, 11–14:** Figma file URL / node IDs for each panel (placeholders remain `FIGMA_NODE_URL` / task-specific placeholders in §6).
 - **Task 5:** Whether swarm halos should be drawn as a true bounding circle or as a convex hull — the API ships only `target_uids`, so the client computes geometry from the current target positions.
 
 ## 10. Change log
 
+- **2026-05-02 — Loading UX + legend FAB/drawer polish (shipped).** [InlineLoadIndicator](src/components/ui/InlineLoadIndicator.tsx) (`align` optional). [DevicesInventoryOverlay](src/components/devices/DevicesInventoryOverlay.tsx) **loading assets** on slow list fetch. Swapped loaders in [MissionSelector](src/components/missions/MissionSelector.tsx), [MissionCreateSiteSelect](src/components/missions/MissionCreateSiteSelect.tsx), [SelectAssetsWorkspace](src/components/missions/SelectAssetsWorkspace.tsx), [EditDeviceModal](src/components/devices/EditDeviceModal.tsx), [DeviceDetailDrawer](src/components/devices/DeviceDetailDrawer.tsx), [dashboard `MapContainer` dynamic](src/app/dashboard/page.tsx). [MapLegendPanel](src/components/map/MapLegendPanel.tsx): FAB **`bellRight`**, drawer **from right**, **no dim**, **close**, **hide FAB** when open. Frontmatter **`t-ux-loader-legend-polish`** **completed**; §1.1 / §1.2 Task 1d row / Task 1d § / overview updated.
+- **2026-05-02 — Task 1d complete (map legend + layer toggles).** Shipped [MapLegendPanel](src/components/map/MapLegendPanel.tsx), [mapLayerGroups.ts](src/components/map/mapLayerGroups.ts), [useMapLayerToggles.ts](src/hooks/useMapLayerToggles.ts) (`aeroshield.missionMap.layers`), [MapContainer](src/components/map/MapContainer.tsx) visibility wiring; `radar-sweep-detection` / `radar-sweep-jammer`; [BORDER_TOGGLE_LAYER_IDS](src/components/map/layers/border.ts) / [FENCE_TOGGLE_LAYER_IDS](src/components/map/layers/fence.ts). **`t1d-ws-legend`** → **completed**; §1.1 / §1.2 / §4 / Task 1d section / Task 0 remainder row updated.
+- **2026-05-02 — COP dashboard chrome + Task 1d split.** **Shipped:** Settings overlay (map controls + `WsStatusIndicator`), Account overlay (username + logout), CopShell/`driifTokens` flyout alignment, single notifications control → overall detections overlay, bell/logo symmetric insets, removal of `CopTopBar` + standalone detection icon. **Frontmatter:** new **`t-cop-dashboard-chrome`** **completed**; **`t1d-ws-legend`** → **in_progress** (WS in Settings **done**; **map legend / layer toggles** only remain). **§1.1 / §1.2 / §4 / Task 1d section** updated to match.
+- **2026-05-02 — Plan status: Task P marked [DONE].** Frontmatter `t-pref-foundation` → **completed**; §1.2 bucket, §4 item 4, Task P heading + **When**, Task 8 list line, §6 Task 8 prerequisite copy, and **Flow** line updated so the plan shows foundation work closed (implementation was merged earlier on 2026-05-02).
+- **2026-05-02 — Task 0 radar pass (map).** Documented shipped work: **`radarAzimuthKinematics`** (sparse-sample smooth rotation + fix for periodic snap-back when using time-bounded duplicate filter), **protocol `default_*` merge** in GeoJSON, **breach fills** + white/amber wedges, **D20** FE sweep + **`protocol`** on features, omnidirectional **boresight** wedge. Plan Task 0 “Shipped” section refreshed; frontmatter `t0-radar-map-semantics` updated. **Remaining radar-only polish:** Figma colour tokens; optional `RadarModeChip` (Task 11); optional old-ui hook alignment + 60 fps sweep polish.
+- **2026-05-02 (priority).** **Where to start** updated: team chooses **mission create / Task P create subset** before **Task 2**; §4 item 4 notes PR1 foundation slice. §4 “Flow you asked for” allows pulling Task P ahead of approvals when blocking.
+- **2026-05-02 — Task P foundation shipped.** Added `apiJsonWithHeaders`, `apiBlob`, `parseContentDispositionFilename`; GET `_ts` + no-cache headers on all GETs; `listMissionEventsWithTotal`, `MissionEventsQuery`, CSV/NDJSON download helpers; `useMissionEvents` uses header-aware fetch; `isMissionBorderInsideSite` + sites list lookup in `MissionSelector.handleCreate`; `ZoneType` + command/device type bags in `aeroshield.ts`. §1.2 Task P row, §4 item 4, Task P narrative, §9 open item updated.
+- **2026-05-02 (later).** *(Superseded by Task P ship above.)* Earlier note documented create-mission gaps (`site_id`, `aop`, radar drafts, border validation) — **addressed** in the Task P implementation pass.
+- **2026-05-02 — Oldui parity merge into Tasks 2–6.** Incorporated review vs `oldui/`: Task 2 (policies `approvalsEnabled`, optional `/approvals` page, approve optional note + body shape, 5s poll, `React.memo`, query invalidation + `commandsStore`, badge); Task 3 (replace `MissionDeviceAimControls` confirm, narrow JAM call sites, NOOP + `idempotency_key`); Task 4 (`band`, `[JAMMED]` / friendly exclusions); Task 5 (`threat.ts` / `swarmCluster` + ratings/friendly props); Task 6 (dedicated `TRACK_RATED` limit-500 fold, annotations POST shape). §4 later updated: default start can be **Task P create subset** then Task 2 (see 2026-05-02 priority changelog).
 - **P0 WS reducers + drone-flood fix (current pass).** Centralized `handleMissionEvent`; added `missionEventsBus`; bumped `MAX_EVENTS` to 500; extended `Target` with `rating`/`threat` and `DeviceStatusEntry` with azimuth fields; REST `useMissionEvents` is now a one-shot 15-minute timeline backfill (no longer seeds `targetsStore`), fixing the "200 historical drones on mission select" flood. `yarn build` green.
 - **Task A — Devices admin list.** Shipped (see Task A section for file list and follow-ups).
 - **Plan update (this pass).** Expanded Task 1 to three sub-deliverables (1a Toast provider, 1b Mission Workspace tabbed shell with Timeline / Devices / Detections / Commands / Intel tabs, 1c lifecycle + overlaps). Annotated Tasks 2 / 4 / 5 / 7 / 8 with their landing tab. Added deferred Task 10 — Command launch UI. Added a strict `old-ui/` scope guardrail to §7: references for APIs + behaviour only, visuals come from Figma + `driifTokens.ts`. Informed by review of legacy `old-ui/` (`MissionWorkspacePage.tsx`, `Toasts.tsx`, `CommandPanel.tsx`, `DetectionsPanel.tsx`, `TimelinePanel.tsx`, `DevicePanel.tsx`, `command.api.ts`, `device.api.ts`).
 - **Task 1b follow-on.** Right-rail mission workspace aligned with Detections; live detections list + `Target` fields `positionDerived` / `monitorDeviceId`; `MissionDetectionsList`; timeline Device/Location from `missionEventDisplay` (incl. zone-breach top-level `uav_lat`/`uav_lon`); KPI border fix; flat timeline tab; removed footer status badges; `Deselect` + `clearEvents` on exit. *(Subsequent pass completed Task 1c — see latest changelog entry.)*
 - **Task 1c + Devices + map parity (later pass).** Shipped activate/stop/overlaps + `CoverageWarningModal`; mission header actions and Intel overlaps. Devices tab: aim controls, diagnostics, live telemetry grid, `deviceHealth` integration; command audit UX. Map: ring-fill inner-radius fix (north line artefact); `readAzimuthFromDeviceStatePayload` in `deviceHealth.ts`; `useMissionDeviceStatesHydration` in `MissionWorkspace` for REST seeding/poll of mission device states. Plan frontmatter: `t1-lifecycle` → **completed**; `t0-radar-map-semantics` description updated; `t9-polish` → **in_progress** (health done, zones/configs pending). Added §1.1 / §1.2 progress snapshot.
+- **Master plan consolidation (2026-04-30).** Declared this file the **single canonical plan** (§0). Primary API doc → `docs/API_GUIDE.md` with `API_REFERENCE` as appendix fallback. **Frontmatter:** new todos `t-pref-foundation`, `t1d-ws-legend`, `t11-situational`, `t12-dvr`, `t13-post-op`, `t14-admin-cmdr`. **§4 execution order:** lifecycle (Task 1) still before approvals (Task 2); inserted **Task P** (foundation) before Task 8 and **Task 1d** (WS + map legend) parallel-friendly; added **Tasks F/P, 1d, 11–14** with copy-paste prompts (merged from gap-review / oldui phased doc). **§6:** Task 8 prompt now depends on Task P helpers; Task 2 wiring clarified (Commands tab); **§7:** API_GUIDE + `oldui/` naming. [.cursor/plans/api_and_oldui_gap_review.plan.md](api_and_oldui_gap_review.plan.md) is superseded for prompts — optional duplicate Figma registry only.

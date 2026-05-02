@@ -31,6 +31,12 @@ import {
 import { addTargetLayers, updateTargetLayersData } from "./layers/targets";
 import { addZonesLayer, setZonesLayerData } from "./layers/zones";
 import {
+  applyMapLayerGroupVisibility,
+  DEFAULT_MAP_LAYER_TOGGLES,
+  type MapLayerToggles,
+} from "./mapLayerGroups";
+import { MapLegendPanel } from "./MapLegendPanel";
+import {
   applyBorderLabelLightPreset,
   setBorderLayer,
 } from "./layers/border";
@@ -41,6 +47,8 @@ import {
   missionZonesToGeoJSON,
 } from "@/utils/mapFeatures";
 import { buildMergedRadarAssetsGeoJSON } from "@/utils/radarAssetsGeoJSON";
+import { useProtocolsList } from "@/hooks/useProtocolsList";
+import { useMapLayerToggles } from "@/hooks/useMapLayerToggles";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useMissionStore } from "@/stores/missionStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
@@ -217,6 +225,13 @@ export function MapContainer({
   const apiTargets = useTargetsStore((s) => s.targets);
   const cachedMission = useMissionStore((s) => s.cachedMission);
   const byDeviceId = useDeviceStatusStore((s) => s.byDeviceId);
+  const { data: protocols = [] } = useProtocolsList();
+  const { toggles: mapLayerToggles, setToggle: setMapLayerToggle, resetToDefaults: resetMapLayerToggles } =
+    useMapLayerToggles();
+  const layerTogglesRef = useRef<MapLayerToggles>(DEFAULT_MAP_LAYER_TOGGLES);
+  layerTogglesRef.current = mapLayerToggles;
+  const protocolsRef = useRef(protocols);
+  protocolsRef.current = protocols;
   const useApiTargets = !!missionId;
 
   const assetsForIntercept = useMemo((): Asset[] => {
@@ -431,14 +446,16 @@ export function MapContainer({
           landingAssetsRef.current,
           missionDevices,
           live,
+          protocolsRef.current,
         );
       } else if (mf) {
-        assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mf);
+        assetsGeoJSON = mapFeaturesToAssetsGeoJSON(mf, protocolsRef.current);
       } else {
         assetsGeoJSON = buildMergedRadarAssetsGeoJSON(
           landingAssetsRef.current,
           undefined,
           live,
+          protocolsRef.current,
         );
       }
       await addAssetLayers(map, assetsGeoJSON, {
@@ -611,12 +628,18 @@ export function MapContainer({
         };
 
         map.on("click", "assets-symbols", handleAssetClick);
-        map.on("click", "assets-coverage", handleAssetClick);
+        map.on("click", "assets-coverage-fill", handleAssetClick);
+        map.on("click", "assets-coverage-outline", handleAssetClick);
         map.on("click", "targets-symbols", handleTargetClick);
 
         map.on("click", (e) => {
           const features = map.queryRenderedFeatures(e.point, {
-            layers: ["assets-symbols", "assets-coverage", "targets-symbols"],
+            layers: [
+              "assets-symbols",
+              "assets-coverage-fill",
+              "assets-coverage-outline",
+              "targets-symbols",
+            ],
           });
           if (features.length > 0) return;
           clearSelection();
@@ -632,6 +655,8 @@ export function MapContainer({
           notifyOverlayPositionUpdate();
         });
       }
+
+      applyMapLayerGroupVisibility(map, layerTogglesRef.current);
     };
 
     mountOperationalLayersRef.current = mountOperationalLayers;
@@ -928,6 +953,7 @@ export function MapContainer({
         landingAssets,
         missionId ? cachedMission?.devices : undefined,
         useDeviceStatusStore.getState().byDeviceId,
+        protocols,
       ),
     );
   }, [
@@ -935,6 +961,7 @@ export function MapContainer({
     cachedMission?.devices,
     missionId,
     byDeviceId,
+    protocols,
     mapReady,
     isIntroComplete,
   ]);
@@ -1129,6 +1156,12 @@ export function MapContainer({
     return () => window.removeEventListener("resize", handleResize);
   }, []);
 
+  useEffect(() => {
+    const map = mapRef.current;
+    if (!map || !isIntroComplete) return;
+    applyMapLayerGroupVisibility(map, mapLayerToggles);
+  }, [mapLayerToggles, isIntroComplete]);
+
   if (error) {
     return (
       <div className="absolute inset-0 bg-slate-900/50 flex items-center justify-center">
@@ -1148,10 +1181,19 @@ export function MapContainer({
   }
 
   return (
-    <div
-      ref={mapContainerRef}
-      className="driif-map-host absolute inset-0"
-      style={{ width: "100%", height: "100%" }}
-    />
+    <div className="absolute inset-0">
+      <div
+        ref={mapContainerRef}
+        className="driif-map-host absolute inset-0"
+        style={{ width: "100%", height: "100%" }}
+      />
+      {isIntroComplete && (
+        <MapLegendPanel
+          toggles={mapLayerToggles}
+          onSetLayer={setMapLayerToggle}
+          onResetLayers={resetMapLayerToggles}
+        />
+      )}
+    </div>
   );
 }

@@ -6,9 +6,14 @@ import { useDeviceDetailQueries } from "@/hooks/useDeviceDetail";
 import { missionWorkspaceSectionLabelStyle } from "@/components/missions/MissionWorkspaceShell";
 import { COLOR, FONT, Z } from "@/styles/driifTokens";
 import {
+  driifAssetsMutedStatusPill,
+  driifAssetsOfflineStatusPill,
+  driifAssetsOnlineStatusPill,
+  driifAssetsPanelSurface,
   driifDevicePrimaryButton,
   driifDeviceSecondaryButton,
 } from "./deviceAdminStyles";
+import { InlineLoadIndicator } from "@/components/ui/InlineLoadIndicator";
 
 type Props = {
   open: boolean;
@@ -16,6 +21,12 @@ type Props = {
   device: Device | null;
   onOpenOnMap?: (missionId: string | null) => void;
 };
+
+function statusRowStyle(status: string | undefined) {
+  if (status === "ONLINE") return driifAssetsOnlineStatusPill;
+  if (status === "OFFLINE") return driifAssetsOfflineStatusPill;
+  return driifAssetsMutedStatusPill;
+}
 
 export function DeviceDetailDrawer({ open, onClose, device, onOpenOnMap }: Props) {
   const router = useRouter();
@@ -34,6 +45,15 @@ export function DeviceDetailDrawer({ open, onClose, device, onOpenOnMap }: Props
 
   if (!open) return null;
 
+  const drawerAsideStyle = {
+    ...driifAssetsPanelSurface,
+    borderRadius: 0,
+    borderRight: "none",
+    borderTop: "none",
+    borderBottom: "none",
+    boxShadow: "none",
+  };
+
   return (
     <>
       <button
@@ -44,19 +64,20 @@ export function DeviceDetailDrawer({ open, onClose, device, onOpenOnMap }: Props
         onClick={onClose}
       />
       <aside
-        className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l p-4 shadow-2xl"
+        className="fixed right-0 top-0 h-full w-full max-w-md overflow-y-auto border-l shadow-2xl"
         style={{
+          ...drawerAsideStyle,
           zIndex: Z.modal,
-          background: COLOR.missionsPanelBg,
-          borderColor: COLOR.missionsSearchBorder,
+          borderLeft: `1px solid rgba(255,255,255,0.12)`,
+          padding: "16px",
           fontFamily: `${FONT.family}, sans-serif`,
         }}
       >
         <div className="flex items-start justify-between gap-2">
-          <div>
+          <div className="min-w-0">
             <h2
               style={{
-                color: COLOR.missionsTitleMuted,
+                color: COLOR.missionsBodyText,
                 fontSize: FONT.missionWorkspaceTitleSize,
                 fontWeight: FONT.weightMedium,
                 lineHeight: FONT.missionWorkspaceTitleLineHeight,
@@ -76,19 +97,17 @@ export function DeviceDetailDrawer({ open, onClose, device, onOpenOnMap }: Props
             </p>
             {d && (
               <span
-                className="mt-2 inline-block rounded px-2 py-0.5 font-mono text-[11px]"
+                className="mt-2 inline-block"
                 style={{
-                  background:
-                    d.status === "ONLINE"
-                      ? COLOR.missionCreateRadarStatusPillBg
-                      : "rgba(148, 163, 184, 0.15)",
-                  color:
-                    d.status === "ONLINE"
-                      ? COLOR.missionCreateRadarStatusPillText
-                      : COLOR.missionsSecondaryText,
+                  ...statusRowStyle(d.status),
+                  textTransform: "capitalize",
                 }}
               >
-                {d.status}
+                {d.status === "ONLINE"
+                  ? "Online"
+                  : d.status === "OFFLINE"
+                    ? "Offline"
+                    : d.status}
               </span>
             )}
           </div>
@@ -101,14 +120,22 @@ export function DeviceDetailDrawer({ open, onClose, device, onOpenOnMap }: Props
           Live state
         </h3>
         {stateQ.isLoading && (
-          <p style={{ color: COLOR.missionsSecondaryText, fontSize: FONT.sizeSm }}>
-            Loading…
-          </p>
+          <InlineLoadIndicator
+            label="Loading live state…"
+            minHeight="4.5rem"
+            spinnerSize={24}
+            className="py-3"
+            align="start"
+          />
         )}
         {s && (
           <ul
-            className="space-y-1.5 font-mono text-sm"
-            style={{ color: COLOR.missionsBodyText }}
+            className="space-y-1.5 rounded-[4px] p-3 font-mono text-sm"
+            style={{
+              color: COLOR.missionsBodyText,
+              background: COLOR.missionsPanelBg,
+              border: `1px solid rgba(255,255,255,0.08)`,
+            }}
           >
             <li>last_seen: {s.last_seen ?? "—"}</li>
             <li>battery: {s.battery_pct ?? "—"}%</li>
@@ -128,8 +155,12 @@ export function DeviceDetailDrawer({ open, onClose, device, onOpenOnMap }: Props
         </h3>
         {c && (
           <div
-            className="space-y-1 break-all font-mono text-xs"
-            style={{ color: COLOR.missionsBodyText }}
+            className="space-y-1 break-all rounded-[4px] p-3 font-mono text-xs"
+            style={{
+              color: COLOR.missionsBodyText,
+              background: COLOR.missionsPanelBg,
+              border: `1px solid rgba(255,255,255,0.08)`,
+            }}
           >
             <p>ip: {c.ip_port ? `${c.ip_port.ip}:${c.ip_port.port}` : "—"}</p>
             <p>gateway: {c.gateway_ip ?? "—"}</p>

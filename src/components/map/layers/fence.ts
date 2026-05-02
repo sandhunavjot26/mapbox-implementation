@@ -1,28 +1,37 @@
 import type mapboxgl from "mapbox-gl";
 import type { SavedFence } from "@/types/aeroshield";
-import {
-  type Coordinate,
-  FENCE_MODE_COLORS,
-  getPolygonCentroid,
-} from "@/utils/fenceGeometry";
 
 export const DRAFT_SOURCE_ID = "create-fence-draft";
 export const SAVED_SOURCE_ID = "create-fence-saved";
-export const SAVED_LABEL_SOURCE_ID = "create-fence-saved-label-src";
+
 const DRAFT_FILL_LAYER_ID = "create-fence-draft-fill";
 const DRAFT_OUTLINE_LAYER_ID = "create-fence-draft-outline";
 const SAVED_FILL_LAYER_ID = "create-fence-saved-fill";
 const SAVED_OUTLINE_LAYER_ID = "create-fence-saved-outline";
-const SAVED_LABEL_LAYER_ID = "create-fence-saved-label";
+
+/** Legacy symbol layer (fence name on map) — removed; tear down if still present. */
+const LEGACY_SAVED_LABEL_LAYER_ID = "create-fence-saved-label";
+const LEGACY_SAVED_LABEL_SOURCE_ID = "create-fence-saved-label-src";
+
+export const FENCE_TOGGLE_LAYER_IDS: readonly string[] = [
+  DRAFT_FILL_LAYER_ID,
+  DRAFT_OUTLINE_LAYER_ID,
+  SAVED_FILL_LAYER_ID,
+  SAVED_OUTLINE_LAYER_ID,
+];
 
 const ALL_LAYER_IDS = [
   DRAFT_FILL_LAYER_ID,
   DRAFT_OUTLINE_LAYER_ID,
   SAVED_FILL_LAYER_ID,
   SAVED_OUTLINE_LAYER_ID,
-  SAVED_LABEL_LAYER_ID,
+  LEGACY_SAVED_LABEL_LAYER_ID,
 ];
-const ALL_SOURCE_IDS = [DRAFT_SOURCE_ID, SAVED_SOURCE_ID, SAVED_LABEL_SOURCE_ID];
+const ALL_SOURCE_IDS = [
+  DRAFT_SOURCE_ID,
+  SAVED_SOURCE_ID,
+  LEGACY_SAVED_LABEL_SOURCE_ID,
+];
 
 export function toPolygonFeatureCollection(
   features: Array<GeoJSON.Feature<GeoJSON.Polygon>>,
@@ -30,30 +39,18 @@ export function toPolygonFeatureCollection(
   return { type: "FeatureCollection", features };
 }
 
-export function toLabelCollection(
-  fences: SavedFence[],
-): GeoJSON.FeatureCollection<GeoJSON.Point> {
-  return {
-    type: "FeatureCollection",
-    features: fences.map((fence) => ({
-      type: "Feature" as const,
-      properties: {
-        name: fence.name,
-        outlineColor:
-          fence.geometry.properties?.outlineColor ??
-          FENCE_MODE_COLORS[fence.mode].outline,
-      },
-      geometry: {
-        type: "Point" as const,
-        coordinates: getPolygonCentroid(
-          fence.geometry.geometry.coordinates[0] as Coordinate[],
-        ),
-      },
-    })),
-  };
+function removeLegacyFenceLabelLayer(map: mapboxgl.Map) {
+  if (map.getLayer(LEGACY_SAVED_LABEL_LAYER_ID)) {
+    map.removeLayer(LEGACY_SAVED_LABEL_LAYER_ID);
+  }
+  if (map.getSource(LEGACY_SAVED_LABEL_SOURCE_ID)) {
+    map.removeSource(LEGACY_SAVED_LABEL_SOURCE_ID);
+  }
 }
 
 export function ensureFenceLayers(map: mapboxgl.Map) {
+  removeLegacyFenceLabelLayer(map);
+
   if (!map.getSource(DRAFT_SOURCE_ID)) {
     map.addSource(DRAFT_SOURCE_ID, {
       type: "geojson",
@@ -129,36 +126,6 @@ export function ensureFenceLayers(map: mapboxgl.Map) {
       },
     });
   }
-
-  if (!map.getSource(SAVED_LABEL_SOURCE_ID)) {
-    map.addSource(SAVED_LABEL_SOURCE_ID, {
-      type: "geojson",
-      data: toLabelCollection([]),
-    });
-  }
-
-  if (!map.getLayer(SAVED_LABEL_LAYER_ID)) {
-    map.addLayer({
-      id: SAVED_LABEL_LAYER_ID,
-      type: "symbol",
-      source: SAVED_LABEL_SOURCE_ID,
-      slot: "top",
-      layout: {
-        "text-field": ["get", "name"] as unknown as string,
-        "text-size": 15,
-        "text-font": ["DIN Pro Regular", "Arial Unicode MS Regular"],
-        "text-offset": [0, 1.2],
-        "text-allow-overlap": true,
-      },
-      paint: {
-        "text-color": ["coalesce", ["get", "outlineColor"], "#FF30C6"],
-        "text-halo-color": "rgba(0,0,0,0.72)",
-        "text-halo-width": 1,
-        "text-emissive-strength": 1,
-        "text-color-use-theme": "disabled",
-      },
-    });
-  }
 }
 
 export function updateFenceLayers(
@@ -177,11 +144,34 @@ export function updateFenceLayers(
   savedSource.setData(
     toPolygonFeatureCollection(savedFences.map((f) => f.geometry)),
   );
+}
 
-  const labelSource = map.getSource(
-    SAVED_LABEL_SOURCE_ID,
-  ) as mapboxgl.GeoJSONSource;
-  labelSource.setData(toLabelCollection(savedFences));
+/**
+ * Push draft + saved GeoJSON to the map. Prefer this at user-action boundaries (cancel, delete,
+ * reset): draft previews can exist while `isStyleLoaded()` is still false, but callers must not
+ * skip updates when that flag briefly lags — do-try + `style.load` retry matches Mapbox patterns.
+ */
+export function syncFenceLayersToMap(
+  map: mapboxgl.Map | null | undefined,
+  draftGeometry: GeoJSON.Feature<GeoJSON.Polygon> | null,
+  savedFences: SavedFence[],
+): void {
+  if (!map) return;
+
+  const apply = () => {
+    updateFenceLayers(map, draftGeometry, savedFences);
+  };
+
+  try {
+    apply();
+  } catch {
+    map.once("style.load", apply);
+    return;
+  }
+
+  if (!map.isStyleLoaded()) {
+    map.once("style.load", apply);
+  }
 }
 
 export function setDraftLayerData(

@@ -2,11 +2,11 @@
  * Mission device radar overlays on Mapbox (Task 0).
  *
  * Behaviour matches old-ui `MissionMap` + `beam.ts` (not pixel styling):
- * - Detection / jammer coverage uses live `deviceStatusStore.azimuth_deg` for sector bearing.
- * - Beam width from GeoJSON props (`detection_beam_deg` / `jammer_beam_deg`); 360° = omnidirectional (no sector wedge).
- * - Optional breach rings (`breach_*_km` props) render as green / yellow / red circles (threat radii), separate from detection range.
- * - No synthetic rotating sweep; wedge updates only when azimuth updates on the wire.
- * - Detection wedge uses the pre–Task 0 green **gradient** (concentric segment opacities); jammer wedge uses the same structure in amber.
+ * - Azimuth: `radarAzimuthKinematics` smooths sparse WS samples like old-ui `useRadarKinematics`; D20 uses a FE sweep (no turntable azimuth).
+ * - Beam width / range from GeoJSON (device + protocol defaults); omnidirectional detection uses a narrow boresight wedge for cueing.
+ * - Breach zones: filled annuli (red stepped disk, yellow/green rings) + green/yellow/red outlines (old-ui semantics).
+ * - Detection wedge uses white gradient segments; jammer wedge uses the same structure in amber.
+ * - Radar stroke/fill hex values come from `COLOR.mapRadar*` in `src/styles/driifTokens.ts` — adjust there when map-overlay Figma tokens ship.
  */
 
 import mapboxgl from "mapbox-gl";
@@ -15,6 +15,13 @@ import { useTargetsStore } from "@/stores/targetsStore";
 import { useDeviceStatusStore } from "@/stores/deviceStatusStore";
 import type { BasemapVariant } from "@/utils/mapboxBasemapConfig";
 import { assetToDefaultRadarFeature } from "@/utils/radarAssetsGeoJSON";
+import { COLOR } from "@/styles/driifTokens";
+import {
+  advanceRadarAzimuthAnimation,
+  clearRadarAzimuthKinematics,
+  getAnimatedRadarAzimuth,
+  syncRadarAzimuthSamples,
+} from "@/utils/radarAzimuthKinematics";
 
 export type RadarAnimAsset = {
   id: string;
@@ -31,6 +38,8 @@ export type RadarAnimAsset = {
   breachGreenKm?: number;
   breachYellowKm?: number;
   breachRedKm?: number;
+  /** Device protocol (e.g. D20) — used for wedge behaviour parity with old-ui. */
+  protocol?: string;
 };
 
 /** Updated by setAssetLayersData — rAF reads `useDeviceStatusStore` each frame for azimuth. */
@@ -41,16 +50,38 @@ const EARTH_RADIUS_KM = 6371;
 /** Animation frame ID for cancellation on map destroy */
 let requestAnimationId: number | null = null;
 
-/** Figma Driif-UI map symbology — must stay vivid on Standard + night + monochrome */
+/** Figma Driif-UI map symbology — colours from `COLOR.mapRadar*` in driifTokens */
 const RADAR_SLOT = "top" as const;
-const RADAR_ORANGE = "#F4A30C"; // Yellow/50
-const RADAR_ORANGE_DEEP = "#EA580C"; // outer dashed ring
-const RADAR_LIME = "#C6E600"; // Primary/60 — inner ring
-const RADAR_SWEEP_FILL = "#0CBB58"; // Green/50 — scan wedge
-const RADAR_YELLOW_FILL = "rgba(244, 163, 12, 0.16)";
-const RADAR_ORANGE_FILL = "rgba(234, 88, 12, 0.1)";
-const RADAR_YELLOW_FILL_SAT = "rgba(244, 163, 12, 0.28)";
-const RADAR_ORANGE_FILL_SAT = "rgba(234, 88, 12, 0.22)";
+
+/** Shared dash for decorative range rings + draped detection coverage outline */
+const RADAR_RING_DASH = [4, 3] as const;
+
+/** When API beam is omnidirectional (360°), still draw a narrow white wedge from live azimuth. */
+const DETECTION_BORESIGHT_BEAM_DEG = 40;
+
+/** D20 spectrum radars: old-ui FE sweep when no turntable azimuth (~6 s per revolution). */
+const D20_SWEEP_DPS = 60;
+
+function d20SyntheticAzimuth(deviceId: string): number {
+  let h = 5381;
+  for (let i = 0; i < deviceId.length; i++) {
+    h = ((h << 5) + h + deviceId.charCodeAt(i)) >>> 0;
+  }
+  const phase = h % 360;
+  const t = performance.now() / 1000;
+  return ((phase + t * D20_SWEEP_DPS) % 360 + 360) % 360;
+}
+
+/** Breach zone fills — stepped annuli use COLOR.mapRadarBreach* */
+const BREACH_RED_CORE_BANDS: { inner: number; outer: number; op: number }[] = [
+  { inner: 0.02, outer: 0.28, op: 0.5 },
+  { inner: 0.28, outer: 0.52, op: 0.3 },
+  { inner: 0.52, outer: 0.76, op: 0.16 },
+  { inner: 0.76, outer: 1.0, op: 0.08 },
+];
+
+/** GeoJSON source id — mirror `feature-state` here from `assets` for selection styling */
+export const ASSETS_COVERAGE_DRAPE_SOURCE = "assets-coverage-drape";
 
 let currentBasemapVariant: BasemapVariant = "standard";
 
@@ -138,8 +169,8 @@ function generateRadarSweepSegment(
   return points;
 }
 
-/** Same radial bands as legacy decorative sweep; bearing comes from live azimuth. */
-function gradientSectorSegments(
+/** Jammer wedge — stronger opacity near inner radius (amber fill from layer paint). */
+function gradientSectorSegmentsJammer(
   center: [number, number],
   azimuthDeg: number,
   radiusKm: number,
@@ -163,10 +194,53 @@ function gradientSectorSegments(
   }));
 }
 
+/** Detection wedge — white; opacity strengthens toward outer arc (screenshot). */
+function gradientSectorSegmentsDetectionWhite(
+  center: [number, number],
+  azimuthDeg: number,
+  radiusKm: number,
+  beamDeg: number,
+): Array<{ coords: GeoJSON.Position[]; opacity: number }> {
+  const bands = [
+    { r0: 0.02, r1: 0.25, opacity: 0.10 },
+    { r0: 0.25, r1: 0.5, opacity: 0.20 },
+    { r0: 0.5, r1: 0.75, opacity: 0.33 },
+    { r0: 0.75, r1: 1, opacity: 0.49 },
+  ];
+  return bands.map(({ r0, r1, opacity }) => ({
+    coords: generateRadarSweepSegment(
+      center,
+      azimuthDeg,
+      radiusKm * r0,
+      radiusKm * r1,
+      beamDeg,
+    ),
+    opacity,
+  }));
+}
+
 function normalizeAzimuth(deg: number | undefined): number {
   if (deg == null || !Number.isFinite(deg)) return 0;
   const x = deg % 360;
   return x < 0 ? x + 360 : x;
+}
+
+function resolveSweepAzimuth(
+  asset: RadarAnimAsset,
+  liveById: Record<string, { azimuth_deg?: number } | undefined>,
+): { azDeg: number; ok: boolean } {
+  const proto = (asset.protocol ?? "").toUpperCase();
+  if (proto === "D20") {
+    return { azDeg: d20SyntheticAzimuth(asset.id), ok: true };
+  }
+  const rawAz = liveById[asset.id]?.azimuth_deg;
+  const hasLiveAzimuth =
+    rawAz != null && Number.isFinite(Number(rawAz));
+  if (!hasLiveAzimuth) return { azDeg: 0, ok: false };
+  const smoothed = getAnimatedRadarAzimuth(asset.id);
+  const azDeg =
+    smoothed != null ? smoothed : normalizeAzimuth(Number(rawAz));
+  return { azDeg, ok: true };
 }
 
 function parseRadarAnimAsset(f: GeoJSON.Feature): RadarAnimAsset | null {
@@ -195,6 +269,10 @@ function parseRadarAnimAsset(f: GeoJSON.Feature): RadarAnimAsset | null {
     breachYellowKm:
       p.breachYellowKm != null ? Number(p.breachYellowKm) : undefined,
     breachRedKm: p.breachRedKm != null ? Number(p.breachRedKm) : undefined,
+    protocol:
+      p.protocol != null && String(p.protocol).trim() !== ""
+        ? String(p.protocol)
+        : undefined,
   };
 }
 
@@ -294,59 +372,57 @@ export async function addAssetLayers(
     promoteId: "id",
   });
 
-  // Layer 1: Coverage area (radar-style circles)
+  map.addSource(ASSETS_COVERAGE_DRAPE_SOURCE, {
+    type: "geojson",
+    data: { type: "FeatureCollection", features: [] },
+    promoteId: "id",
+  });
+
+  // Layer 1: Detection coverage — draped polygon + dashed outline (terrain-safe vs circle layer)
   map.addLayer({
-    id: "assets-coverage",
-    type: "circle",
-    source: "assets",
+    id: "assets-coverage-fill",
+    type: "fill",
+    source: ASSETS_COVERAGE_DRAPE_SOURCE,
     slot: RADAR_SLOT,
     paint: {
-      "circle-radius": [
-        "interpolate",
-        ["exponential", 2],
-        ["zoom"],
-        5,
-        ["*", ["get", "coverageRadiusKm"], 0.5],
-        10,
-        ["*", ["get", "coverageRadiusKm"], 4],
-        15,
-        ["*", ["get", "coverageRadiusKm"], 120],
-        20,
-        ["*", ["get", "coverageRadiusKm"], 3000],
-      ],
-      "circle-color": [
+      "fill-color": [
         "case",
         ["==", ["get", "status"], "ACTIVE"],
-        "#22c55e",
-        "#64748b",
+        COLOR.mapRadarCoverageActiveFill,
+        COLOR.mapRadarCoverageInactiveFill,
       ],
-      "circle-opacity": [
+      "fill-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
         0.42,
         0.3,
       ],
-      "circle-stroke-width": [
+      "fill-emissive-strength": 1,
+      "fill-color-use-theme": "disabled",
+    },
+  });
+  map.addLayer({
+    id: "assets-coverage-outline",
+    type: "line",
+    source: ASSETS_COVERAGE_DRAPE_SOURCE,
+    slot: RADAR_SLOT,
+    paint: {
+      "line-color": COLOR.mapRadarRingOrangeDeep,
+      "line-width": [
         "case",
-        ["boolean", ["feature-state", "selected"], false],
-        3,
-        2,
+        ["==", ["get", "variant"], "satellite"],
+        2.6,
+        2.0,
       ],
-      "circle-stroke-color": [
-        "case",
-        ["==", ["get", "status"], "ACTIVE"],
-        "#22c55e",
-        "#64748b",
-      ],
-      "circle-stroke-opacity": [
+      "line-dasharray": ["literal", [...RADAR_RING_DASH]],
+      "line-opacity": [
         "case",
         ["boolean", ["feature-state", "selected"], false],
         0.95,
         0.88,
       ],
-      "circle-emissive-strength": 1,
-      "circle-color-use-theme": "disabled",
-      "circle-stroke-color-use-theme": "disabled",
+      "line-emissive-strength": 1,
+      "line-color-use-theme": "disabled",
     },
   });
 
@@ -356,45 +432,6 @@ export async function addAssetLayers(
       data: { type: "FeatureCollection", features: [] },
     });
   }
-  const breachPaint = {
-    green: {
-      color: "#10b981",
-      width: 1,
-      dash: [4, 4] as [number, number],
-    },
-    yellow: {
-      color: "#f59e0b",
-      width: 1.2,
-      dash: [6, 4] as [number, number],
-    },
-    red: {
-      color: "#ef4444",
-      width: 1.6,
-    },
-  } as const;
-  (["green", "yellow", "red"] as const).forEach((tier) => {
-    const spec = breachPaint[tier];
-    const paint: mapboxgl.LineLayer["paint"] = {
-      "line-color": spec.color,
-      "line-width": spec.width,
-      "line-opacity": 0.88,
-      "line-emissive-strength": 1,
-      "line-color-use-theme": "disabled",
-    };
-    if (tier === "green") {
-      paint["line-dasharray"] = ["literal", breachPaint.green.dash];
-    } else if (tier === "yellow") {
-      paint["line-dasharray"] = ["literal", breachPaint.yellow.dash];
-    }
-    map.addLayer({
-      id: `breach-ring-${tier}`,
-      type: "line",
-      source: "breach-threat-rings",
-      slot: RADAR_SLOT,
-      filter: ["==", ["get", "tier"], tier],
-      paint,
-    });
-  });
 
   // Layer 2: Filled warm radar bands
   if (!map.getSource("radar-band-fills")) {
@@ -410,7 +447,12 @@ export async function addAssetLayers(
     slot: RADAR_SLOT,
     paint: {
       "fill-color": ["get", "fillColor"],
-      "fill-opacity": ["*", ["get", "fillOpacity"], ["get", "statusDim"]],
+      "fill-opacity": [
+        "*",
+        ["get", "fillOpacity"],
+        ["get", "statusDim"],
+        ["get", "decorDim"],
+      ],
       "fill-emissive-strength": 1,
       "fill-color-use-theme": "disabled",
     },
@@ -429,7 +471,7 @@ export async function addAssetLayers(
     source: "radar-rings",
     slot: RADAR_SLOT,
     paint: {
-      "line-color": "rgba(5, 10, 20, 0.55)",
+      "line-color": COLOR.mapRadarRingHaloLine,
       "line-width": ["match", ["get", "ringTier"], 2, 4.2, 3.8],
       "line-blur": 1.5,
       "line-opacity": [
@@ -450,8 +492,8 @@ export async function addAssetLayers(
         "match",
         ["get", "ringTier"],
         2,
-        RADAR_ORANGE_DEEP,
-        RADAR_ORANGE,
+        COLOR.mapRadarRingOrangeDeep,
+        COLOR.mapRadarRingOrange,
       ],
       "line-width": [
         "match",
@@ -460,7 +502,7 @@ export async function addAssetLayers(
         ["case", ["==", ["get", "variant"], "satellite"], 2.6, 2.0],
         ["case", ["==", ["get", "variant"], "satellite"], 2.1, 1.6],
       ],
-      "line-dasharray": ["literal", [4, 3]],
+      "line-dasharray": ["literal", [...RADAR_RING_DASH]],
       "line-opacity": [
         "*",
         ["case", ["==", ["get", "variant"], "satellite"], 1.0, 0.92],
@@ -471,30 +513,104 @@ export async function addAssetLayers(
     },
   });
 
-  // Layer 4: Gradient radar sweep
+  if (!map.getSource("breach-threat-fills")) {
+    map.addSource("breach-threat-fills", {
+      type: "geojson",
+      data: { type: "FeatureCollection", features: [] },
+    });
+  }
+  map.addLayer({
+    id: "breach-threat-fills-layer",
+    type: "fill",
+    source: "breach-threat-fills",
+    slot: RADAR_SLOT,
+    paint: {
+      "fill-color": ["get", "fillColor"],
+      "fill-opacity": ["*", ["get", "fillOpacity"], ["get", "statusDim"]],
+      "fill-emissive-strength": 1,
+      "fill-color-use-theme": "disabled",
+    },
+  });
+
+  // Breach threat rings — after band fills + decorative rings so strokes are not painted over.
+  // (Data still comes from device breach_*_m via `deviceToRadarAssetFeature`.)
+  const breachPaint = {
+    green: {
+      color: COLOR.mapRadarBreachGreenStroke,
+      width: 1,
+      dash: [4, 4] as [number, number],
+    },
+    yellow: {
+      color: COLOR.mapRadarBreachYellowStroke,
+      width: 1.2,
+      dash: [6, 4] as [number, number],
+    },
+    red: {
+      color: COLOR.mapRadarBreachRedStroke,
+      width: 1.6,
+      dash: [5, 4] as [number, number],
+    },
+  } as const;
+  (["green", "yellow", "red"] as const).forEach((tier) => {
+    const spec = breachPaint[tier];
+    const paint: mapboxgl.LineLayer["paint"] = {
+      "line-color": spec.color,
+      "line-width": spec.width,
+      "line-opacity": 0.88,
+      "line-emissive-strength": 1,
+      "line-color-use-theme": "disabled",
+    };
+    if (tier === "green") {
+      paint["line-dasharray"] = ["literal", breachPaint.green.dash];
+    } else if (tier === "yellow") {
+      paint["line-dasharray"] = ["literal", breachPaint.yellow.dash];
+    } else {
+      paint["line-dasharray"] = ["literal", breachPaint.red.dash];
+    }
+    map.addLayer({
+      id: `breach-ring-${tier}`,
+      type: "line",
+      source: "breach-threat-rings",
+      slot: RADAR_SLOT,
+      filter: ["==", ["get", "tier"], tier],
+      paint,
+    });
+  });
+
+  // Layer 4: Gradient radar sweep (directional wedges on top of breach rings)
   if (!map.getSource("radar-sweep")) {
     map.addSource("radar-sweep", {
       type: "geojson",
       data: { type: "FeatureCollection", features: [] },
     });
   }
+  const radarSweepPaint: mapboxgl.FillLayer["paint"] = {
+    "fill-color": [
+      "match",
+      ["get", "sweepKind"],
+      "jammer",
+      COLOR.mapRadarSweepJammerWedge,
+      COLOR.mapRadarSweepDetectionWedge,
+    ],
+    "fill-opacity": ["get", "opacity"],
+    "fill-emissive-strength": 1,
+    "fill-color-use-theme": "disabled",
+  };
   map.addLayer({
-    id: "radar-sweep-layer",
+    id: "radar-sweep-detection",
     type: "fill",
     source: "radar-sweep",
     slot: RADAR_SLOT,
-    paint: {
-      "fill-color": [
-        "match",
-        ["get", "sweepKind"],
-        "jammer",
-        "#f59e0b",
-        RADAR_SWEEP_FILL,
-      ],
-      "fill-opacity": ["get", "opacity"],
-      "fill-emissive-strength": 1,
-      "fill-color-use-theme": "disabled",
-    },
+    filter: ["==", ["get", "sweepKind"], "detection"],
+    paint: radarSweepPaint,
+  });
+  map.addLayer({
+    id: "radar-sweep-jammer",
+    type: "fill",
+    source: "radar-sweep",
+    slot: RADAR_SLOT,
+    filter: ["==", ["get", "sweepKind"], "jammer"],
+    paint: radarSweepPaint,
   });
 
   // Layer 5: Lock-on indicators (when target in coverage)
@@ -511,10 +627,10 @@ export async function addAssetLayers(
     slot: RADAR_SLOT,
     paint: {
       "circle-radius": 12,
-      "circle-color": "#ef4444",
+      "circle-color": COLOR.mapRadarLockOnCore,
       "circle-opacity": 0.88,
       "circle-stroke-width": 2,
-      "circle-stroke-color": "#ffffff",
+      "circle-stroke-color": COLOR.mapRadarLockOnStroke,
       "circle-emissive-strength": 1,
       "circle-color-use-theme": "disabled",
       "circle-stroke-color-use-theme": "disabled",
@@ -538,37 +654,47 @@ export async function addAssetLayers(
   });
 
   let lastAnimateTime = 0;
+  let lastKinMs = performance.now();
   const FRAME_INTERVAL = 33; // ~30fps throttle (ms)
 
   function animate(now: number) {
-    if (now - lastAnimateTime < FRAME_INTERVAL) {
-      requestAnimationId = requestAnimationFrame(animate);
-      return;
-    }
-    lastAnimateTime = now;
+    requestAnimationId = requestAnimationFrame(animate);
+
+    const kinDt = Math.min((now - lastKinMs) / 1000, 0.25);
+    lastKinMs = now;
 
     const assets = currentAssetsForAnimation;
     const liveById = useDeviceStatusStore.getState().byDeviceId;
+    syncRadarAzimuthSamples(assets, liveById, now);
+    advanceRadarAzimuthAnimation(kinDt);
+
+    if (now - lastAnimateTime < FRAME_INTERVAL) return;
+    lastAnimateTime = now;
+
+    const isSat = currentBasemapVariant === "standard-satellite";
+    const variant = isSat ? "satellite" : "standard";
 
     const sweepFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
     assets.forEach((asset) => {
-      const rawAz = liveById[asset.id]?.azimuth_deg;
-      /** Avoid drawing sectors at 0° when azimuth is unknown — that reads as a fixed north spike / ghost wedge. */
-      const hasLiveAzimuth = rawAz != null && Number.isFinite(Number(rawAz));
-      const az = normalizeAzimuth(rawAz);
+      const { azDeg: az, ok: hasSweepAzimuth } = resolveSweepAzimuth(
+        asset,
+        liveById,
+      );
       const detSlices: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
       const jamSlices: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
       if (
-        hasLiveAzimuth &&
+        hasSweepAzimuth &&
         asset.hasDetection &&
-        asset.coverageRadiusKm > 0 &&
-        asset.detectionIsSector
+        asset.coverageRadiusKm > 0
       ) {
-        gradientSectorSegments(
+        const wedgeBeamDeg = asset.detectionIsSector
+          ? asset.detectionBeamDeg
+          : DETECTION_BORESIGHT_BEAM_DEG;
+        gradientSectorSegmentsDetectionWhite(
           asset.coordinates,
           az,
           asset.coverageRadiusKm,
-          asset.detectionBeamDeg,
+          wedgeBeamDeg,
         ).forEach(({ coords, opacity }) => {
           if (coords.length < 4) return;
           detSlices.push({
@@ -579,12 +705,12 @@ export async function addAssetLayers(
         });
       }
       if (
-        hasLiveAzimuth &&
+        hasSweepAzimuth &&
         asset.hasJammer &&
         asset.jammerRadiusKm > 0 &&
         asset.jammerIsSector
       ) {
-        gradientSectorSegments(
+        gradientSectorSegmentsJammer(
           asset.coordinates,
           az,
           asset.jammerRadiusKm,
@@ -601,9 +727,28 @@ export async function addAssetLayers(
           });
         });
       }
-      // Jammer first, then detection — green gradient reads like the legacy sweep on top.
+      // Jammer first, then detection — white wedge reads on top of amber jammer.
       sweepFeatures.push(...jamSlices, ...detSlices);
     });
+
+    const coverageFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
+    assets.forEach((asset) => {
+      const r = asset.coverageRadiusKm;
+      if (!(r > 0)) return;
+      const ring = generateRing(asset.coordinates, r);
+      const closed: GeoJSON.Position[] = [...ring, ring[0] as GeoJSON.Position];
+      coverageFeatures.push({
+        type: "Feature",
+        properties: {
+          id: asset.id,
+          status: asset.status,
+          variant,
+        },
+        geometry: { type: "Polygon", coordinates: [closed] },
+      });
+    });
+
+    const breachFillFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
 
     const breachLineFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = [];
     assets.forEach((asset) => {
@@ -612,6 +757,52 @@ export async function addAssetLayers(
       const r = asset.breachRedKm;
       if (g == null || y == null || r == null) return;
       if (!(g > y && y > r && r > 0)) return;
+      const statusDim = asset.status === "ACTIVE" ? 1 : 0.38;
+      for (const b of BREACH_RED_CORE_BANDS) {
+        const innerR = r * b.inner;
+        const outerR = r * b.outer;
+        if (!(outerR > innerR)) continue;
+        breachFillFeatures.push({
+          type: "Feature",
+          properties: {
+            fillColor: COLOR.mapRadarBreachRedFillCore,
+            fillOpacity: b.op,
+            statusDim,
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [
+              generateRingBand(asset.coordinates, innerR, outerR),
+            ],
+          },
+        });
+      }
+      breachFillFeatures.push(
+        {
+          type: "Feature",
+          properties: {
+            fillColor: COLOR.mapRadarBreachYellowZoneFill,
+            fillOpacity: 1,
+            statusDim,
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [generateRingBand(asset.coordinates, r, y)],
+          },
+        },
+        {
+          type: "Feature",
+          properties: {
+            fillColor: COLOR.mapRadarBreachGreenZoneFill,
+            fillOpacity: 1,
+            statusDim,
+          },
+          geometry: {
+            type: "Polygon",
+            coordinates: [generateRingBand(asset.coordinates, y, g)],
+          },
+        },
+      );
       (
         [
           { tier: "green" as const, radiusKm: g },
@@ -631,13 +822,26 @@ export async function addAssetLayers(
 
     const ringFillFeatures: GeoJSON.Feature<GeoJSON.Polygon>[] = [];
     const ringFeatures: GeoJSON.Feature<GeoJSON.LineString>[] = [];
-    const isSat = currentBasemapVariant === "standard-satellite";
-    const variant = isSat ? "satellite" : "standard";
-    const yellowFill = isSat ? RADAR_YELLOW_FILL_SAT : RADAR_YELLOW_FILL;
-    const orangeFill = isSat ? RADAR_ORANGE_FILL_SAT : RADAR_ORANGE_FILL;
+    const yellowFill = isSat
+      ? COLOR.mapRadarWarmYellowFillSatellite
+      : COLOR.mapRadarWarmYellowFill;
+    const orangeFill = isSat
+      ? COLOR.mapRadarWarmOrangeFillSatellite
+      : COLOR.mapRadarWarmOrangeFill;
 
     assets.forEach((asset) => {
       const statusDim = asset.status === "ACTIVE" ? 1 : 0.38;
+      const bg = asset.breachGreenKm;
+      const by = asset.breachYellowKm;
+      const br = asset.breachRedKm;
+      const hasBreach =
+        bg != null &&
+        by != null &&
+        br != null &&
+        bg > by &&
+        by > br &&
+        br > 0;
+      const decorDim = hasBreach ? 0.58 : 1;
       const ringKm =
         asset.hasDetection && asset.coverageRadiusKm > 0
           ? asset.coverageRadiusKm
@@ -667,7 +871,7 @@ export async function addAssetLayers(
         ({ innerRatio, outerRatio, ringTier, fillColor, fillOpacity }) => {
           ringFillFeatures.push({
             type: "Feature",
-            properties: { fillColor, fillOpacity, statusDim },
+            properties: { fillColor, fillOpacity, statusDim, decorDim },
             geometry: {
               type: "Polygon",
               coordinates: [
@@ -684,7 +888,7 @@ export async function addAssetLayers(
           ring.push(ring[0]);
           ringFeatures.push({
             type: "Feature",
-            properties: { ringTier, statusDim, variant },
+            properties: { ringTier, statusDim, variant, decorDim },
             geometry: { type: "LineString", coordinates: ring },
           });
         },
@@ -717,7 +921,13 @@ export async function addAssetLayers(
     );
 
     try {
+      const coverageDrapeSource = map.getSource(ASSETS_COVERAGE_DRAPE_SOURCE) as
+        | mapboxgl.GeoJSONSource
+        | undefined;
       const breachSource = map.getSource("breach-threat-rings") as
+        | mapboxgl.GeoJSONSource
+        | undefined;
+      const breachFillSource = map.getSource("breach-threat-fills") as
         | mapboxgl.GeoJSONSource
         | undefined;
       const sweepSource = map.getSource("radar-sweep") as
@@ -733,6 +943,18 @@ export async function addAssetLayers(
         | mapboxgl.GeoJSONSource
         | undefined;
 
+      if (coverageDrapeSource) {
+        coverageDrapeSource.setData({
+          type: "FeatureCollection",
+          features: coverageFeatures,
+        });
+      }
+      if (breachFillSource) {
+        breachFillSource.setData({
+          type: "FeatureCollection",
+          features: breachFillFeatures,
+        });
+      }
       if (breachSource) {
         breachSource.setData({
           type: "FeatureCollection",
@@ -767,8 +989,6 @@ export async function addAssetLayers(
       // Map destroyed or sources removed — stop animation
       return;
     }
-
-    requestAnimationId = requestAnimationFrame(animate);
   }
 
   requestAnimationId = requestAnimationFrame(animate);
@@ -780,4 +1000,5 @@ export function stopAssetAnimation(): void {
     cancelAnimationFrame(requestAnimationId);
     requestAnimationId = null;
   }
+  clearRadarAzimuthKinematics();
 }

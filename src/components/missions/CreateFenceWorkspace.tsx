@@ -9,6 +9,8 @@ import {
 import { FenceMetadataPopover } from "@/components/missions/FenceMetadataPopover";
 import type { SavedFence } from "@/types/aeroshield";
 import { useFenceDraw } from "@/hooks/useFenceDraw";
+import { getMap } from "@/components/map/mapController";
+import { syncFenceLayersToMap } from "@/components/map/layers/fence";
 
 export type CreateFenceWorkspaceProps = {
   fences: SavedFence[];
@@ -22,38 +24,21 @@ export function CreateFenceWorkspace({
   onFencesChange,
 }: CreateFenceWorkspaceProps) {
   const [draftName, setDraftName] = useState("");
-  const [draftAltitude, setDraftAltitude] = useState("");
   const [showMetadata, setShowMetadata] = useState(false);
   const [showValidation, setShowValidation] = useState(false);
 
   const onShapeComplete = useCallback(() => {
     setDraftName("");
-    setDraftAltitude("");
     setShowValidation(false);
     setShowMetadata(true);
   }, []);
 
-  const {
-    activeMode,
-    draftGeometry,
-    setSavedFences,
-    handleModeSelect,
-    resetDrawing,
-  } = useFenceDraw({ paused: showMetadata, onShapeComplete });
+  const { activeMode, draftGeometry, handleModeSelect, resetDrawing } =
+    useFenceDraw({ paused: showMetadata, onShapeComplete, savedFences: fences });
 
   const draftNameError =
     showValidation && !draftName.trim() ? "Fence name is required." : "";
-  const draftAltitudeError =
-    showValidation && !draftAltitude.trim()
-      ? "Altitude ceiling is required."
-      : showValidation && Number.isNaN(Number(draftAltitude.trim()))
-        ? "Altitude ceiling must be a number."
-        : "";
-  const canSaveDraft =
-    !!draftGeometry &&
-    draftName.trim().length > 0 &&
-    draftAltitude.trim().length > 0 &&
-    !Number.isNaN(Number(draftAltitude.trim()));
+  const canSaveDraft = !!draftGeometry && draftName.trim().length > 0;
 
   const handleToolSelect = (mode: FenceDrawMode) => {
     handleModeSelect(mode);
@@ -69,27 +54,27 @@ export function CreateFenceWorkspace({
 
     const newFence: SavedFence = {
       name: draftName.trim(),
-      altitude: draftAltitude,
       mode: activeMode === "line" || !activeMode ? "polygon" : activeMode,
-      geometry: draftGeometry,
+      geometry: structuredClone(draftGeometry),
     };
 
-    setSavedFences((prev) => [...prev, newFence]);
-    onFencesChange([newFence, ...fences]);
+    const nextFences = [newFence, ...fences];
+    onFencesChange(nextFences);
     setShowMetadata(false);
     setShowValidation(false);
-    resetDrawing();
+    resetDrawing({ mapSavedFences: nextFences });
   };
 
   const handleDeleteFence = (name: string) => {
-    onFencesChange(fences.filter((f) => f.name !== name));
-    setSavedFences((prev) => prev.filter((f) => f.name !== name));
+    const next = fences.filter((f) => f.name !== name);
+    onFencesChange(next);
+    syncFenceLayersToMap(getMap(), null, next);
   };
 
   const handleCancel = () => {
+    resetDrawing();
     setShowMetadata(false);
     setShowValidation(false);
-    resetDrawing();
   };
 
   return (
@@ -105,12 +90,9 @@ export function CreateFenceWorkspace({
       {showMetadata ? (
         <FenceMetadataPopover
           name={draftName}
-          altitude={draftAltitude}
           nameError={draftNameError}
-          altitudeError={draftAltitudeError}
           canSave={canSaveDraft}
           onNameChange={setDraftName}
-          onAltitudeChange={setDraftAltitude}
           onCancel={handleCancel}
           onSave={handleSaveFence}
         />
