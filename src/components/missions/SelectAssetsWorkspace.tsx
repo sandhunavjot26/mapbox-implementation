@@ -11,6 +11,7 @@ import {
   deviceDisplayName,
   formatDeviceSubtitle,
 } from "@/utils/deviceDisplay";
+import { InlineLoadIndicator } from "@/components/ui/InlineLoadIndicator";
 
 export type SelectAssetsWorkspaceProps = {
   devices: Device[];
@@ -106,16 +107,12 @@ export function SelectAssetsWorkspace({
           </p>
         )}
         {isLoading && (
-          <p
-            style={{
-              color: COLOR.missionsSecondaryText,
-              fontFamily: `${FONT.family}, sans-serif`,
-              fontSize: FONT.sizeXs,
-              lineHeight: "17px",
-            }}
-          >
-            Loading...
-          </p>
+          <InlineLoadIndicator
+            label="Loading assets…"
+            minHeight="min(180px, 32vh)"
+            spinnerSize={28}
+            className="py-4"
+          />
         )}
         <ul
           className="m-0 flex list-none flex-col p-0"

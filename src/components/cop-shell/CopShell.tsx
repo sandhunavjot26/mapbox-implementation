@@ -1,7 +1,7 @@
 "use client";
 
 /**
- * Floating COP chrome — nav rail, logo, settings, notifications (Figma bell).
+ * Floating COP chrome — nav rail, logo, settings, top-right notifications (opens detections).
  * Map + mission panels render beneath; this layer uses pointer-events only on controls.
  */
 
@@ -9,7 +9,7 @@ import Image from "next/image";
 import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 import { COP_GLASS_PANEL } from "@/components/cop-shell/shellStyles";
 
-/** Solid chrome over light basemap — logo, nav rail, settings, detection, bell */
+/** Solid chrome over light basemap — logo, nav rail, settings, notifications */
 const COP_SOLID_BG = "#1A1A1A";
 
 const NAV_ITEMS = [
@@ -20,19 +20,34 @@ const NAV_ITEMS = [
   { key: "logs", src: "/icons/logs.svg", label: "Logs" },
 ] as const;
 
-const SETTINGS_ICONS = [
-  { src: "/icons/settings.svg", label: "Settings" },
-  { src: "/icons/user.svg", label: "User" },
+const SETTINGS_SLOTS = [
+  {
+    key: "settings" as const,
+    src: "/icons/settings.svg",
+    label: "Settings",
+    tooltip: "Settings — map, basemap, WebSockets",
+  },
+  {
+    key: "account" as const,
+    src: "/icons/user.svg",
+    label: "Account",
+    tooltip: "Account — profile and preferences",
+  },
 ] as const;
 
 export type CopShellProps = {
   activeNavKey: string | null;
   onNav: (key: string) => void;
-  hasMission: boolean;
-  /** Top-right bell: exit mission or close overlays */
+  /** Which bottom-left control is selected when the settings panel is open (mirrors nav `activeNavKey`). */
+  activeSettingsSlot?: "settings" | "account" | null;
+  /** Bottom-left stack: `"settings"` = gear, `"account"` = user icon. Prefer this over separate click props. */
+  onSettingsStackSelect?: (slot: "settings" | "account") => void;
+  /** @deprecated Use `onSettingsStackSelect` */
+  onSettingsClick?: () => void;
+  /** @deprecated Use `onSettingsStackSelect` */
+  onUserClick?: () => void;
+  /** Top-right notifications control — toggles overall detections overlay */
   onBell: () => void;
-  /** Top-right detection control (left of notifications) */
-  onDetection?: () => void;
   /** Whether the overall detections panel is open (accessibility). */
   detectionsOpen?: boolean;
 };
@@ -40,9 +55,11 @@ export type CopShellProps = {
 export function CopShell({
   activeNavKey,
   onNav,
-  hasMission,
+  activeSettingsSlot = null,
+  onSettingsStackSelect,
+  onSettingsClick,
+  onUserClick,
   onBell,
-  onDetection,
   detectionsOpen = false,
 }: CopShellProps) {
   return (
@@ -61,7 +78,7 @@ export function CopShell({
         }}
       >
         <Image
-          src="/vectorwings.png"
+          src="/driif-logo-small.png"
           alt="Driif"
           width={28}
           height={26}
@@ -70,11 +87,12 @@ export function CopShell({
       </div>
 
       <nav
-        className="pointer-events-auto absolute flex flex-col items-center gap-0 p-1"
+        className="pointer-events-auto absolute flex flex-col items-center gap-0 px-0 py-1"
         style={{
           left: POSITION.navLeft,
           top: POSITION.navTop,
           width: POSITION.navWidth,
+          boxSizing: "border-box",
           minHeight: POSITION.navHeight,
           background: COP_SOLID_BG,
           border: COP_GLASS_PANEL.border,
@@ -102,6 +120,9 @@ export function CopShell({
                   padding: SPACING.iconButtonPad,
                   borderRadius: RADIUS.panel,
                   background: active ? COLOR.iconButtonBg : "transparent",
+                  boxShadow: active
+                    ? `inset 2px 0 0 0 ${COLOR.navRailActiveEdge}`
+                    : "none",
                 }}
               >
                 <Image
@@ -109,7 +130,7 @@ export function CopShell({
                   alt=""
                   width={20}
                   height={20}
-                  className="opacity-90"
+                  className={active ? "opacity-100" : "opacity-90"}
                 />
               </button>
               <span
@@ -135,32 +156,82 @@ export function CopShell({
       </nav>
 
       <div
-        className="pointer-events-auto absolute flex flex-col items-center gap-2 p-1"
+        className="pointer-events-auto absolute flex flex-col items-center gap-0 px-0 py-1"
         style={{
           left: POSITION.settingsLeft,
           bottom: POSITION.settingsBottom,
-          width: POSITION.settingsWidth,
+          width: POSITION.navWidth,
+          boxSizing: "border-box",
           background: COP_SOLID_BG,
           border: COP_GLASS_PANEL.border,
           borderRadius: RADIUS.panel,
           boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
         }}
+        aria-label="Settings and account"
       >
-        {SETTINGS_ICONS.map((item) => (
-          <button
-            key={item.label}
-            type="button"
-            title={item.label}
-            aria-label={item.label}
-            className="flex items-center justify-center p-2 rounded-sm opacity-80 hover:opacity-100"
-          >
-            <Image src={item.src} alt="" width={20} height={20} />
-          </button>
-        ))}
+        {SETTINGS_SLOTS.map((item) => {
+          const active = activeSettingsSlot === item.key;
+          return (
+            <div
+              key={item.key}
+              className="group relative flex shrink-0 flex-col items-center"
+            >
+              <button
+                type="button"
+                aria-label={item.label}
+                aria-pressed={active}
+                onClick={() => {
+                  if (onSettingsStackSelect) {
+                    onSettingsStackSelect(item.key);
+                    return;
+                  }
+                  if (item.key === "settings") onSettingsClick?.();
+                  else onUserClick?.();
+                }}
+                className="flex items-center justify-center transition-colors"
+                style={{
+                  width: SPACING.iconRowHeight,
+                  height: SPACING.iconRowHeight,
+                  padding: SPACING.iconButtonPad,
+                  borderRadius: RADIUS.panel,
+                  background: active ? COLOR.iconButtonBg : "transparent",
+                  boxShadow: active
+                    ? `inset 2px 0 0 0 ${COLOR.navRailActiveEdge}`
+                    : "none",
+                }}
+              >
+                <Image
+                  src={item.src}
+                  alt=""
+                  width={20}
+                  height={20}
+                  className={`pointer-events-none ${active ? "opacity-100" : "opacity-90"}`}
+                />
+              </button>
+              <span
+                className="pointer-events-none absolute left-full top-1/2 z-20 -translate-y-1/2 rounded-[2px] border px-2.5 py-1.5 opacity-0 shadow-lg transition-opacity duration-150 group-hover:opacity-100"
+                style={{
+                  marginLeft: 8,
+                  background: COP_SOLID_BG,
+                  border: COP_GLASS_PANEL.border,
+                  boxShadow: "0 4px 12px rgba(0,0,0,0.45)",
+                  color: COLOR.missionsTitleMuted,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeSm,
+                  lineHeight: "17px",
+                  whiteSpace: "nowrap",
+                }}
+                role="tooltip"
+              >
+                {item.tooltip}
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       <div
-        className="pointer-events-auto absolute flex items-center gap-1"
+        className="pointer-events-auto absolute flex items-center"
         style={{
           right: POSITION.bellRight,
           top: POSITION.bellTop,
@@ -168,32 +239,13 @@ export function CopShell({
       >
         <button
           type="button"
-          title="Detection"
-          aria-label="Detection"
+          title={detectionsOpen ? "Hide detections" : "Show detections"}
+          aria-label={
+            detectionsOpen
+              ? "Hide overall detections panel"
+              : "Show overall detections panel"
+          }
           aria-expanded={detectionsOpen}
-          className="flex shrink-0 items-center justify-center p-2"
-          style={{
-            width: POSITION.bellSize,
-            height: POSITION.bellSize,
-            background: COP_SOLID_BG,
-            border: COP_GLASS_PANEL.border,
-            borderRadius: RADIUS.panel,
-            boxShadow: "0px 0px 8px rgba(0,0,0,0.62)",
-          }}
-          onClick={() => onDetection?.()}
-        >
-          <Image
-            src="/icons/detection.svg"
-            alt=""
-            width={20}
-            height={20}
-            className="opacity-90"
-          />
-        </button>
-        <button
-          type="button"
-          title={hasMission ? "Exit mission" : "Notifications"}
-          aria-label={hasMission ? "Exit mission" : "Notifications"}
           className="flex shrink-0 items-center justify-center p-2"
           style={{
             width: POSITION.bellSize,
@@ -210,7 +262,7 @@ export function CopShell({
             alt=""
             width={20}
             height={20}
-            className="opacity-90"
+            className={`pointer-events-none ${detectionsOpen ? "opacity-100" : "opacity-90"}`}
           />
         </button>
       </div>

@@ -198,73 +198,125 @@ export function MissionDeviceDiagnostics({
       </div>
 
       <div className="flex flex-col gap-2" style={{ fontSize: FONT.sizeXs }}>
-        <div className="flex flex-wrap items-start gap-2">
-          <button
-            type="button"
-            disabled={disabled || busy !== null}
-            onClick={() => void fetchNetwork()}
-            className="rounded border px-2 py-1 text-left disabled:opacity-45"
-            style={{
-              borderColor: COLOR.border,
-              color: COLOR.missionsBodyText,
-              fontFamily: `${FONT.family}, sans-serif`,
-              minWidth: "100px",
-            }}
-          >
-            {busy === "net" ? "…" : "Network"}
-          </button>
-          <span
-            className="min-w-0 flex-1 font-mono text-[11px]"
-            style={{ color: COLOR.missionsSecondaryText }}
-          >
-            {network
-              ? `${relTime(network.ts)} · ${JSON.stringify(network.data).slice(0, 200)}${JSON.stringify(network.data).length > 200 ? "…" : ""}`
-              : "—"}
-          </span>
+        <div className="flex min-w-0 w-full flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={disabled || busy !== null}
+              onClick={() => void fetchNetwork()}
+              className="rounded border px-2 py-1 text-left disabled:opacity-45"
+              style={{
+                borderColor: COLOR.border,
+                color: COLOR.missionsBodyText,
+                fontFamily: `${FONT.family}, sans-serif`,
+                minWidth: "100px",
+              }}
+            >
+              {busy === "net" ? "…" : "Network"}
+            </button>
+            {network ? (
+              <span
+                className="text-[11px]"
+                style={{
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  color: COLOR.missionsSecondaryText,
+                }}
+              >
+                {relTime(network.ts)}
+              </span>
+            ) : null}
+          </div>
+          {network ? (
+            <pre
+              className="m-0 max-h-28 overflow-auto font-mono text-[11px] leading-snug"
+              style={{
+                color: COLOR.missionsSecondaryText,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {JSON.stringify(network.data)}
+            </pre>
+          ) : (
+            <span
+              className="font-mono text-[11px]"
+              style={{ color: COLOR.missionsSecondaryText }}
+            >
+              —
+            </span>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-start gap-2">
-          <button
-            type="button"
-            disabled={disabled || busy !== null}
-            onClick={() => void fetchAttackMode()}
-            className="rounded border px-2 py-1 text-left disabled:opacity-45"
-            style={{
-              borderColor: COLOR.border,
-              color: COLOR.missionsBodyText,
-              fontFamily: `${FONT.family}, sans-serif`,
-              minWidth: "100px",
-            }}
-          >
-            {busy === "attack" ? "…" : "Attack mode"}
-          </button>
-          <span
-            className="min-w-0 flex-1 font-mono text-[11px]"
-            style={{ color: COLOR.missionsSecondaryText }}
-          >
-            {attackMode
-              ? `${relTime(attackMode.ts)} · ${JSON.stringify(attackMode.data)}`
-              : "—"}
-          </span>
+        <div className="flex min-w-0 w-full flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={disabled || busy !== null}
+              onClick={() => void fetchAttackMode()}
+              className="rounded border px-2 py-1 text-left disabled:opacity-45"
+              style={{
+                borderColor: COLOR.border,
+                color: COLOR.missionsBodyText,
+                fontFamily: `${FONT.family}, sans-serif`,
+                minWidth: "100px",
+              }}
+            >
+              {busy === "attack" ? "…" : "Attack mode"}
+            </button>
+            {attackMode ? (
+              <span
+                className="text-[11px]"
+                style={{
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  color: COLOR.missionsSecondaryText,
+                }}
+              >
+                {relTime(attackMode.ts)}
+              </span>
+            ) : null}
+          </div>
+          {attackMode ? (
+            <pre
+              className="m-0 max-h-28 overflow-auto font-mono text-[11px] leading-snug"
+              style={{
+                color: COLOR.missionsSecondaryText,
+                whiteSpace: "pre-wrap",
+                wordBreak: "break-word",
+                overflowWrap: "anywhere",
+              }}
+            >
+              {JSON.stringify(attackMode.data)}
+            </pre>
+          ) : (
+            <span
+              className="font-mono text-[11px]"
+              style={{ color: COLOR.missionsSecondaryText }}
+            >
+              —
+            </span>
+          )}
         </div>
 
-        <div className="flex flex-wrap items-start gap-2">
-          <button
-            type="button"
-            disabled={disabled || busy !== null}
-            onClick={() => void fetchAlarms()}
-            className="rounded border px-2 py-1 text-left disabled:opacity-45"
-            style={{
-              borderColor: COLOR.border,
-              color: COLOR.missionsBodyText,
-              fontFamily: `${FONT.family}, sans-serif`,
-              minWidth: "100px",
-            }}
-          >
-            {busy === "alarm" ? "…" : "Alarms"}
-          </button>
+        <div className="flex min-w-0 w-full flex-col gap-1">
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              type="button"
+              disabled={disabled || busy !== null}
+              onClick={() => void fetchAlarms()}
+              className="rounded border px-2 py-1 text-left disabled:opacity-45"
+              style={{
+                borderColor: COLOR.border,
+                color: COLOR.missionsBodyText,
+                fontFamily: `${FONT.family}, sans-serif`,
+                minWidth: "100px",
+              }}
+            >
+              {busy === "alarm" ? "…" : "Alarms"}
+            </button>
+          </div>
           <div
-            className="min-w-0 flex-1 font-mono text-[11px]"
+            className="min-w-0 font-mono text-[11px]"
             style={{ color: COLOR.missionsSecondaryText }}
           >
             {!alarmData ? (
@@ -272,7 +324,14 @@ export function MissionDeviceDiagnostics({
             ) : alarmHealthy ? (
               <span style={{ color: "#6ee7b7" }}>OK{tempC != null ? ` · ${tempC}°C` : ""}</span>
             ) : (
-              <span>
+              <span
+                className="block"
+                style={{
+                  whiteSpace: "pre-wrap",
+                  wordBreak: "break-word",
+                  overflowWrap: "anywhere",
+                }}
+              >
                 {activeAlarmNames.slice(0, 4).join(", ")}
                 {activeAlarmNames.length > 4 ? "…" : ""}
                 {overPowerLanes.length ? ` · over: ${overPowerLanes.join(",")}` : ""}

@@ -5,7 +5,7 @@
  * Green = open, amber = connecting, red = error/closed
  */
 
-type WsStatus = "connecting" | "open" | "closed" | "error";
+import type { WsStatus } from "@/stores/wsStatusStore";
 
 const statusConfig: Record<WsStatus, { color: string; label: string }> = {
   connecting: { color: "bg-amber-500", label: "Connecting" },
@@ -29,17 +29,39 @@ function StatusDot({ status }: { status: WsStatus }) {
   );
 }
 
-interface WsStatusIndicatorProps {
+function LabeledRow({ channel, status }: { channel: string; status: WsStatus }) {
+  return (
+    <div className="flex items-center justify-between gap-4">
+      <span className="text-slate-400 text-[11px] font-mono shrink-0">{channel}</span>
+      <StatusDot status={status} />
+    </div>
+  );
+}
+
+export type WsStatusIndicatorProps = {
   eventsStatus: WsStatus;
   devicesStatus: WsStatus;
   commandsStatus: WsStatus;
-}
+  /** `inline` = compact row; `labeled` = one row per channel (settings panel). */
+  variant?: "inline" | "labeled";
+};
 
 export function WsStatusIndicator({
   eventsStatus,
   devicesStatus,
   commandsStatus,
+  variant = "inline",
 }: WsStatusIndicatorProps) {
+  if (variant === "labeled") {
+    return (
+      <div className="flex flex-col gap-2 rounded border border-slate-700/60 bg-black/25 px-3 py-2.5">
+        <LabeledRow channel="Events" status={eventsStatus} />
+        <LabeledRow channel="Devices" status={devicesStatus} />
+        <LabeledRow channel="Commands" status={commandsStatus} />
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center gap-4 text-[11px] font-mono">
       <span className="text-slate-500 uppercase">WS:</span>

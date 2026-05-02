@@ -18,11 +18,15 @@ export async function login(username: string, password: string): Promise<AuthLog
     skipAuthRedirect: true, // Don't redirect on invalid credentials; let form show error
   } as RequestInit & { skipAuthRedirect?: boolean });
 
-  useAuthStore.getState().setAuth(res.access_token, {
-    roles: res.roles ?? [],
-    permissions: res.permissions ?? [],
-    scopes: res.scopes ?? { global: false, missions: [], devices: [] },
-  });
+  useAuthStore.getState().setAuth(
+    res.access_token,
+    {
+      roles: res.roles ?? [],
+      permissions: res.permissions ?? [],
+      scopes: res.scopes ?? { global: false, missions: [], devices: [] },
+    },
+    username,
+  );
 
   return res;
 }

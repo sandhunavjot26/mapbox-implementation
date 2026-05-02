@@ -6,11 +6,12 @@ import dynamic from "next/dynamic";
 import Image from "next/image";
 import { CopShell } from "@/components/cop-shell/CopShell";
 import { OverallDetectionPanel } from "@/components/detections/OverallDetectionPanel";
-import { CopTopBar } from "@/components/cop-shell/CopTopBar";
 import { MissionSelector } from "@/components/missions/MissionSelector";
-import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { MissionSessionHost } from "@/components/missions/MissionSessionHost";
 import { MissionEventToasts } from "@/components/alerts/MissionEventToasts";
 import { DevicesInventoryOverlay } from "@/components/devices/DevicesInventoryOverlay";
+import { SettingsOverlay } from "@/components/cop-shell/SettingsOverlay";
+import { AccountOverlay } from "@/components/cop-shell/AccountOverlay";
 import { useAuthStore } from "@/stores/authStore";
 import { logout } from "@/lib/api/auth";
 import { useMissionStore } from "@/stores/missionStore";
@@ -18,6 +19,7 @@ import { useMissionEventsStore } from "@/stores/missionEventsStore";
 import { useTargetsStore } from "@/stores/targetsStore";
 import { useLandingMissionAssets, useLandingBorders, useMapFeatures } from "@/hooks/useMissions";
 import { COLOR, POSITION } from "@/styles/driifTokens";
+import { InlineLoadIndicator } from "@/components/ui/InlineLoadIndicator";
 
 const MapContainer = dynamic(
   () => import("@/components/map/MapContainer").then((mod) => mod.MapContainer),
@@ -28,12 +30,7 @@ const MapContainer = dynamic(
         className="absolute inset-0 flex items-center justify-center"
         style={{ background: COLOR.pageBg }}
       >
-        <div className="flex items-center gap-3">
-          <div className="w-2 h-2 bg-cyan-500 animate-pulse" />
-          <span className="text-slate-500 text-xs font-mono tracking-widest uppercase">
-            Loading Map...
-          </span>
-        </div>
+        <InlineLoadIndicator label="Loading map…" minHeight="0" className="py-0" />
       </div>
     ),
   },
@@ -59,6 +56,9 @@ export default function DashboardPage() {
   );
   const [missionsOpen, setMissionsOpen] = useState(false);
   const [devicesOpen, setDevicesOpen] = useState(false);
+  const [settingsPanelSlot, setSettingsPanelSlot] = useState<
+    "settings" | "account" | null
+  >(null);
   const [detectionsOpen, setDetectionsOpen] = useState(false);
   const [mapDismissLocked, setMapDismissLocked] = useState(false);
   const token = useAuthStore((s) => s.getToken());
@@ -107,35 +107,31 @@ export default function DashboardPage() {
     if (key === "assets") {
       setDevicesOpen(true);
       setMissionsOpen(false);
+      setSettingsPanelSlot(null);
       return;
     }
     if (key === "missions") {
       setMissionsOpen(true);
       setDevicesOpen(false);
+      setSettingsPanelSlot(null);
       return;
     }
     setMissionsOpen(false);
     setDevicesOpen(false);
+    setSettingsPanelSlot(null);
   }, []);
-
-  const onShellClose = useCallback(() => {
-    if (activeMissionId) {
-      exitMission();
-      setDetectionsOpen(false);
-      return;
-    }
-    setMissionsOpen(false);
-    setDevicesOpen(false);
-    setDetectionsOpen(false);
-  }, [activeMissionId, exitMission]);
 
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
   const onMapBackgroundClick = useCallback(() => {
     if (mapDismissLocked) return;
-    setMissionsOpen(false);
+    // Keep missions flyout open while a mission is selected — operator is viewing that mission.
+    if (!activeMissionId) {
+      setMissionsOpen(false);
+    }
     setDevicesOpen(false);
+    setSettingsPanelSlot(null);
     setDetectionsOpen(false);
-  }, [mapDismissLocked]);
+  }, [mapDismissLocked, activeMissionId]);
 
   if (!isAuthorized) {
     return (
@@ -186,24 +182,18 @@ export default function DashboardPage() {
 
       <EntityHoverPopup />
 
-      <CopTopBar
-        mapMode={mapMode}
-        onMapMode={setMapMode}
-        basemapVariant={basemapVariant}
-        onBasemapVariant={setBasemapVariant}
-        mapLightPreset={mapLightPreset}
-        onMapLightPreset={setMapLightPreset}
-        onLogout={logout}
-      />
-
       <CopShell
         activeNavKey={
           missionsOpen ? "missions" : devicesOpen ? "assets" : null
         }
+        activeSettingsSlot={settingsPanelSlot}
         onNav={onShellNav}
-        hasMission={!!activeMissionId}
-        onBell={onShellClose}
-        onDetection={() => setDetectionsOpen((v) => !v)}
+        onBell={() => setDetectionsOpen((v) => !v)}
+        onSettingsStackSelect={(slot) => {
+          setSettingsPanelSlot(slot);
+          setMissionsOpen(false);
+          setDevicesOpen(false);
+        }}
         detectionsOpen={detectionsOpen}
       />
 
@@ -216,6 +206,38 @@ export default function DashboardPage() {
           }}
         >
           <OverallDetectionPanel variant="overlay" />
+        </div>
+      )}
+
+      {settingsPanelSlot === "settings" && (
+        <div
+          className="pointer-events-auto absolute z-12"
+          style={{
+            left: POSITION.settingsOverlayLeft,
+            bottom: POSITION.settingsOverlayBottom,
+          }}
+        >
+          <SettingsOverlay
+            activeMissionId={activeMissionId}
+            mapMode={mapMode}
+            onMapMode={setMapMode}
+            basemapVariant={basemapVariant}
+            onBasemapVariant={setBasemapVariant}
+            mapLightPreset={mapLightPreset}
+            onMapLightPreset={setMapLightPreset}
+          />
+        </div>
+      )}
+
+      {settingsPanelSlot === "account" && (
+        <div
+          className="pointer-events-auto absolute z-12"
+          style={{
+            left: POSITION.settingsOverlayLeft,
+            bottom: POSITION.settingsOverlayBottom,
+          }}
+        >
+          <AccountOverlay onLogout={logout} />
         </div>
       )}
 
@@ -251,6 +273,11 @@ export default function DashboardPage() {
               setDevicesOpen(false);
             }}
             onMapDismissLockChange={setMapDismissLocked}
+            onRequestAddAsset={() => {
+              setDevicesOpen(false);
+              setSettingsPanelSlot(null);
+              setMissionsOpen(true);
+            }}
           />
         </div>
       )}
@@ -258,20 +285,7 @@ export default function DashboardPage() {
       {activeMissionId && (
         <>
           <MissionEventToasts />
-          <div
-            className="pointer-events-auto absolute z-[11] flex min-h-0 min-w-0 flex-col"
-            style={{
-              right: POSITION.bellRight,
-              top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
-              bottom: POSITION.zoomBottom,
-              width: "min(510px, calc(100vw - 32px))",
-            }}
-          >
-            <MissionWorkspace
-              missionId={activeMissionId}
-              onDeselect={exitMission}
-            />
-          </div>
+          <MissionSessionHost missionId={activeMissionId} />
         </>
       )}
 
@@ -281,7 +295,8 @@ export default function DashboardPage() {
       >
         <div className="flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-3 pt-10">
           <div className="flex items-center justify-center gap-1.5 text-center text-[11px] font-mono tracking-wide text-slate">
-            <span>VectorWings · Precision in motion | Powered by DRIIF</span>
+            {/* <span>VectorWings · Precision in motion | Powered by DRIIF</span> */}
+            <span>Powered by DRIIF</span>
             <Image
               src="/driif-logo-small.png"
               alt=""

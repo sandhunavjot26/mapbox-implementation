@@ -43,6 +43,11 @@ export const COLOR = {
   borderMedium: "rgba(255, 255, 255, 0.15)",
 
   /**
+   * Left-edge bar on selected rail item (nav + settings stack — Figma active state)
+   */
+  navRailActiveEdge: "#FFFFFF",
+
+  /**
    * Icon colors from SVG fills
    * White icons on dark buttons
    */
@@ -149,6 +154,54 @@ export const COLOR = {
   missionCreateRadarStatusPillBg: "rgba(12, 187, 88, 0.2)",
   missionCreateRadarStatusOfflinePillText: "#F59E0B",
   missionCreateRadarStatusOfflinePillBg: "rgba(245, 158, 11, 0.2)",
+
+  /**
+   * Map radar / COP overlays (`layers/assets.ts`) — readable on Standard + satellite basemaps.
+   * No dedicated Figma node yet for these strokes/fills; values match shipped Driif symbology — swap here when map-overlay tokens land in design.
+   */
+  mapRadarCoverageActiveFill: "#22C55E",
+  mapRadarCoverageInactiveFill: "#64748B",
+  mapRadarRingOrange: "#F4A30C",
+  mapRadarRingOrangeDeep: "#EA580C",
+  mapRadarWarmYellowFill: "rgba(244, 163, 12, 0.16)",
+  mapRadarWarmOrangeFill: "rgba(234, 88, 12, 0.1)",
+  mapRadarWarmYellowFillSatellite: "rgba(244, 163, 12, 0.28)",
+  mapRadarWarmOrangeFillSatellite: "rgba(234, 88, 12, 0.22)",
+  /** Decorative range-ring halo behind dashed strokes */
+  mapRadarRingHaloLine: "rgba(5, 10, 20, 0.55)",
+  mapRadarBreachRedFillCore: "#EF4444",
+  mapRadarBreachYellowZoneFill: "rgba(234, 179, 8, 0.26)",
+  mapRadarBreachGreenZoneFill: "rgba(16, 185, 129, 0.18)",
+  mapRadarBreachGreenStroke: "#10B981",
+  mapRadarBreachYellowStroke: "#F59E0B",
+  mapRadarBreachRedStroke: "#EF4444",
+  mapRadarSweepJammerWedge: "#F59E0B",
+  mapRadarSweepDetectionWedge: "#FFFFFF",
+  mapRadarLockOnCore: "#EF4444",
+  mapRadarLockOnStroke: "#FFFFFF",
+
+  // --- Mission detail HUD overlay (Figma 2308:22935 / 2308:22770 / 2308:22908) ---
+  missionHudPanelBg: "#1A1A1A",
+  missionHudBorder: "rgba(255, 255, 255, 0.2)",
+  missionHudCardBg: "#272727",
+  missionHudTabActiveBorder: "#D9D9D9",
+  missionHudTabInactiveText: "#8F8F8F",
+  missionHudSectionLabel: "#8F8F8F",
+  missionHudValueText: "#E6E6E6",
+  missionHudTimelineLine: "#404040",
+  missionHudEventChipDetectionBg: "rgba(128, 184, 255, 0.1)",
+  missionHudEventChipDetectionText: "#80B8FF",
+  missionHudEventChipAlertBg: "#290000",
+  missionHudEventChipAlertText: "#D93333",
+  missionHudEventChipSystemBg: "#272727",
+  missionHudEventChipSystemText: "#FFFFFF",
+  missionHudEventChipOperatorBg: "rgba(103, 224, 156, 0.1)",
+  missionHudEventChipOperatorText: "#67E09C",
+  missionHudEditBtnBg: "#404040",
+  missionHudEditBtnBorder: "#535353",
+  missionHudEditBtnText: "#F5F5F5",
+  missionHudStatusActiveBg: "#04381A",
+  missionHudStatusActiveText: "#67E09C",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -245,6 +298,13 @@ export const SPACING = {
   missionReviewChecklistStackGap: "4px",
   /** Vertical stack gap below workspace header (Create Fence list block) */
   missionWorkspaceContentGap: "16px",
+  /**
+   * Mission HUD timeline — rail wide enough for `+H:MM:SS` without bleeding into the title
+   * (36px Figma stamp column is too narrow for real offsets).
+   */
+  missionHudTimelineTimeColWidth: "76px",
+  /** Horizontal gap between timeline rail and event body */
+  missionHudTimelineRailGap: "12px",
   /** Missions list view — header block vertical rhythm */
   missionListHeaderGap: "14px",
   /** Missions list — gap between mission cards */
@@ -290,21 +350,27 @@ export const POSITION = {
   logoLeft: "17px",
   logoTop: "20px",
 
-  /** Nav panel (Frame 103): left=17, top=76, width=46, height=268 */
+  /** Nav panel — width matches icon row (52px) so active fill does not overflow the rail */
   navLeft: "17px",
   navTop: "76px",
-  navWidth: "46px",
+  navWidth: "52px",
   navHeight: "268px",
 
-  /** Settings panel (Frame 99): left=16, bottom=40px (1024-896-88=40) */
-  settingsLeft: "16px",
+  /** Settings stack — same horizontal inset as primary nav so flyouts share missionsLeft alignment. */
+  settingsLeft: "17px",
   settingsBottom: "40px",
   settingsWidth: "44px",
   settingsHeight: "88px",
+  /** Gap between any left icon rail and its flyout panel (settings stack uses same value after its width). */
+  railToOverlayGap: "8px",
+  /** Settings flyout — same left edge as missions/assets (navLeft + navWidth + gap). */
+  settingsOverlayLeft: "calc(17px + 52px + 8px)",
+  settingsOverlayBottom: "40px",
 
-  /** Notification bell (Frame 104): right=48px (1440-1348-44=48), top=76 */
-  bellRight: "48px",
-  bellTop: "76px",
+  /** Top-right cluster (detection + bell): same inset as logo — right edge of bell matches logo’s left inset from the viewport. */
+  bellRight: "17px",
+  /** Same vertical band as the logo chip (logoTop). */
+  bellTop: "20px",
   bellSize: "44px",
 
   /** Zoom controls (Frame 88): right=16px, bottom=16px */
@@ -312,14 +378,14 @@ export const POSITION = {
   zoomBottom: "16px",
   zoomWidth: "42px",
 
-  /** Assets panel (Frame 34): left=79, top=76, size 393×649 */
-  assetsLeft: "79px",
+  /** Assets panel — same horizontal inset as missions (nav right + railToOverlayGap) */
+  assetsLeft: "calc(17px + 52px + 8px)",
   assetsTop: "76px",
   assetsWidth: "393px",
   assetsHeight: "649px",
 
-  /** Missions panel (Figma node 235:3799): left=79, top=77, size 360×394 */
-  missionsLeft: "79px",
+  /** Missions panel — gap to primary nav matches settings flyout (8px) */
+  missionsLeft: "calc(17px + 52px + 8px)",
   missionsTop: "77px",
   missionsWidth: "360px",
   missionsHeight: "auto",
@@ -327,8 +393,8 @@ export const POSITION = {
   /** Devices inventory overlay (map) — wide table, filters */
   devicesInventoryWidth: "700px",
 
-  /** Create Mission panel (Figma node 853:9815): left=79, top=76, 448px wide */
-  createMissionLeft: "79px",
+  /** Create Mission panel — aligns with missions/assets map overlays */
+  createMissionLeft: "calc(17px + 52px + 8px)",
   createMissionTop: "76px",
   createMissionWidth: "448px",
   /** Configure radar step — Figma 853:10443 outer panel ~534px (avoids horizontal scroll with tabs + Direction row) */
@@ -342,11 +408,14 @@ export const POSITION = {
   missionFenceMetadataPopoverTop: "195px",
   missionFenceMetadataPopoverWidth: "240px",
 
-  /** Select Asset panel (Figma node 235:5039): left=79, top=76, 712×649 */
-  selectAssetLeft: "79px",
+  /** Select Asset panel — align left edge with missions/assets overlays (same gap from rail). */
+  selectAssetLeft: "calc(17px + 52px + 8px)",
   selectAssetTop: "76px",
   selectAssetWidth: "712px",
   selectAssetHeight: "auto",
+
+  /** Mission detail HUD — Figma outer card width (2308:22935) */
+  missionHudWidth: "402px",
 } as const;
 
 // ---------------------------------------------------------------------------

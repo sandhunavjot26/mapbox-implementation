@@ -4,24 +4,18 @@ import { COLOR, FONT, POSITION, RADIUS, SPACING } from "@/styles/driifTokens";
 
 export type FenceMetadataPopoverProps = {
   name: string;
-  altitude: string;
   nameError?: string;
-  altitudeError?: string;
   canSave?: boolean;
   onNameChange: (value: string) => void;
-  onAltitudeChange: (value: string) => void;
   onCancel: () => void;
   onSave: () => void;
 };
 
 export function FenceMetadataPopover({
   name,
-  altitude,
   nameError,
-  altitudeError,
   canSave = true,
   onNameChange,
-  onAltitudeChange,
   onCancel,
   onSave,
 }: FenceMetadataPopoverProps) {
@@ -98,70 +92,6 @@ export function FenceMetadataPopover({
               }}
             >
               {nameError}
-            </p>
-          ) : null}
-        </div>
-
-        <div
-          className="flex flex-col"
-          style={{ gap: SPACING.missionFencePopoverFieldStackGap }}
-        >
-          <p
-            style={{
-              color: COLOR.missionsSecondaryText,
-              fontFamily: `${FONT.family}, sans-serif`,
-              fontSize: FONT.sizeSm,
-              lineHeight: "17px",
-            }}
-          >
-            Altitude Ceiling
-          </p>
-          <label
-            className="flex items-center justify-between overflow-hidden border px-3"
-            style={{
-              ...fieldStyle,
-              minHeight: SPACING.iconRowHeight,
-              borderRadius: RADIUS.panel,
-              borderColor: altitudeError
-                ? errorBorder
-                : COLOR.missionCreateFieldBorder,
-            }}
-          >
-            <input
-              type="text"
-              value={altitude}
-              onChange={(e) => onAltitudeChange(e.target.value)}
-              className="w-full bg-transparent outline-none"
-              style={{
-                color: COLOR.missionsBodyText,
-                fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: FONT.sizeMd,
-                lineHeight: "21px",
-              }}
-              placeholder="Enter altitude ceiling"
-            />
-            <span
-              className="shrink-0 opacity-50"
-              style={{
-                color: COLOR.missionsBodyText,
-                fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: FONT.sizeMd,
-                lineHeight: "21px",
-              }}
-            >
-              m AGL
-            </span>
-          </label>
-          {altitudeError ? (
-            <p
-              style={{
-                color: COLOR.statusDanger,
-                fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: FONT.missionFormFieldErrorTextSize,
-                lineHeight: "17px",
-              }}
-            >
-              {altitudeError}
             </p>
           ) : null}
         </div>

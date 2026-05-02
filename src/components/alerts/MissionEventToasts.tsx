@@ -1,9 +1,11 @@
 "use client";
 
 /**
- * Pushes a toast for each new real-time mission_event (WebSocket) for the
- * active mission. REST timeline backfill uses addEvent({ silent: true }) so
- * those rows do not alert (avoid hundreds of toasts on mission select).
+ * Pushes a toast for new real-time mission_event (WebSocket) rows for the
+ * active mission — only for critical severities (`error` and `warning`), not
+ * routine traffic (`TRACK_UPDATE`, `DETECTED`, command success, etc.).
+ * REST timeline backfill uses addEvent({ silent: true }) so those rows do not
+ * alert (avoid hundreds of toasts on mission select).
  *
  * Mission events use a longer default duration than global toasts (3s) so
  * operators can read event type + track name before auto-dismiss.
@@ -62,6 +64,12 @@ function kindForEvent(eventType: string): ToastKind {
     return "warning";
   }
   return "info";
+}
+
+/** Only surface toasts that need operator attention — not info/success churn. */
+function shouldToastMissionEvent(eventType: string): boolean {
+  const k = kindForEvent(eventType);
+  return k === "error" || k === "warning";
 }
 
 function shortTrackId(uid: string): string {
@@ -194,21 +202,15 @@ export function MissionEventToasts() {
       return;
     }
 
-    if (lastHeadId.current === null) {
-      lastHeadId.current = head.id;
-      if (head.suppressToast) {
-        return;
-      }
-      emitEventToast(toast, head, targets);
-      return;
-    }
-
-    if (head.suppressToast) {
-      lastHeadId.current = head.id;
-      return;
-    }
-
     lastHeadId.current = head.id;
+
+    if (
+      head.suppressToast ||
+      !shouldToastMissionEvent(head.event_type)
+    ) {
+      return;
+    }
+
     emitEventToast(toast, head, targets);
   }, [activeMissionId, events, toast, targets]);
 

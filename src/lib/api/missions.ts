@@ -21,11 +21,13 @@ export async function listMissions(q?: string): Promise<Mission[]> {
   return apiJson<Mission[]>("device", `/api/v1/missions${params}`);
 }
 
-/** POST /api/v1/missions — create mission */
+/** POST /api/v1/missions — create mission (API_GUIDE §6.1; server may require site_id V2.4.1) */
 export async function createMission(payload: {
   name: string;
   aop?: string | null;
   border_geojson?: GeoJSON.Polygon | null;
+  /** Parent site UUID — multi-site model; validated against mission border containment */
+  site_id?: string | null;
 }): Promise<Mission> {
   return apiJson<Mission>("device", "/api/v1/missions", {
     method: "POST",

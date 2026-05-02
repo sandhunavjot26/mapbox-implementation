@@ -13,6 +13,13 @@ const BORDER_FILL_LAYER_ID = "border-fill";
 const BORDER_OUTLINE_LAYER_ID = "border-outline";
 const BORDER_LABEL_LAYER_ID = "border-label";
 
+/** Layer ids toggled with map "zones / geofences" (mission border). */
+export const BORDER_TOGGLE_LAYER_IDS = [
+  BORDER_FILL_LAYER_ID,
+  BORDER_OUTLINE_LAYER_ID,
+  BORDER_LABEL_LAYER_ID,
+] as const satisfies readonly string[];
+
 /** Fence-creation colors keyed by inferred shape type. */
 const SHAPE_COLORS: Record<string, { fill: string; outline: string }> = {
   square: { fill: "#9E5CFF", outline: "#9E5CFF" },
