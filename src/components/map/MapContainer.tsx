@@ -67,6 +67,12 @@ import {
 // Default fly-in center (Jammu region) — used only when no device data is available
 const DEFAULT_FLY_CENTER: [number, number] = [75.1072, 32.5574];
 
+/** Mission selection: fitBounds won’t zoom in closer than this (lower = wider view). */
+const MISSION_FIT_MAX_ZOOM = 12;
+/** Mission selection: flyTo when centering on device(s) without a multi-point bounds fit. */
+const MISSION_FLYTO_ZOOM_WITH_DEVICES = 10;
+const MISSION_FLYTO_ZOOM_NO_DEVICES = 8;
+
 /**
  * Compute the centroid of an array of [lng, lat] coordinates.
  * Returns null if the array is empty.
@@ -773,12 +779,15 @@ export function MapContainer({
               bearing: -20,
               duration: 5000,
               essential: true,
-              maxZoom: 14,
+              maxZoom: MISSION_FIT_MAX_ZOOM,
             });
           } else {
             map.flyTo({
               center: flyCenter,
-              zoom: deviceCoords.length > 0 ? 12 : 10,
+              zoom:
+                deviceCoords.length > 0
+                  ? MISSION_FLYTO_ZOOM_WITH_DEVICES
+                  : MISSION_FLYTO_ZOOM_NO_DEVICES,
               pitch: 55,
               bearing: -20,
               duration: 5000,
@@ -1053,13 +1062,13 @@ export function MapContainer({
         pitch: map.getPitch(),
         bearing: map.getBearing(),
         duration: 2000,
-        maxZoom: 14,
+        maxZoom: MISSION_FIT_MAX_ZOOM,
       });
     } else if (coords.length === 1) {
       hasFittedRef.current = true;
       map.flyTo({
         center: coords[0],
-        zoom: 12,
+        zoom: MISSION_FLYTO_ZOOM_WITH_DEVICES,
         duration: 2000,
       });
     }

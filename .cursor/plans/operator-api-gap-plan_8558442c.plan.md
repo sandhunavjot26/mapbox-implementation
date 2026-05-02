@@ -1,6 +1,6 @@
 ---
 name: operator-api-gap-plan
-overview: "Single master plan: operator-first gap closure for the Next.js + Mapbox COP. Primary API contract: docs/API_GUIDE.md (verify paths/permissions there); docs/API_REFERENCE.md for appendix tables aligned with the same backend. Ships mission lifecycle, then approvals/friendly retry/friendlies/swarms/annotations/breaches/timeline/polish, plus foundation HTTP/types, workspace chrome (Task 1d: Settings WS + map legend/toggles + FAB legend drawer — done), shared **InlineLoadIndicator** for list/map loading UX (`t-ux-loader-legend-polish` done), situational-awareness features, DVR/admin-style tracks — each as a self-contained, Figma-driven Cursor prompt. **COP Settings/Account overlays + bell chrome:** `t-cop-dashboard-chrome` (completed). oldui/ = behaviour/API/WS only; visuals = Figma + driifTokens."
+overview: "Single master plan: operator-first gap closure for the Next.js + Mapbox COP. Primary API contract: docs/API_GUIDE.md (verify paths/permissions there); docs/API_REFERENCE.md for appendix tables aligned with the same backend. Ships mission lifecycle, then approvals/friendly retry/friendlies/swarms/annotations/breaches/timeline/polish, plus foundation HTTP/types, workspace chrome (Task 1d — done), **Task 1e — mission detail HUD overlay** (`t-mission-overlay-hud` — **done**; before Task 2 in execution order), shared **InlineLoadIndicator** (`t-ux-loader-legend-polish` done), situational-awareness features, DVR/admin-style tracks — each as a self-contained, Figma-driven Cursor prompt where applicable. **COP Settings/Account overlays + bell chrome:** `t-cop-dashboard-chrome` (completed). oldui/ = behaviour/API/WS only; visuals = Figma + driifTokens."
 todos:
   - id: ta-devices-admin
     content: Devices admin list page (filters, Edit modal, Assign/Un-assign dialog, Open drawer) — built from old-UI screenshots, no Figma yet
@@ -45,7 +45,10 @@ todos:
     content: "Task P — Foundation: apiJsonWithHeaders + apiBlob; mission site_id + sites API; TS gaps (CommandRequest, Zone.zone_type, Mission timestamps/site_id, CommandOut.latency_ms, Device rotation/jam); optional GET Cache-Control + cache-bust query parity with oldui axios"
     status: completed
   - id: t1d-ws-legend
-    content: "Task 1d — [DONE] WS in Settings; map legend + layer toggles (mapLayerGroups, MapLegendPanel FAB+right drawer @ bellRight, useMapLayerToggles, aeroshield.missionMap.layers); radar-sweep split for detection/jammer"
+    content: Task 1d — [DONE] WS in Settings; map legend + layer toggles (mapLayerGroups, MapLegendPanel FAB+right drawer @ bellRight, useMapLayerToggles, aeroshield.missionMap.layers); radar-sweep split for detection/jammer
+    status: completed
+  - id: t-mission-overlay-hud
+    content: "Task 1e — Mission detail HUD [DONE]: MissionDetailOverlay + MissionHudTimelineTab; MissionSessionHost + page right-rail removed; MissionSelector list|create|detail; MissionDevicesTab in Assets; map dismiss spares missions flyout when activeMissionId; header back + Deselect; MissionEventToasts error|warning only; driifTokens missionHud*; optional follow-up extract shared assets table with DevicesInventoryOverlay"
     status: completed
   - id: t-cop-dashboard-chrome
     content: "COP dashboard chrome (2026-05): SettingsOverlay (map + WsStatusIndicator); AccountOverlay (username in authStore, logout); CopShell onSettingsStackSelect; flyout spacing tokens; single notifications control opens OverallDetectionPanel; bell/logo inset parity (bellRight/bellTop); CopTopBar removed; detection icon removed"
@@ -98,7 +101,7 @@ isProject: false
 | Zone-breach active roster | V1 appendix | Nothing | Live tile + dwell timers |
 | AAR export (CSV/NDJSON) | V1 appendix | Nothing | Download buttons on timeline |
 | WS streams (events, devices, commands) | §6 / B.12 / C.4 | All 3 connected via [src/hooks/useMissionSockets.ts](src/hooks/useMissionSockets.ts) | `command_update` store wiring exists; `SWARM_DETECTED`, `TRACK_RATED`, `NFZ_BREACH`, `ZONE_ENTER`/`EXIT`, `BREACH_RING_ENTERED` need explicit reducers in `missionEventsStore` / `targetsStore` |
-| Mission Workspace UI | — | **Shipped:** same shell as before **plus** Activate / Stop / overlaps flow, `CoverageWarningModal`, inline mission rename; **Devices tab** — aim controls (`MissionDeviceAimControls`), diagnostics, live telemetry grid, health rollups (`deviceHealth.ts`), command audit hooks | Figma pixel pass where nodes exist; Command launch UI still Task 10 |
+| Mission Workspace UI | — | **Shipped:** **Task 1e** — primary operator surface is **left [`MissionDetailOverlay`](../../src/components/missions/MissionDetailOverlay.tsx)** (Info / Timeline / Assets / Detections); **[`MissionSessionHost`](../../src/components/missions/MissionSessionHost.tsx)** holds WS + [`EngageOverlay`](../../src/components/map/overlays/EngageOverlay.tsx) with **no right rail**. **[`MissionWorkspace`](../../src/components/missions/MissionWorkspace.tsx)** / [`MissionWorkspaceTabs`](../../src/components/missions/MissionWorkspaceTabs.tsx) remain for reference or reuse, not mounted on dashboard. **Plus:** Activate / Stop / overlaps, `CoverageWarningModal`; **Assets** = [`MissionDevicesTab`](../../src/components/missions/MissionDevicesTab.tsx); **Devices tab** behaviours unchanged in that component | **Optional:** extract shared assets inner panel with [`DevicesInventoryOverlay`](../../src/components/devices/DevicesInventoryOverlay.tsx); **Commands tab** still deferred; Command launch UI Task 10 |
 | Alerts / toasts | — | `ToastProvider` + `useToast()` (stack cap, auto-dismiss); command/mission errors routed through toasts where wired | Extend coverage to every mutation; visual Figma pass |
 
 Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permissions), protocol catalogue, policy editor, command trace + cleanup — except **Task 14** (optional commander/admin track) when product scopes it.
@@ -116,13 +119,15 @@ Skipped (admin-scope, per your choice): IAM (users / roles / scopes / permission
 - **COP dashboard chrome (2026-05) [done for current scope]:** [SettingsOverlay](src/components/cop-shell/SettingsOverlay.tsx) — map display controls; labeled [WsStatusIndicator](src/components/status/WsStatusIndicator.tsx) (events / devices / commands). [AccountOverlay](src/components/cop-shell/AccountOverlay.tsx) — persisted `username` in [authStore](src/stores/authStore.ts) + logout; `CopTopBar` removed. [CopShell](src/components/cop-shell/CopShell.tsx) — `onSettingsStackSelect` (gear vs user flyouts aligned with `driifTokens`); single top-right notifications control toggles overall detections overlay (standalone detection icon removed); `POSITION.bellRight` / `bellTop` match logo side/top inset. Frontmatter **`t-cop-dashboard-chrome`** → **completed**.
 - **Task 1d — map chrome [DONE]:** [MapLegendPanel](src/components/map/MapLegendPanel.tsx) + [mapLayerGroups.ts](src/components/map/mapLayerGroups.ts) / [useMapLayerToggles.ts](src/hooks/useMapLayerToggles.ts) — zones / detection / jammer / breach toggles, `aeroshield.missionMap.layers` + collapsible legend (**`aeroshield:map-legend-expanded`**). **Legend UI (2026-05):** layers **FAB** at **`POSITION.bellRight`**, vertically centered; **drawer slides in from the right** (aligned with bell/detections gutter); **no map dimming**; **close** control in header; **FAB hidden** while open; [MapContainer](src/components/map/MapContainer.tsx) applies `layout.visibility` after `mountOperationalLayers` and on toggle; [assets.ts](src/components/map/layers/assets.ts) `radar-sweep-detection` / `radar-sweep-jammer`. Frontmatter **`t1d-ws-legend`** → **completed**.
 - **Devices / COP loading UX [DONE]:** [InlineLoadIndicator](src/components/ui/InlineLoadIndicator.tsx) — shared spinner + label (`align` optional). [DevicesInventoryOverlay](src/components/devices/DevicesInventoryOverlay.tsx) shows **loading assets** until `useDevicesList` resolves (no empty flash). Swapped inline “Loading…” for **InlineLoadIndicator** in [MissionSelector](src/components/missions/MissionSelector.tsx), [MissionCreateSiteSelect](src/components/missions/MissionCreateSiteSelect.tsx), [SelectAssetsWorkspace](src/components/missions/SelectAssetsWorkspace.tsx), [EditDeviceModal](src/components/devices/EditDeviceModal.tsx), [DeviceDetailDrawer](src/components/devices/DeviceDetailDrawer.tsx), [dashboard MapContainer `dynamic` fallback](src/app/dashboard/page.tsx). Frontmatter **`t-ux-loader-legend-polish`** → **completed**.
+- **Task 1e — Mission detail HUD [DONE]:** [MissionDetailOverlay](src/components/missions/MissionDetailOverlay.tsx) — tabs **Info** / **Timeline** / **Assets** / **Detections** (Commands omitted); [MissionHudTimelineTab](src/components/missions/MissionHudTimelineTab.tsx) — Figma-style vertical timeline, secondary line lat/long + layout tokens (`missionHudTimelineTimeColWidth`, reduced timeline scroll inset). [MissionSessionHost](src/components/missions/MissionSessionHost.tsx) — `useMissionLoad`, sockets, hydration, `useMissionEvents`, cache sync, **EngageOverlay**; [dashboard/page.tsx](src/app/dashboard/page.tsx) **removed** right-rail `MissionWorkspace`. [MissionSelector](src/components/missions/MissionSelector.tsx) — views `list | create | detail`, `handleLoad` opens detail without closing overlay, width `POSITION.missionHudWidth`. **Header:** back control (same as create mission) → list; **Deselect** clears mission. **Map:** background click does **not** close missions overlay when `activeMissionId` set. [MissionEventToasts](src/components/alerts/MissionEventToasts.tsx) — **error + warning** only (suppresses `TRACK_UPDATE` / info spam). [driifTokens.ts](src/styles/driifTokens.ts) — `missionHud*` colours, `missionHudTimeline*`, `POSITION.missionHudWidth`. **Assets:** [MissionDevicesTab](src/components/missions/MissionDevicesTab.tsx) (shared extract with `DevicesInventoryOverlay` still optional follow-up). **HUD polish (2026-05):** [MissionDeviceAimControls](src/components/missions/MissionDeviceAimControls.tsx) — Engage attack-mode row: no separate “Attack mode” label, dropdowns + **Send** stay on one line (`flex-nowrap` + horizontal scroll if needed); [MissionDeviceDiagnostics](src/components/missions/MissionDeviceDiagnostics.tsx) — live query payloads (e.g. Network) in a stacked, wrap-safe block instead of a single cramped flex row; [MissionDetectionsList](src/components/detections/MissionDetectionsList.tsx) — **Detections** tab: removed the static footer legend for reported / derived / **unknown** (per-row position styling + `title` tooltips unchanged). Frontmatter **`t-mission-overlay-hud`** → **completed**.
 
 ### 1.2 Still pending (high level)
 
 | Bucket | Items |
 |--------|--------|
 | **Task 1d (workspace chrome)** | **[DONE]** WS in Settings; map legend + layer toggles; legend **FAB + right drawer** (`bellRight`), no backdrop dim. Optional: Figma-only pixel pass on `MapLegendPanel` / loaders. |
-| **Tasks 2–8, 10** | Approvals (2); friendly 409 + idempotency (3); Friendlies (4); Swarms + halos (5); `POST /annotations` (6); zone-breach roster (7); Timeline V2 + export (8); Command launch UI (10). |
+| **Task 1e (mission HUD)** | **[DONE]** Left missions overlay **detail** view ([`MissionDetailOverlay`](../../src/components/missions/MissionDetailOverlay.tsx)): Info / Timeline / Assets / Detections; **Commands deferred**. [MissionSessionHost](src/components/missions/MissionSessionHost.tsx) + dashboard **no right `MissionWorkspace`**. **Follow-up (optional):** extract shared assets inner content with [`DevicesInventoryOverlay`](src/components/devices/DevicesInventoryOverlay.tsx). Frontmatter **`t-mission-overlay-hud`** **completed**. |
+| **Tasks 2–8, 10** | Approvals (2; interim Commands entry after 1e); friendly 409 + idempotency (3); Friendlies (4); Swarms + halos (5); `POST /annotations` (6); zone-breach roster (7); Timeline V2 + export (8); Command launch UI (10). |
 | **Task 9 (remainder)** | Zone CRUD invalidation + `listZones` layers; **`configs/by-mission`** in Configure Radar; cache polish. |
 | **Task 0 (remainder)** | **Figma / token pass** for radar ring + wedge colours only (behaviour shipped). **Task 11** `RadarModeChip` (rotation × jam). |
 | **Task 11 (situational)** | Overlap preview util + Intel overlap pill/detail; command latency overlay; jams panel; full command audit panel; voice alerts stack (utils + `useVoiceAlerts` + Figma). See §6. |
@@ -197,23 +202,24 @@ Each task = **one Cursor prompt = one PR** (split only if you need smaller revie
 3. **Task 1 — Mission lifecycle + Workspace tab shell + Toast** **[DONE]** (1a–1c)
 4. **Task P — Foundation (HTTP + types + site_id)** **[DONE]**. Prerequisite for Task 8 helpers is satisfied: `apiJsonWithHeaders`, `apiBlob`, GET cache-bust (oldui parity), `listMissionEventsWithTotal` + export URLs, create-mission `site_id` + border-in-site + `aop` + radar PATCH-after-assign, TS gaps per Task P prompt. **Remaining product work:** consume totals/export in **Task 8** (Timeline); mission PDF in **Task 13**.
 5. **Task 1d — WS + map legend / layer toggles** **[DONE]** (WS in Settings; toggles in MapContainer — see §1.1).
-6. **Task 2 — Approvals queue** → Commands tab
-7. **Task 3 — Friendly 409 retry + idempotency**
-8. **Task 4 — Friendlies** → Intel tab
-9. **Task 5 — Swarms + halos** → Intel tab + map
-10. **Task 6 — Annotations** (`POST /annotations`)
-11. **Task 7 — Zone-breach roster** → Intel tab
-12. **Task 8 — Timeline V2** (uses Task P `apiJsonWithHeaders` + `apiBlob`; Task P **[DONE]**) → Timeline tab
-13. **Task 9 — Polish** (zones invalidation, `configs/by-mission`, etc.)
-14. **Task 11 — Situational awareness** (overlaps UI depth, latency, jams, audit, voice) — can split into sub-PRs; mostly Intel / shell / map
-15. **Task 10 — Command launch UI (deferred)** → Commands tab
-16. **Task 12 — DVR** — when licensed/scoped
-17. **Task 13 — Post-operator polish** (PDF, dial, pitch, zone action plan, threat utils, reboot, password)
-18. **Task 14 — Admin / commander** — optional separate program
+6. **Task 1e — Mission detail HUD overlay** **[DONE]** — [`MissionDetailOverlay`](../../src/components/missions/MissionDetailOverlay.tsx) + [`MissionSessionHost`](../../src/components/missions/MissionSessionHost.tsx); right [`MissionWorkspace`](../../src/components/missions/MissionWorkspace.tsx) rail **removed** from [`dashboard/page.tsx`](../../src/app/dashboard/page.tsx). **§6 Task 1e** lists shipped files + follow-ups.
+7. **Task 2 — Approvals queue** → Commands surface (**interim** entry until HUD Commands tab; Task 1e **done**)
+8. **Task 3 — Friendly 409 retry + idempotency**
+9. **Task 4 — Friendlies** → Intel tab
+10. **Task 5 — Swarms + halos** → Intel tab + map
+11. **Task 6 — Annotations** (`POST /annotations`)
+12. **Task 7 — Zone-breach roster** → Intel tab
+13. **Task 8 — Timeline V2** (uses Task P `apiJsonWithHeaders` + `apiBlob`; Task P **[DONE]**) → Timeline tab
+14. **Task 9 — Polish** (zones invalidation, `configs/by-mission`, etc.)
+15. **Task 11 — Situational awareness** (overlaps UI depth, latency, jams, audit, voice) — can split into sub-PRs; mostly Intel / shell / map
+16. **Task 10 — Command launch UI (deferred)** → Commands tab
+17. **Task 12 — DVR** — when licensed/scoped
+18. **Task 13 — Post-operator polish** (PDF, dial, pitch, zone action plan, threat utils, reboot, password)
+19. **Task 14 — Admin / commander** — optional separate program
 
-**Flow you asked for:** lifecycle (Task 1) stays **before** approvals (Task 2). **Task P** is **[DONE]**; **Task 1d** is **[DONE]**; **COP Settings / Account / bell chrome** under **`t-cop-dashboard-chrome`** **[DONE]**.
+**Flow you asked for:** lifecycle (Task 1) stays **before** approvals (Task 2). **Task P** is **[DONE]**; **Task 1d** is **[DONE]**; **Task 1e** is **[DONE]**; **COP Settings / Account / bell chrome** under **`t-cop-dashboard-chrome`** **[DONE]**.
 
-**Where to start (current repo):** **Task P** and **Task 1d** are **[DONE]** ([`MissionSelector.handleCreate`](src/components/missions/MissionSelector.tsx): `site_id`, border-in-site, `aop`, radar PATCH-after-assign; map legend in [`MapContainer`](src/components/map/MapContainer.tsx)). **Next default:** **Task 2 — Approvals queue** (or Task 8 for Timeline + exports UI consuming `listMissionEventsWithTotal`).
+**Where to start (current repo):** **Task P**, **Task 1d**, and **Task 1e** are **[DONE]**. **Next default:** **Task 2 — Approvals queue** (or Task 8 for Timeline + exports UI consuming `listMissionEventsWithTotal`).
 
 ## 5. Cursor prompt templates (copy-paste ready)
 
@@ -594,9 +600,39 @@ Acceptance:
 
 Frontmatter **`t1d-ws-legend`** → **completed**. Optional follow-up: Figma-only pixel pass on `MapLegendPanel`.
 
+### Task 1e — Mission detail HUD overlay (left panel replaces right workspace) **[DONE]**
+
+**Goal:** When the operator picks a mission from [`MissionSelector`](../../src/components/missions/MissionSelector.tsx), **keep** the left overlay open and show a **mission detail HUD** (tabs, lifecycle actions, engage host) instead of opening [`MissionWorkspace`](../../src/components/missions/MissionWorkspace.tsx) on the **right** in [`dashboard/page.tsx`](../../src/app/dashboard/page.tsx).
+
+**Shipped (2026-05):**
+- **[`MissionDetailOverlay.tsx`](../../src/components/missions/MissionDetailOverlay.tsx)** — **Info** (overview, fences, Activate/Stop, Coverage, Edit Mission), **Timeline** ([`MissionHudTimelineTab`](../../src/components/missions/MissionHudTimelineTab.tsx) — vertical rail, lat/long secondary line, `driifTokens` timeline column width + tab inset), **Assets** ([`MissionDevicesTab`](../../src/components/missions/MissionDevicesTab.tsx)), **Detections** ([`MissionDetectionsList`](../../src/components/detections/MissionDetectionsList.tsx)). **Header:** same **back** affordance as create mission ([`MissionWorkspaceHeader`](../../src/components/missions/MissionWorkspaceShell.tsx)); **Deselect** exits mission.
+- **[`MissionSessionHost.tsx`](../../src/components/missions/MissionSessionHost.tsx)** — `useMissionLoad`, `useMissionSockets`, `useMissionDeviceStatesHydration`, `useMissionEvents`, cache sync, dynamic **[`EngageOverlay`](../../src/components/map/overlays/EngageOverlay.tsx)** whenever `activeMissionId` is set.
+- **[`page.tsx`](../../src/app/dashboard/page.tsx)** — right-rail **`MissionWorkspace`** removed; map background click **does not** close missions flyout when **`activeMissionId`** is set (operator watching mission).
+- **[`MissionSelector.tsx`](../../src/components/missions/MissionSelector.tsx)** — views **`list | create | detail`**; **`handleLoad`** → **detail** without closing overlay; panel width **`POSITION.missionHudWidth`** (402px) in detail.
+- **[`driifTokens.ts`](../../src/styles/driifTokens.ts)** — **`missionHud*`** palette, **`missionHudTimelineTimeColWidth`**, **`missionHudTimelineRailGap`**, **`POSITION.missionHudWidth`**.
+- **[`MissionEventToasts.tsx`](../../src/components/alerts/MissionEventToasts.tsx)** — toasts only for **`error` + `warning`** kinds (reduces `TRACK_UPDATE` / info noise).
+
+**Figma (per tab — reference):**
+
+- **Info** — [Driif-UI · Info](https://www.figma.com/design/dkRUNmWWxBYeiBAVrMcS26/Driif-UI?node-id=2308-22935&m=dev) — node `2308:22935`
+- **Timeline** — [Driif-UI · Timeline](https://www.figma.com/design/dkRUNmWWxBYeiBAVrMcS26/Driif-UI?node-id=2308-22770&m=dev) — node `2308:22770`
+- **Assets** — [Driif-UI · Assets](https://www.figma.com/design/dkRUNmWWxBYeiBAVrMcS26/Driif-UI?node-id=2308-22908&m=dev) — node `2308:22908`
+
+**Detections tab:** **No new Figma** — reuse the **same components and layout** as today’s mission workspace detections (e.g. [`MissionDetectionsList`](../../src/components/detections/MissionDetectionsList.tsx) as used from [`MissionWorkspaceTabs`](../../src/components/missions/MissionWorkspaceTabs.tsx)).
+
+**Commands tab:** **Deferred** (“pick later”) — do **not** implement a Commands tab in Task 1e; omit the tab or leave an explicit follow-up until design lands. **Task 2 (Approvals)** may need an **interim** entry to command/approval UI after the right rail is removed (e.g. shell link, modal, or temporary control — decide at implementation time).
+
+**Timeline tab — copy gap:** Figma shows a **description** line the API does not supply yet. **Placeholder:** show **latitude / longitude** for the event (or primary geometry) from existing mission-event payload fields until the backend adds description.
+
+**Assets tab — optional follow-up:** Original plan: extract shared inner content with [`DevicesInventoryOverlay`](../../src/components/devices/DevicesInventoryOverlay.tsx) / [`deviceAdminStyles`](../../src/components/devices/deviceAdminStyles.ts). **Shipped** scope reuses **[`MissionDevicesTab`](../../src/components/missions/MissionDevicesTab.tsx)** for mission-scoped assets; extracting a shared table/filter surface remains **optional** for style parity with the global assets overlay.
+
+**Engineering (reference):** Session host + selector detail view + page changes as above. [`MissionWorkspace`](../../src/components/missions/MissionWorkspace.tsx) / [`MissionWorkspaceTabs`](../../src/components/missions/MissionWorkspaceTabs.tsx) are **not** mounted on the dashboard rail; retain for reuse or future routes.
+
+**Frontmatter:** **`t-mission-overlay-hud`** → **completed**.
+
 ### Task 2 — Approvals queue (live, WS-driven)
 
-**Lands in:** Commands tab (slot above `RecentCommands`, rendered by `CommandsTab.tsx` from Task 1b). Mount `RecentCommands` in the same tab if not already present (component exists but may be unwired).
+**Lands in:** Historically the Commands tab (slot above `RecentCommands`, [`CommandsTab`](../../src/components/commands/CommandsTab.tsx)). **After Task 1e**, wire into the **interim** Commands surface until the HUD Commands tab exists. Mount `RecentCommands` if not already present (component exists but may be unwired).
 
 **Figma nodes:** Pending approvals list with approve/reject actions, reason input modal(s).
 
@@ -987,6 +1023,8 @@ Already written but currently unused — will be consumed by the tasks above:
 
 ## 10. Change log
 
+- **2026-05-03 — Task 1e shipped (mission detail HUD).** **`t-mission-overlay-hud`** → **completed**. Shipped [`MissionDetailOverlay`](../../src/components/missions/MissionDetailOverlay.tsx), [`MissionHudTimelineTab`](../../src/components/missions/MissionHudTimelineTab.tsx), [`MissionSessionHost`](../../src/components/missions/MissionSessionHost.tsx); [`MissionSelector`](../../src/components/missions/MissionSelector.tsx) `list|create|detail`; dashboard **removed** right [`MissionWorkspace`](../../src/components/missions/MissionWorkspace.tsx); **map** dismiss spares missions when `activeMissionId` set; [`MissionEventToasts`](../../src/components/alerts/MissionEventToasts.tsx) **error|warning** only; [`driifTokens`](../../src/styles/driifTokens.ts) `missionHud*` + timeline spacing; HUD header **back** + **Deselect**. **§1.1** / **§1.2** / **§4** step 6 / **§6 Task 1e** / **overview** / **Where to start** / **Mission Workspace** summary row updated to **[DONE]**.
+- **2026-05-02 — Task 1e scoped (mission detail HUD).** Inserted **Task 1e** in §4 (before Task 2); frontmatter **`t-mission-overlay-hud`** (pending). New §6 **Task 1e**: per-tab Figma ([Info](https://www.figma.com/design/dkRUNmWWxBYeiBAVrMcS26/Driif-UI?node-id=2308-22935&m=dev), [Timeline](https://www.figma.com/design/dkRUNmWWxBYeiBAVrMcS26/Driif-UI?node-id=2308-22770&m=dev), [Assets](https://www.figma.com/design/dkRUNmWWxBYeiBAVrMcS26/Driif-UI?node-id=2308-22908&m=dev)); **Detections** = current workspace UI; **Commands tab deferred**; **Timeline** secondary line = **lat/long** placeholder; **Assets** = reuse devices overlay / extract shared inner panel; Task 2 **Lands in** updated for post–1e interim Commands surface. §1.2 row + overview + **Where to start** updated.
 - **2026-05-02 — Loading UX + legend FAB/drawer polish (shipped).** [InlineLoadIndicator](src/components/ui/InlineLoadIndicator.tsx) (`align` optional). [DevicesInventoryOverlay](src/components/devices/DevicesInventoryOverlay.tsx) **loading assets** on slow list fetch. Swapped loaders in [MissionSelector](src/components/missions/MissionSelector.tsx), [MissionCreateSiteSelect](src/components/missions/MissionCreateSiteSelect.tsx), [SelectAssetsWorkspace](src/components/missions/SelectAssetsWorkspace.tsx), [EditDeviceModal](src/components/devices/EditDeviceModal.tsx), [DeviceDetailDrawer](src/components/devices/DeviceDetailDrawer.tsx), [dashboard `MapContainer` dynamic](src/app/dashboard/page.tsx). [MapLegendPanel](src/components/map/MapLegendPanel.tsx): FAB **`bellRight`**, drawer **from right**, **no dim**, **close**, **hide FAB** when open. Frontmatter **`t-ux-loader-legend-polish`** **completed**; §1.1 / §1.2 Task 1d row / Task 1d § / overview updated.
 - **2026-05-02 — Task 1d complete (map legend + layer toggles).** Shipped [MapLegendPanel](src/components/map/MapLegendPanel.tsx), [mapLayerGroups.ts](src/components/map/mapLayerGroups.ts), [useMapLayerToggles.ts](src/hooks/useMapLayerToggles.ts) (`aeroshield.missionMap.layers`), [MapContainer](src/components/map/MapContainer.tsx) visibility wiring; `radar-sweep-detection` / `radar-sweep-jammer`; [BORDER_TOGGLE_LAYER_IDS](src/components/map/layers/border.ts) / [FENCE_TOGGLE_LAYER_IDS](src/components/map/layers/fence.ts). **`t1d-ws-legend`** → **completed**; §1.1 / §1.2 / §4 / Task 1d section / Task 0 remainder row updated.
 - **2026-05-02 — COP dashboard chrome + Task 1d split.** **Shipped:** Settings overlay (map controls + `WsStatusIndicator`), Account overlay (username + logout), CopShell/`driifTokens` flyout alignment, single notifications control → overall detections overlay, bell/logo symmetric insets, removal of `CopTopBar` + standalone detection icon. **Frontmatter:** new **`t-cop-dashboard-chrome`** **completed**; **`t1d-ws-legend`** → **in_progress** (WS in Settings **done**; **map legend / layer toggles** only remain). **§1.1 / §1.2 / §4 / Task 1d section** updated to match.

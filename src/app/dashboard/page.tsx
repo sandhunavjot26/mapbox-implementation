@@ -7,7 +7,7 @@ import Image from "next/image";
 import { CopShell } from "@/components/cop-shell/CopShell";
 import { OverallDetectionPanel } from "@/components/detections/OverallDetectionPanel";
 import { MissionSelector } from "@/components/missions/MissionSelector";
-import { MissionWorkspace } from "@/components/missions/MissionWorkspace";
+import { MissionSessionHost } from "@/components/missions/MissionSessionHost";
 import { MissionEventToasts } from "@/components/alerts/MissionEventToasts";
 import { DevicesInventoryOverlay } from "@/components/devices/DevicesInventoryOverlay";
 import { SettingsOverlay } from "@/components/cop-shell/SettingsOverlay";
@@ -124,11 +124,14 @@ export default function DashboardPage() {
   /** Dismiss left-nav overlays when the user clicks empty map (not asset/target glyphs). */
   const onMapBackgroundClick = useCallback(() => {
     if (mapDismissLocked) return;
-    setMissionsOpen(false);
+    // Keep missions flyout open while a mission is selected — operator is viewing that mission.
+    if (!activeMissionId) {
+      setMissionsOpen(false);
+    }
     setDevicesOpen(false);
     setSettingsPanelSlot(null);
     setDetectionsOpen(false);
-  }, [mapDismissLocked]);
+  }, [mapDismissLocked, activeMissionId]);
 
   if (!isAuthorized) {
     return (
@@ -282,20 +285,7 @@ export default function DashboardPage() {
       {activeMissionId && (
         <>
           <MissionEventToasts />
-          <div
-            className="pointer-events-auto absolute z-[11] flex min-h-0 min-w-0 flex-col"
-            style={{
-              right: POSITION.bellRight,
-              top: `calc(${POSITION.bellTop} + ${POSITION.bellSize} + 8px)`,
-              bottom: POSITION.zoomBottom,
-              width: "min(510px, calc(100vw - 32px))",
-            }}
-          >
-            <MissionWorkspace
-              missionId={activeMissionId}
-              onDeselect={exitMission}
-            />
-          </div>
+          <MissionSessionHost missionId={activeMissionId} />
         </>
       )}
 
@@ -305,7 +295,8 @@ export default function DashboardPage() {
       >
         <div className="flex justify-center bg-gradient-to-t from-black/55 to-transparent px-4 pb-3 pt-10">
           <div className="flex items-center justify-center gap-1.5 text-center text-[11px] font-mono tracking-wide text-slate">
-            <span>VectorWings · Precision in motion | Powered by DRIIF</span>
+            {/* <span>VectorWings · Precision in motion | Powered by DRIIF</span> */}
+            <span>Powered by DRIIF</span>
             <Image
               src="/driif-logo-small.png"
               alt=""

@@ -36,6 +36,7 @@ import { applyRadarConfigureDraftsAfterCreate } from "@/lib/mission/applyRadarCo
 import { useSitesList } from "@/hooks/useSites";
 import { isMissionBorderInsideSite } from "@/utils/missionBorderInSite";
 import { InlineLoadIndicator } from "@/components/ui/InlineLoadIndicator";
+import { MissionDetailOverlay } from "@/components/missions/MissionDetailOverlay";
 
 export type MissionSelectorProps = {
   variant?: "sidebar" | "overlay";
@@ -45,7 +46,7 @@ export type MissionSelectorProps = {
   onMapDismissLockChange?: (locked: boolean) => void;
 };
 
-type MissionSelectorView = "list" | "create";
+type MissionSelectorView = "list" | "create" | "detail";
 
 const COMMAND_UNITS = [
   "Northern Command",
@@ -62,7 +63,9 @@ export function MissionSelector({
   activeMissionId = null,
   onMapDismissLockChange,
 }: MissionSelectorProps) {
-  const [view, setView] = useState<MissionSelectorView>("list");
+  const [view, setView] = useState<MissionSelectorView>(() =>
+    activeMissionId ? "detail" : "list",
+  );
   const [createDetailMode, setCreateDetailMode] =
     useState<MissionCreateDetailMode>("form");
   const [search, setSearch] = useState("");
@@ -96,11 +99,14 @@ export function MissionSelector({
   const { data: sitesForCreate = [] } = useSitesList(view === "create");
   const setActiveMission = useMissionStore((s) => s.setActiveMission);
   const clearTargets = useTargetsStore((s) => s.clearTargets);
+  const cachedMission = useMissionStore((s) => s.cachedMission);
+  const setCachedMission = useMissionStore((s) => s.setCachedMission);
 
   const handleLoad = (missionId: string) => {
     clearTargets();
     setActiveMission(missionId);
-    onClose?.();
+    // Stay in the overlay — switch to detail view instead of closing
+    setView("detail");
   };
 
   const resetCreateForm = () => {
@@ -296,17 +302,19 @@ export function MissionSelector({
 
   const panelWidth =
     variant === "overlay"
-      ? view === "create"
-        ? createDetailMode === "createFence"
-          ? POSITION.createFenceWorkspaceWidth
-          : createDetailMode === "selectAssets"
-            ? POSITION.selectAssetWidth
-            : createDetailMode === "reviewLaunch"
-              ? POSITION.createMissionReviewWidth
-              : createDetailMode === "configureRadar"
-                ? POSITION.configureRadarWidth
-                : POSITION.createMissionWidth
-        : POSITION.missionsWidth
+      ? view === "detail"
+        ? POSITION.missionHudWidth
+        : view === "create"
+          ? createDetailMode === "createFence"
+            ? POSITION.createFenceWorkspaceWidth
+            : createDetailMode === "selectAssets"
+              ? POSITION.selectAssetWidth
+              : createDetailMode === "reviewLaunch"
+                ? POSITION.createMissionReviewWidth
+                : createDetailMode === "configureRadar"
+                  ? POSITION.configureRadarWidth
+                  : POSITION.createMissionWidth
+          : POSITION.missionsWidth
       : undefined;
 
   const rootClass =
@@ -320,9 +328,11 @@ export function MissionSelector({
 
   const panelStyle = {
     background:
-      view === "create" && createDetailMode === "createFence"
+      view === "detail"
         ? "transparent"
-        : COLOR.missionsPanelBg,
+        : view === "create" && createDetailMode === "createFence"
+          ? "transparent"
+          : COLOR.missionsPanelBg,
     width: panelWidth,
     fontFamily: `${FONT.family}, sans-serif`,
   } as const;
@@ -342,7 +352,19 @@ export function MissionSelector({
 
   return (
     <div className={rootClass} style={panelStyle}>
-      {view === "list" ? (
+      {view === "detail" ? (
+        <MissionDetailOverlay
+          cachedMission={cachedMission}
+          onDeselect={() => {
+            clearTargets();
+            setActiveMission(null);
+            setCachedMission(null);
+            setView("list");
+            onClose?.();
+          }}
+          onBackToList={() => setView("list")}
+        />
+      ) : view === "list" ? (
         <>
           <div
             className="flex shrink-0 flex-col"

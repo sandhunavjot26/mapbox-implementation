@@ -179,6 +179,29 @@ export const COLOR = {
   mapRadarSweepDetectionWedge: "#FFFFFF",
   mapRadarLockOnCore: "#EF4444",
   mapRadarLockOnStroke: "#FFFFFF",
+
+  // --- Mission detail HUD overlay (Figma 2308:22935 / 2308:22770 / 2308:22908) ---
+  missionHudPanelBg: "#1A1A1A",
+  missionHudBorder: "rgba(255, 255, 255, 0.2)",
+  missionHudCardBg: "#272727",
+  missionHudTabActiveBorder: "#D9D9D9",
+  missionHudTabInactiveText: "#8F8F8F",
+  missionHudSectionLabel: "#8F8F8F",
+  missionHudValueText: "#E6E6E6",
+  missionHudTimelineLine: "#404040",
+  missionHudEventChipDetectionBg: "rgba(128, 184, 255, 0.1)",
+  missionHudEventChipDetectionText: "#80B8FF",
+  missionHudEventChipAlertBg: "#290000",
+  missionHudEventChipAlertText: "#D93333",
+  missionHudEventChipSystemBg: "#272727",
+  missionHudEventChipSystemText: "#FFFFFF",
+  missionHudEventChipOperatorBg: "rgba(103, 224, 156, 0.1)",
+  missionHudEventChipOperatorText: "#67E09C",
+  missionHudEditBtnBg: "#404040",
+  missionHudEditBtnBorder: "#535353",
+  missionHudEditBtnText: "#F5F5F5",
+  missionHudStatusActiveBg: "#04381A",
+  missionHudStatusActiveText: "#67E09C",
 } as const;
 
 // ---------------------------------------------------------------------------
@@ -275,6 +298,13 @@ export const SPACING = {
   missionReviewChecklistStackGap: "4px",
   /** Vertical stack gap below workspace header (Create Fence list block) */
   missionWorkspaceContentGap: "16px",
+  /**
+   * Mission HUD timeline — rail wide enough for `+H:MM:SS` without bleeding into the title
+   * (36px Figma stamp column is too narrow for real offsets).
+   */
+  missionHudTimelineTimeColWidth: "76px",
+  /** Horizontal gap between timeline rail and event body */
+  missionHudTimelineRailGap: "12px",
   /** Missions list view — header block vertical rhythm */
   missionListHeaderGap: "14px",
   /** Missions list — gap between mission cards */
@@ -383,6 +413,9 @@ export const POSITION = {
   selectAssetTop: "76px",
   selectAssetWidth: "712px",
   selectAssetHeight: "auto",
+
+  /** Mission detail HUD — Figma outer card width (2308:22935) */
+  missionHudWidth: "402px",
 } as const;
 
 // ---------------------------------------------------------------------------
