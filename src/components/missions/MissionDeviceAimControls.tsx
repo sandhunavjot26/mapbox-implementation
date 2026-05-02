@@ -1,6 +1,8 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
+import type { CSSProperties } from "react";
+import Image from "next/image";
 import type { Device } from "@/types/aeroshield";
 import { createCommand } from "@/lib/api/commands";
 import { ApiClientError } from "@/lib/api/client";
@@ -26,6 +28,45 @@ import {
   PitchElevationSlider,
   PitchNudgeImg,
 } from "@/components/missions/configureRadar/radarAimUi";
+
+/** Driif mission-field select — matches configure-radar / create mission dropdowns */
+const ATTACK_MODE_SELECT_STYLE: CSSProperties = {
+  boxSizing: "border-box",
+  width: "100%",
+  height: SPACING.missionCreateFieldRowHeight,
+  paddingLeft: "10px",
+  paddingRight: "28px",
+  background: COLOR.missionCreateFieldBg,
+  border: `1px solid ${COLOR.missionCreateFieldBorder}`,
+  borderRadius: RADIUS.panel,
+  color: COLOR.missionsBodyText,
+  fontFamily: `${FONT.family}, sans-serif`,
+  fontSize: FONT.sizeSm,
+  lineHeight: "16px",
+  cursor: "pointer",
+};
+
+const ATTACK_MODE_OPTION_STYLE: CSSProperties = {
+  background: COLOR.missionCreateFieldBg,
+  color: COLOR.missionsBodyText,
+};
+
+/** Same as Assets overlay “Add Asset” CTA — text only (no leading icon) */
+const SEND_ATTACK_BUTTON_STYLE: CSSProperties = {
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  padding: "8px 12px",
+  background: COLOR.missionsCreateBtnBg,
+  border: "none",
+  borderRadius: RADIUS.panel,
+  color: COLOR.missionsCreateBtnText,
+  fontFamily: `${FONT.family}, sans-serif`,
+  fontSize: FONT.sizeSm,
+  fontWeight: FONT.weightMedium,
+  lineHeight: "16px",
+  cursor: "pointer",
+};
 
 function clampBearingDeg(n: number): number {
   return Math.max(0, Math.min(360, Math.round(n)));
@@ -704,20 +745,24 @@ export function MissionDeviceAimControls({
             </span>
           </div>
 
-          <div className="flex w-full min-w-0 gap-3">
+          <div className="flex w-full min-w-0" style={{ gap: SPACING.missionWorkspaceHeaderGap }}>
             <button
               type="button"
               disabled={commandsDisabled || busy}
               onClick={() => void run(async () => {
                 await fireJam(true);
               })}
-              className="min-h-[44px] flex-1 rounded-md border-2 font-semibold transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-45"
+              className="min-w-0 flex-1 border border-solid font-semibold transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-45"
               style={{
-                borderColor: "rgba(220, 38, 38, 0.65)",
-                background: "rgba(220, 38, 38, 0.22)",
+                borderRadius: RADIUS.panel,
+                minHeight: SPACING.missionCreateFieldRowHeight,
+                padding: "6px 10px",
+                borderColor: COLOR.statusDanger,
+                background: "rgba(239, 68, 68, 0.14)",
                 color: "#fecaca",
                 fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: FONT.sizeMd,
+                fontSize: FONT.sizeSm,
+                lineHeight: "16px",
               }}
             >
               JAM
@@ -728,13 +773,17 @@ export function MissionDeviceAimControls({
               onClick={() => void run(async () => {
                 await fireJam(false);
               })}
-              className="min-h-[44px] flex-1 rounded-md border-2 font-semibold transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-45"
+              className="min-w-0 flex-1 border border-solid font-semibold transition-opacity hover:opacity-95 disabled:cursor-not-allowed disabled:opacity-45"
               style={{
-                borderColor: "rgba(248, 250, 252, 0.35)",
-                background: "rgba(248, 250, 252, 0.08)",
-                color: "#f8fafc",
+                borderRadius: RADIUS.panel,
+                minHeight: SPACING.missionCreateFieldRowHeight,
+                padding: "6px 10px",
+                borderColor: COLOR.missionCreateSummaryModalBorder,
+                background: COLOR.missionCreateFieldBg,
+                color: COLOR.missionCreateFieldText,
                 fontFamily: `${FONT.family}, sans-serif`,
-                fontSize: FONT.sizeMd,
+                fontSize: FONT.sizeSm,
+                lineHeight: "16px",
               }}
             >
               STOP
@@ -776,39 +825,80 @@ function AttackModeRow({
   const [sw, setSw] = useState<0 | 1>(1);
   return (
     <div
-      className="flex flex-wrap items-center gap-2"
-      style={{ fontFamily: `${FONT.family}, sans-serif`, fontSize: FONT.sizeSm }}
+      className="flex min-w-0 flex-nowrap items-center overflow-x-auto"
+      style={{
+        gap: SPACING.missionWorkspaceHeaderGap,
+        fontFamily: `${FONT.family}, sans-serif`,
+      }}
     >
-      <span style={{ color: COLOR.missionsSecondaryText }}>Attack mode</span>
-      <select
-        value={mode}
-        disabled={disabled}
-        onChange={(e) => setMode(Number(e.target.value) as 0 | 1)}
-        className="rounded border bg-transparent px-2 py-1 disabled:opacity-45"
-        style={{ borderColor: COLOR.border, color: COLOR.missionsBodyText }}
+      <div
+        className="relative min-w-0 shrink-0"
+        style={{ width: "112px" }}
       >
-        <option value={0}>Passive</option>
-        <option value={1}>Attack</option>
-      </select>
-      <select
-        value={sw}
-        disabled={disabled}
-        onChange={(e) => setSw(Number(e.target.value) as 0 | 1)}
-        className="rounded border bg-transparent px-2 py-1 disabled:opacity-45"
-        style={{ borderColor: COLOR.border, color: COLOR.missionsBodyText }}
+        <select
+          value={mode}
+          disabled={disabled}
+          onChange={(e) => setMode(Number(e.target.value) as 0 | 1)}
+          className="w-full appearance-none outline-none disabled:cursor-not-allowed disabled:opacity-45"
+          style={{
+            ...ATTACK_MODE_SELECT_STYLE,
+            cursor: disabled ? "not-allowed" : "pointer",
+          }}
+          aria-label="Attack mode preset"
+        >
+          <option value={0} style={ATTACK_MODE_OPTION_STYLE}>
+            Passive
+          </option>
+          <option value={1} style={ATTACK_MODE_OPTION_STYLE}>
+            Attack
+          </option>
+        </select>
+        <Image
+          src="/icons/dropdown-icon.svg"
+          alt=""
+          width={12}
+          height={12}
+          unoptimized
+          className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 opacity-80"
+        />
+      </div>
+      <div
+        className="relative min-w-0 shrink-0"
+        style={{ width: "80px" }}
       >
-        <option value={0}>Off</option>
-        <option value={1}>On</option>
-      </select>
+        <select
+          value={sw}
+          disabled={disabled}
+          onChange={(e) => setSw(Number(e.target.value) as 0 | 1)}
+          className="w-full appearance-none outline-none disabled:cursor-not-allowed disabled:opacity-45"
+          style={{
+            ...ATTACK_MODE_SELECT_STYLE,
+            cursor: disabled ? "not-allowed" : "pointer",
+          }}
+          aria-label="Attack mode on or off"
+        >
+          <option value={0} style={ATTACK_MODE_OPTION_STYLE}>
+            Off
+          </option>
+          <option value={1} style={ATTACK_MODE_OPTION_STYLE}>
+            On
+          </option>
+        </select>
+        <Image
+          src="/icons/dropdown-icon.svg"
+          alt=""
+          width={12}
+          height={12}
+          unoptimized
+          className="pointer-events-none absolute top-1/2 right-2 -translate-y-1/2 opacity-80"
+        />
+      </div>
       <button
         type="button"
         disabled={disabled}
         onClick={() => onSend(mode, sw)}
-        className="rounded border px-2 py-1 disabled:cursor-not-allowed disabled:opacity-45"
-        style={{
-          borderColor: COLOR.missionCreateFieldBorder,
-          color: COLOR.missionsBodyText,
-        }}
+        className="shrink-0 disabled:cursor-not-allowed disabled:opacity-40"
+        style={SEND_ATTACK_BUTTON_STYLE}
       >
         Send
       </button>

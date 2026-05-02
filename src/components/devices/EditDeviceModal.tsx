@@ -8,6 +8,7 @@ import type { Device, DevicePatch, DeviceType } from "@/types/aeroshield";
 import type { ProtocolOut } from "@/types/aeroshield";
 import { missionWorkspaceSectionLabelStyle } from "@/components/missions/MissionWorkspaceShell";
 import { Dropdown } from "@/components/ui/Dropdown";
+import { InlineLoadIndicator } from "@/components/ui/InlineLoadIndicator";
 import { useUpdateDevice } from "@/hooks/useDevices";
 import { COLOR, FONT, Z } from "@/styles/driifTokens";
 import {
@@ -225,12 +226,13 @@ export function EditDeviceModal({ open, deviceId, onClose, protocols }: Props) {
         </div>
 
         {isLoading || !remote ? (
-          <p
-            className="mt-4"
-            style={{ color: COLOR.missionsSecondaryText, fontSize: FONT.sizeSm }}
-          >
-            Loading…
-          </p>
+          <InlineLoadIndicator
+            className="mt-4 py-6"
+            label="Loading device…"
+            minHeight="8rem"
+            spinnerSize={28}
+            align="start"
+          />
         ) : (
           <div className="mt-4 max-h-[70vh] space-y-4 overflow-y-auto pr-1">
             <div>

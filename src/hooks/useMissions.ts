@@ -137,7 +137,9 @@ export function useLandingBorders() {
   }, [missions]);
 }
 
-/** Aggregate radar assets from active/live missions for the landing overview map. */
+/** Aggregate radar assets from missions shown on the landing overview map.
+ * Includes DRAFT (resolved as SCHEDULED) and training so assigned radars appear
+ * before activation; excludes COMPLETED only. */
 export function useLandingMissionAssets(enabled = true) {
   const missionsQuery = useMissionsList(undefined);
   const byDeviceId = useDeviceStatusStore((s) => s.byDeviceId);
@@ -148,7 +150,7 @@ export function useLandingMissionAssets(enabled = true) {
   const activeMissions =
     missionsQuery.data?.filter((mission) => {
       const status = resolveMissionCardStatus(mission);
-      return status === "ACTIVE" || status === "LIVE_OPS";
+      return status !== "COMPLETED";
     }) ?? [];
 
   const missionQueries = useQueries({

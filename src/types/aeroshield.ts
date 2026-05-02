@@ -17,6 +17,18 @@ export interface AuthLoginResponse {
   };
 }
 
+// --- Sites (V2.4.1) — GET /api/v1/sites; see API_GUIDE §6.2 ---
+export interface SiteOut {
+  id: string;
+  name: string;
+  border_geojson: GeoJSON.Polygon;
+  centre_lat: number;
+  centre_lon: number;
+  created_by?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
 // --- Missions ---
 /** Optional list fields when API returns them (Figma mission cards). */
 export interface Mission {
@@ -24,9 +36,13 @@ export interface Mission {
   name: string;
   aop: string | null;
   border_geojson: GeoJSON.Polygon | null;
-  /** e.g. LIVE_OPS, TRAINING_SIM, ACTIVE, COMPLETED — see missionListUi resolver */
+  /** e.g. LIVE_OPS, TRAINING_SIM, ACTIVE, DRAFT, COMPLETED — see missionListUi resolver */
   status?: string | null;
   created_at?: string | null;
+  /** Parent site FK (V2.4.1); present on list/load when backend ships it */
+  site_id?: string | null;
+  activated_at?: string | null;
+  stopped_at?: string | null;
 }
 
 export interface MissionLoad extends Mission {
@@ -58,11 +74,21 @@ export interface MissionOverlapsResult {
 }
 
 // --- Zones (TL-1/TL-2) ---
+/** API zone classification — API_GUIDE §6 / zones */
+export type ZoneType =
+  | "detection"
+  | "defense"
+  | "jamming"
+  | "no_fly"
+  | "restricted"
+  | "safe";
+
 export interface Zone {
   id: string;
   label: string;
   priority: number;
   zone_geojson: GeoJSON.Polygon;
+  zone_type?: ZoneType;
   action_plan: {
     notify?: string[];
     actions?: string[];
@@ -75,7 +101,8 @@ export type FenceDrawTool = "polygon" | "square" | "circle";
 
 export interface SavedFence {
   name: string;
-  altitude: string;
+  /** Optional; sent in zone `action_plan.altitude_ceiling` when set (UI no longer collects it). */
+  altitude?: string;
   mode: FenceDrawTool;
   geometry: GeoJSON.Feature<GeoJSON.Polygon>;
 }
@@ -117,6 +144,8 @@ export interface Device {
   detection_beam_deg?: number | null;
   jammer_beam_deg?: number | null;
   monitor_device_id?: number;
+  rotation_state?: string | null;
+  jam_state?: string | null;
 }
 
 /** Partial PATCH body for `PATCH /api/v1/devices/{id}`. Omitted = unchanged. */
@@ -301,8 +330,11 @@ export interface CommandPolicy {
 export interface CommandRequest {
   mission_id: string;
   device_id: string;
+  /** When the API resolves the device by monitor id; usually `device_id` UUID is enough */
+  monitor_device_id?: number;
   command_type: string;
   payload?: Record<string, unknown>;
+  idempotency_key?: string | null;
 }
 
 export interface CommandOut {
@@ -321,6 +353,8 @@ export interface CommandOut {
   protocol?: string | null;
   requested_by?: string | null;
   request_payload?: Record<string, unknown> | null;
+  idempotency_key?: string | null;
+  latency_ms?: number | null;
   created_at?: string | null;
   sent_at?: string | null;
   completed_at?: string | null;

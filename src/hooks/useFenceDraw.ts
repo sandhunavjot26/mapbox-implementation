@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import type mapboxgl from "mapbox-gl";
 import { getMap, subscribeToMap } from "@/components/map/mapController";
 import type { FenceDrawMode } from "@/components/missions/FenceDrawToolbar";
@@ -13,7 +13,7 @@ import {
 } from "@/utils/fenceGeometry";
 import {
   ensureFenceLayers,
-  updateFenceLayers,
+  syncFenceLayersToMap,
   setDraftLayerData,
   removeFenceLayers,
 } from "@/components/map/layers/fence";
@@ -73,29 +73,37 @@ export interface UseFenceDrawOptions {
   paused: boolean;
   /** Called when a shape drawing completes and geometry is ready for metadata entry. */
   onShapeComplete: () => void;
+  /** Parent-owned saved fences; map layers mirror this (single source of truth). */
+  savedFences: SavedFence[];
 }
+
+export type ResetDrawingOptions = {
+  /**
+   * When saving a fence, React may not have committed parent `savedFences` yet.
+   * Pass the list that should appear on the map immediately so the layer is not empty between draft clear and effect.
+   */
+  mapSavedFences?: SavedFence[];
+};
 
 export interface UseFenceDrawResult {
   mapInstance: mapboxgl.Map | null;
   activeMode: FenceDrawMode | null;
   draftGeometry: GeoJSON.Feature<GeoJSON.Polygon> | null;
-  savedFences: SavedFence[];
   setDraftGeometry: (g: GeoJSON.Feature<GeoJSON.Polygon> | null) => void;
-  setSavedFences: React.Dispatch<React.SetStateAction<SavedFence[]>>;
   handleModeSelect: (mode: FenceDrawMode) => void;
-  resetDrawing: () => void;
+  resetDrawing: (opts?: ResetDrawingOptions) => void;
 }
 
 export function useFenceDraw({
   paused,
   onShapeComplete,
+  savedFences,
 }: UseFenceDrawOptions): UseFenceDrawResult {
   const [mapInstance, setMapInstance] = useState<mapboxgl.Map | null>(null);
   const [activeMode, setActiveMode] = useState<FenceDrawMode | null>(null);
   const [drawingState, setDrawingState] = useState<DrawingState | null>(null);
   const [draftGeometry, setDraftGeometry] =
     useState<GeoJSON.Feature<GeoJSON.Polygon> | null>(null);
-  const [savedFences, setSavedFences] = useState<SavedFence[]>([]);
 
   const drawingStateRef = useRef<DrawingState | null>(null);
   const interactionSnapshotRef = useRef<MapInteractionSnapshot | null>(null);
@@ -111,35 +119,34 @@ export function useFenceDraw({
   // Resolve the shared Mapbox instance via subscription instead of polling.
   useEffect(() => {
     return subscribeToMap((map) => {
-      if (map) setMapInstance(map);
+      setMapInstance(map);
     });
   }, []);
 
-  // Layer sync effect.
-  useEffect(() => {
-    if (!mapInstance) return;
-    if (mapInstance.isStyleLoaded()) {
-      updateFenceLayers(mapInstance, draftGeometry, savedFences);
-      return;
-    }
-    const onLoad = () => updateFenceLayers(mapInstance, draftGeometry, savedFences);
-    mapInstance.once("style.load", onLoad);
-    return () => { mapInstance.off("style.load", onLoad); };
+  /** Paint fence sources/layers from React state; layout effect reduces flash after save. */
+  useLayoutEffect(() => {
+    const map = getMap() ?? mapInstance;
+    if (!map) return;
+    savedFencesRef.current = savedFences;
+    draftGeometryRef.current = draftGeometry;
+
+    syncFenceLayersToMap(map, draftGeometry, savedFences);
   }, [draftGeometry, savedFences, mapInstance]);
 
   // Map interaction snapshot/restore.
   useEffect(() => {
-    if (!mapInstance) return;
+    const map = getMap() ?? mapInstance;
+    if (!map) return;
     const shouldDraw = !!activeMode && !paused;
     if (shouldDraw) {
       if (!interactionSnapshotRef.current) {
-        interactionSnapshotRef.current = snapshotMapInteractions(mapInstance);
+        interactionSnapshotRef.current = snapshotMapInteractions(map);
       }
-      applyMapDrawingMode(mapInstance, true);
+      applyMapDrawingMode(map, true);
     } else {
-      applyMapDrawingMode(mapInstance, false);
+      applyMapDrawingMode(map, false);
       if (interactionSnapshotRef.current) {
-        restoreMapInteractions(mapInstance, interactionSnapshotRef.current);
+        restoreMapInteractions(map, interactionSnapshotRef.current);
         interactionSnapshotRef.current = null;
       }
     }
@@ -147,8 +154,9 @@ export function useFenceDraw({
 
   // Drawing listeners — active only when mode is set and not paused.
   useEffect(() => {
-    if (!mapInstance || !activeMode || paused) return;
-    if (mapInstance.isStyleLoaded()) ensureFenceLayers(mapInstance);
+    const map = getMap() ?? mapInstance;
+    if (!map || !activeMode || paused) return;
+    if (map.isStyleLoaded()) ensureFenceLayers(map);
 
     const activeColors =
       activeMode === "line" ? FENCE_MODE_COLORS.polygon : FENCE_MODE_COLORS[activeMode];
@@ -225,7 +233,7 @@ export function useFenceDraw({
         drawingStateRef.current = { ...cur, preview: pt };
         const preview = [...cur.points, pt];
         if (preview.length >= 3) {
-          setDraftLayerData(mapInstance, buildPolygonFeature(preview, FENCE_MODE_COLORS.polygon));
+          setDraftLayerData(map, buildPolygonFeature(preview, FENCE_MODE_COLORS.polygon));
         }
         return;
       }
@@ -233,7 +241,7 @@ export function useFenceDraw({
         if (isSameCoordinate(cur.current, pt)) return;
         drawingStateRef.current = { ...cur, current: pt };
         setDraftLayerData(
-          mapInstance,
+          map,
           buildPolygonFeature(buildRectanglePoints(cur.start, pt), FENCE_MODE_COLORS.square),
         );
         return;
@@ -242,7 +250,7 @@ export function useFenceDraw({
         if (isSameCoordinate(cur.edge, pt)) return;
         drawingStateRef.current = { ...cur, edge: pt };
         setDraftLayerData(
-          mapInstance,
+          map,
           buildPolygonFeature(buildCirclePoints(cur.center, pt), FENCE_MODE_COLORS.circle),
         );
       }
@@ -256,25 +264,29 @@ export function useFenceDraw({
       completeShape(buildPolygonFeature(cur.points, activeColors));
     };
 
-    mapInstance.on("click", handlePointerClick);
-    mapInstance.on("mousemove", handleMouseMove);
-    mapInstance.on("dblclick", handleDoubleClick);
+    map.on("click", handlePointerClick);
+    map.on("mousemove", handleMouseMove);
+    map.on("dblclick", handleDoubleClick);
     return () => {
-      mapInstance.off("click", handlePointerClick);
-      mapInstance.off("mousemove", handleMouseMove);
-      mapInstance.off("dblclick", handleDoubleClick);
+      map.off("click", handlePointerClick);
+      map.off("mousemove", handleMouseMove);
+      map.off("dblclick", handleDoubleClick);
     };
   }, [activeMode, paused, mapInstance]);
 
   // Style reload reattach.
   useEffect(() => {
-    if (!mapInstance) return;
+    const map = getMap() ?? mapInstance;
+    if (!map) return;
     const handle = () => {
-      ensureFenceLayers(mapInstance);
-      updateFenceLayers(mapInstance, draftGeometryRef.current, savedFencesRef.current);
+      syncFenceLayersToMap(
+        map,
+        draftGeometryRef.current,
+        savedFencesRef.current,
+      );
     };
-    mapInstance.on("style.load", handle);
-    return () => { mapInstance.off("style.load", handle); };
+    map.on("style.load", handle);
+    return () => { map.off("style.load", handle); };
   }, [mapInstance]);
 
   // Drawing-state → draftGeometry sync for React-driven previews.
@@ -327,7 +339,7 @@ export function useFenceDraw({
     drawingStateRef.current = null;
     setDraftGeometry(null);
 
-    const map = mapInstance ?? getMap();
+    const map = getMap() ?? mapInstance;
     if (map) {
       setMapInstance(map);
       if (!interactionSnapshotRef.current) {
@@ -337,23 +349,30 @@ export function useFenceDraw({
     }
   };
 
-  const resetDrawing = () => {
+  const resetDrawing = (opts?: ResetDrawingOptions) => {
     setActiveMode(null);
     setDrawingState(null);
     drawingStateRef.current = null;
     setDraftGeometry(null);
+    draftGeometryRef.current = null;
 
-    const map = mapInstance ?? getMap();
-    if (map) setDraftLayerData(map, null);
+    const saved =
+      opts?.mapSavedFences ?? savedFencesRef.current;
+    if (opts?.mapSavedFences) {
+      savedFencesRef.current = opts.mapSavedFences;
+    }
+
+    const map = getMap() ?? mapInstance;
+    if (!map) return;
+
+    syncFenceLayersToMap(map, null, saved);
   };
 
   return {
     mapInstance,
     activeMode,
     draftGeometry,
-    savedFences,
     setDraftGeometry,
-    setSavedFences,
     handleModeSelect,
     resetDrawing,
   };

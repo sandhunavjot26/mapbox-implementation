@@ -3,12 +3,13 @@
  * API devices use detection_radius_m; assets layer expects coverageRadiusKm + radar Task 0 props.
  */
 
-import type { MapFeatureCollection, Zone } from "@/types/aeroshield";
+import type { MapFeatureCollection, ProtocolOut, Zone } from "@/types/aeroshield";
 import { radarPropsFromMapFeatureProps } from "@/utils/radarAssetsGeoJSON";
 
 /** Extract device features and add coverageRadiusKm for assets layer */
 export function mapFeaturesToAssetsGeoJSON(
   fc: MapFeatureCollection | undefined,
+  protocols?: ProtocolOut[],
 ): GeoJSON.FeatureCollection {
   if (!fc?.features) {
     return { type: "FeatureCollection", features: [] };
@@ -29,6 +30,7 @@ export function mapFeaturesToAssetsGeoJSON(
       props as Record<string, unknown>,
       coverageRadiusKm,
       status,
+      protocols,
     );
     return {
       ...f,

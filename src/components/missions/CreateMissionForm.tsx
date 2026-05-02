@@ -25,11 +25,17 @@ import {
   formatSelectedRadarMetaLine,
   getDeviceStatusPresentation,
 } from "@/utils/deviceDisplay";
+import { MissionCreateSiteSelect } from "@/components/missions/MissionCreateSiteSelect";
+import { getMap } from "@/components/map/mapController";
+import { syncFenceLayersToMap } from "@/components/map/layers/fence";
 
 export type { MissionType } from "@/types/missionCreate";
 
 export type CreateMissionFormProps = {
   name: string;
+  /** Parent site (V2.4.1); required for POST /missions when API enforces FK */
+  siteId: string | null;
+  onSiteIdChange: (siteId: string | null) => void;
   commandUnit: string;
   missionType: MissionType;
   startAt: string;
@@ -93,6 +99,8 @@ function radarStatusPillColors(status: DeviceStatus): {
 
 export function CreateMissionForm({
   name,
+  siteId,
+  onSiteIdChange,
   commandUnit,
   missionType,
   startAt,
@@ -291,6 +299,21 @@ export function CreateMissionForm({
                 />
               </label>
 
+              <MissionCreateSiteSelect
+                value={siteId}
+                onChange={onSiteIdChange}
+                fieldShellStyle={{
+                  ...fieldShellStyle,
+                  minHeight: SPACING.missionCreateFieldRowHeight,
+                  borderRadius: RADIUS.panel,
+                }}
+                fieldTextStyle={{
+                  ...fieldTextStyle,
+                  fontSize: FONT.sizeMd,
+                  lineHeight: "21px",
+                }}
+              />
+
               <Dropdown
                 options={commandUnits.map((unit) => ({
                   label: unit,
@@ -424,6 +447,18 @@ export function CreateMissionForm({
                   textStyle={fieldTextStyle}
                 />
               </div>
+              <p
+                style={{
+                  color: COLOR.missionsSecondaryText,
+                  fontFamily: `${FONT.family}, sans-serif`,
+                  fontSize: FONT.sizeXs,
+                  lineHeight: "15px",
+                  opacity: 0.85,
+                }}
+              >
+                Command unit, mission type, and this window are saved to the mission
+                AOP summary on the server.
+              </p>
             </div>
           </div>
 
@@ -571,11 +606,12 @@ export function CreateMissionForm({
                       </span>
                       <button
                         type="button"
-                        onClick={() =>
-                          onFenceItemsChange(
-                            fenceItems.filter((_, i) => i !== index),
-                          )
-                        }
+                        onClick={() => {
+                          const removed = fenceItems[index];
+                          const next = allFenceItems.filter((f) => f !== removed);
+                          onFenceItemsChange(next);
+                          syncFenceLayersToMap(getMap(), null, next);
+                        }}
                         className="shrink-0 border-0 bg-transparent p-0 transition-opacity hover:opacity-80"
                         style={{
                           color: COLOR.missionsTitleMuted,

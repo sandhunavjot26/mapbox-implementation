@@ -290,54 +290,6 @@ export function MissionDetectionsList({
           </div>
         ))}
       </div>
-
-      <div
-        className="mt-3 flex flex-wrap items-center gap-3 border-t border-solid pt-2"
-        style={{
-          borderColor: COLOR.missionCreateSummaryModalBorder,
-          fontSize: "10px",
-          color: COLOR.missionsSecondaryText,
-        }}
-      >
-        <span>
-          <span
-            className="mr-1 font-mono"
-            style={{ color: COLOR.missionsBodyText }}
-          >
-            0.0,0.0
-          </span>{" "}
-          reported
-        </span>
-        <span>
-          <span
-            className="mr-1 font-mono"
-            style={{ color: "#fbbf24" }}
-          >
-            0.0,0.0
-          </span>
-          <span
-            className="mr-1 inline-block rounded px-1 text-[9px]"
-            style={{
-              background: "rgba(245, 158, 11, 0.2)",
-              color: "#fef3c7",
-            }}
-          >
-            derived
-          </span>
-        </span>
-        <span>
-          <span
-            className="inline-block rounded px-1.5 py-0.5 text-[9px]"
-            style={{
-              background: "rgba(239, 68, 68, 0.12)",
-              color: "#fca5a5",
-              boxShadow: "0 0 0 1px rgba(239, 68, 68, 0.25)",
-            }}
-          >
-            unknown
-          </span>
-        </span>
-      </div>
     </div>
   );
 }

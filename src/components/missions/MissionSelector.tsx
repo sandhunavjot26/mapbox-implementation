@@ -31,6 +31,12 @@ import {
 import { ApiClientError } from "@/lib/api/client";
 import { createZone } from "@/lib/api/zones";
 import type { SavedFence } from "@/types/aeroshield";
+import { buildMissionAopFromCreateForm } from "@/utils/missionCreateMetadata";
+import { applyRadarConfigureDraftsAfterCreate } from "@/lib/mission/applyRadarConfigureDrafts";
+import { useSitesList } from "@/hooks/useSites";
+import { isMissionBorderInsideSite } from "@/utils/missionBorderInSite";
+import { InlineLoadIndicator } from "@/components/ui/InlineLoadIndicator";
+import { MissionDetailOverlay } from "@/components/missions/MissionDetailOverlay";
 
 export type MissionSelectorProps = {
   variant?: "sidebar" | "overlay";
@@ -40,7 +46,7 @@ export type MissionSelectorProps = {
   onMapDismissLockChange?: (locked: boolean) => void;
 };
 
-type MissionSelectorView = "list" | "create";
+type MissionSelectorView = "list" | "create" | "detail";
 
 const COMMAND_UNITS = [
   "Northern Command",
@@ -57,7 +63,9 @@ export function MissionSelector({
   activeMissionId = null,
   onMapDismissLockChange,
 }: MissionSelectorProps) {
-  const [view, setView] = useState<MissionSelectorView>("list");
+  const [view, setView] = useState<MissionSelectorView>(() =>
+    activeMissionId ? "detail" : "list",
+  );
   const [createDetailMode, setCreateDetailMode] =
     useState<MissionCreateDetailMode>("form");
   const [search, setSearch] = useState("");
@@ -73,6 +81,7 @@ export function MissionSelector({
   const [radarConfigureDrafts, setRadarConfigureDrafts] = useState<
     Record<string, RadarConfigureDraft>
   >({});
+  const [selectedSiteId, setSelectedSiteId] = useState<string | null>(null);
   const [createError, setCreateError] = useState("");
 
   const {
@@ -87,13 +96,17 @@ export function MissionSelector({
     isLoading: devicesLoading,
     error: devicesError,
   } = useDevicesList(undefined, view === "create");
+  const { data: sitesForCreate = [] } = useSitesList(view === "create");
   const setActiveMission = useMissionStore((s) => s.setActiveMission);
   const clearTargets = useTargetsStore((s) => s.clearTargets);
+  const cachedMission = useMissionStore((s) => s.cachedMission);
+  const setCachedMission = useMissionStore((s) => s.setCachedMission);
 
   const handleLoad = (missionId: string) => {
     clearTargets();
     setActiveMission(missionId);
-    onClose?.();
+    // Stay in the overlay — switch to detail view instead of closing
+    setView("detail");
   };
 
   const resetCreateForm = () => {
@@ -107,6 +120,7 @@ export function MissionSelector({
     setFenceItems([]);
     setSelectedDeviceIds([]);
     setRadarConfigureDrafts({});
+    setSelectedSiteId(null);
     setCreateError("");
   };
 
@@ -159,6 +173,7 @@ export function MissionSelector({
     name: createName,
     fenceCount: fenceItems.length,
     selectedDeviceCount: selectedDeviceIds.length,
+    siteId: selectedSiteId,
   });
 
   const reviewLaunchContent = useMemo(
@@ -192,19 +207,39 @@ export function MissionSelector({
       setCreateError("Mission name is required.");
       return;
     }
+    if (!selectedSiteId?.trim()) {
+      setCreateError("Select a parent site.");
+      return;
+    }
     if (!draftComplete) {
-      setCreateError("Add at least one fence and one asset.");
+      setCreateError("Add at least one fence, one asset, and a parent site.");
       return;
     }
 
     const borderGeojson =
       fenceItems.length > 0 ? fenceItems[0].geometry.geometry : null;
+    const site = sitesForCreate.find((s) => s.id === selectedSiteId.trim());
+    if (
+      site?.border_geojson &&
+      borderGeojson &&
+      !isMissionBorderInsideSite(borderGeojson, site.border_geojson)
+    ) {
+      setCreateError("Mission border must lie inside the selected site boundary.");
+      return;
+    }
+    const aopSummary = buildMissionAopFromCreateForm({
+      commandUnit,
+      missionType,
+      startAt,
+      endAt,
+    });
 
     try {
       const m = await createMutation.mutateAsync({
         name,
-        aop: null,
+        aop: aopSummary,
         border_geojson: borderGeojson,
+        site_id: selectedSiteId.trim(),
       });
 
       if (selectedDeviceIds.length > 0) {
@@ -212,6 +247,11 @@ export function MissionSelector({
           await assignMutation.mutateAsync({
             missionId: m.id,
             deviceIds: selectedDeviceIds,
+          });
+          await applyRadarConfigureDraftsAfterCreate({
+            missionId: m.id,
+            deviceIds: selectedDeviceIds,
+            drafts: radarConfigureDrafts,
           });
         } catch (assignErr) {
           if (assignErr instanceof ApiClientError) {
@@ -238,8 +278,10 @@ export function MissionSelector({
               priority: 1,
               zone_geojson: fence.geometry.geometry,
               action_plan: {
-                altitude_ceiling: fence.altitude,
                 draw_mode: fence.mode,
+                ...(typeof fence.altitude === "string" && fence.altitude.trim()
+                  ? { altitude_ceiling: fence.altitude.trim() }
+                  : {}),
               },
             }),
           ),
@@ -260,17 +302,19 @@ export function MissionSelector({
 
   const panelWidth =
     variant === "overlay"
-      ? view === "create"
-        ? createDetailMode === "createFence"
-          ? POSITION.createFenceWorkspaceWidth
-          : createDetailMode === "selectAssets"
-            ? POSITION.selectAssetWidth
-            : createDetailMode === "reviewLaunch"
-              ? POSITION.createMissionReviewWidth
-              : createDetailMode === "configureRadar"
-                ? POSITION.configureRadarWidth
-                : POSITION.createMissionWidth
-        : POSITION.missionsWidth
+      ? view === "detail"
+        ? POSITION.missionHudWidth
+        : view === "create"
+          ? createDetailMode === "createFence"
+            ? POSITION.createFenceWorkspaceWidth
+            : createDetailMode === "selectAssets"
+              ? POSITION.selectAssetWidth
+              : createDetailMode === "reviewLaunch"
+                ? POSITION.createMissionReviewWidth
+                : createDetailMode === "configureRadar"
+                  ? POSITION.configureRadarWidth
+                  : POSITION.createMissionWidth
+          : POSITION.missionsWidth
       : undefined;
 
   const rootClass =
@@ -284,9 +328,11 @@ export function MissionSelector({
 
   const panelStyle = {
     background:
-      view === "create" && createDetailMode === "createFence"
+      view === "detail"
         ? "transparent"
-        : COLOR.missionsPanelBg,
+        : view === "create" && createDetailMode === "createFence"
+          ? "transparent"
+          : COLOR.missionsPanelBg,
     width: panelWidth,
     fontFamily: `${FONT.family}, sans-serif`,
   } as const;
@@ -306,7 +352,19 @@ export function MissionSelector({
 
   return (
     <div className={rootClass} style={panelStyle}>
-      {view === "list" ? (
+      {view === "detail" ? (
+        <MissionDetailOverlay
+          cachedMission={cachedMission}
+          onDeselect={() => {
+            clearTargets();
+            setActiveMission(null);
+            setCachedMission(null);
+            setView("list");
+            onClose?.();
+          }}
+          onBackToList={() => setView("list")}
+        />
+      ) : view === "list" ? (
         <>
           <div
             className="flex shrink-0 flex-col"
@@ -392,17 +450,15 @@ export function MissionSelector({
               </p>
             )}
             {isLoading && (
-              <p
-                className="px-1"
-                style={{
-                  color: COLOR.missionsSecondaryText,
-                  fontFamily: `${FONT.family}, sans-serif`,
-                  fontSize: FONT.sizeSm,
-                  lineHeight: "17px",
-                }}
-              >
-                Loading...
-              </p>
+              <div className="px-1">
+                <InlineLoadIndicator
+                  label="Loading missions…"
+                  minHeight="min(200px, 28vh)"
+                  spinnerSize={28}
+                  className="py-4"
+                  align="start"
+                />
+              </div>
             )}
             {missions?.map((m) => {
               const kind = resolveMissionCardStatus(m);
@@ -494,6 +550,11 @@ export function MissionSelector({
       ) : (
         <CreateMissionForm
           name={createName}
+          siteId={selectedSiteId}
+          onSiteIdChange={(id) => {
+            setSelectedSiteId(id);
+            setCreateError("");
+          }}
           commandUnit={commandUnit}
           missionType={missionType}
           startAt={startAt}

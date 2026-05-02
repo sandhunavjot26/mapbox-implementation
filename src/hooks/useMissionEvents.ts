@@ -6,7 +6,7 @@
 
 import { useQuery } from "@tanstack/react-query";
 import { useEffect } from "react";
-import { listMissionEvents } from "@/lib/api/missionEvents";
+import { listMissionEventsWithTotal } from "@/lib/api/missionEvents";
 import { useMissionEventsStore } from "@/stores/missionEventsStore";
 
 const TIMELINE_BACKFILL_MS = 15 * 60 * 1000;
@@ -32,7 +32,7 @@ export function useMissionEvents(
     queryKey: missionEventsKeys.timelineBackfill(missionId ?? ""),
     queryFn: () => {
       const from = new Date(Date.now() - TIMELINE_BACKFILL_MS).toISOString();
-      return listMissionEvents(missionId!, {
+      return listMissionEventsWithTotal(missionId!, {
         from_ts: from,
         limit: 500,
       });
@@ -44,9 +44,9 @@ export function useMissionEvents(
   });
 
   useEffect(() => {
-    if (!isSuccess || !data?.length) return;
+    if (!isSuccess || !data?.items?.length) return;
     const cutoff = Date.now() - TIMELINE_BACKFILL_MS;
-    const recent = data.filter((e) => {
+    const recent = data.items.filter((e) => {
       const t = Date.parse(e.ts);
       return !Number.isNaN(t) && t >= cutoff;
     });
